@@ -8,7 +8,7 @@ import {
 import { saveSettingsDebounced } from "../../../../script.js";
 
 // 与仓库名称完全一致，确保路径正确
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 默认配置（全规则字段覆盖）
 const defaultSettings = {
@@ -24,7 +24,7 @@ const defaultSettings = {
   lastValidationReport: {},
   lastValidatedChapterId: null,
   lastWriteQuality: {},
-  lastWriteContent: "",
+  lastGenerateFailedReport: {},
 };
 
 // 全局状态缓存
@@ -37,40 +37,6 @@ let isSending = false;
 let stopSending = false;
 let continueWriteChain = [];
 let continueChapterIdCounter = 1;
-
-// ==============================================
-// 新增：图谱有效性验证核心函数（解决无图谱显示已生成问题）
-// ==============================================
-function validateChapterGraph(graphData) {
-  if (!graphData || typeof graphData !== 'object') return false;
-  // 单章节图谱必填8大核心模块
-  const requiredCoreFields = [
-    "基础章节信息", 
-    "人物信息", 
-    "世界观设定", 
-    "核心剧情线", 
-    "文风特点", 
-    "实体关系网络", 
-    "变更与依赖信息", 
-    "逆向分析洞察"
-  ];
-  // 校验核心字段是否完整
-  const hasAllCoreFields = requiredCoreFields.every(field => Object.hasOwn(graphData, field));
-  if (!hasAllCoreFields) return false;
-
-  // 校验基础章节信息必填字段
-  const baseInfo = graphData.基础章节信息;
-  if (!baseInfo || typeof baseInfo !== 'object') return false;
-  const requiredBaseFields = ["章节号", "章节版本号", "章节节点唯一标识", "本章字数", "叙事时间线节点"];
-  const hasAllBaseFields = requiredBaseFields.every(field => Object.hasOwn(baseInfo, field));
-  if (!hasAllBaseFields) return false;
-
-  // 校验实体关系网络符合规范（至少5条三元组）
-  if (!Array.isArray(graphData.实体关系网络) || graphData.实体关系网络.length < 5) return false;
-
-  // 所有校验通过，为有效图谱
-  return true;
-}
 
 // ==============================================
 // 规则核心：Schema定义（100%匹配规则必填字段，零修改零遗漏）
@@ -480,7 +446,7 @@ const validationSchema = {
   }
 };
 
-// 续写质量评估Schema（严格匹配规则5维度评估体系，已取消字数强制校验）
+// 续写质量评估Schema（严格匹配规则5维度评估体系，已移除字数评估）
 const qualityEvaluationSchema = {
   name: 'NovelWriteQualityEvaluation',
   strict: true,
@@ -513,6 +479,135 @@ const qualityEvaluationSchema = {
 };
 
 // ==============================================
+// 新增核心优化函数：图谱Schema校验
+// ==============================================
+/**
+ * 验证单章节图谱是否符合Schema规范
+ * @param {object} graphData 待验证的图谱数据
+ * @returns {object} 验证结果 {isValid: boolean, errorMsg: string}
+ */
+function validateGraphSchema(graphData) {
+  try {
+    const requiredRootFields = graphJsonSchema.value.required;
+    // 校验根节点必填字段
+    for (const field of requiredRootFields) {
+      if (!Object.hasOwn(graphData, field)) {
+        return { isValid: false, errorMsg: `缺失根节点必填字段：${field}` };
+      }
+    }
+
+    // 校验基础章节信息必填字段
+    const baseInfoFields = graphJsonSchema.value.properties.基础章节信息.required;
+    for (const field of baseInfoFields) {
+      if (!Object.hasOwn(graphData.基础章节信息, field)) {
+        return { isValid: false, errorMsg: `缺失基础章节信息必填字段：${field}` };
+      }
+    }
+
+    // 校验人物信息必填字段（至少有一个人物时）
+    if (Array.isArray(graphData.人物信息) && graphData.人物信息.length > 0) {
+      const personFields = graphJsonSchema.value.properties.人物信息.items.required;
+      for (let i = 0; i < graphData.人物信息.length; i++) {
+        const person = graphData.人物信息[i];
+        for (const field of personFields) {
+          if (!Object.hasOwn(person, field)) {
+            return { isValid: false, errorMsg: `第${i+1}个人物缺失必填字段：${field}` };
+          }
+        }
+      }
+    }
+
+    // 校验世界观设定必填字段
+    const worldFields = graphJsonSchema.value.properties.世界观设定.required;
+    for (const field of worldFields) {
+      if (!Object.hasOwn(graphData.世界观设定, field)) {
+        return { isValid: false, errorMsg: `缺失世界观设定必填字段：${field}` };
+      }
+    }
+
+    // 校验核心剧情线必填字段
+    const plotFields = graphJsonSchema.value.properties.核心剧情线.required;
+    for (const field of plotFields) {
+      if (!Object.hasOwn(graphData.核心剧情线, field)) {
+        return { isValid: false, errorMsg: `缺失核心剧情线必填字段：${field}` };
+      }
+    }
+
+    // 校验文风特点必填字段
+    const styleFields = graphJsonSchema.value.properties.文风特点.required;
+    for (const field of styleFields) {
+      if (!Object.hasOwn(graphData.文风特点, field)) {
+        return { isValid: false, errorMsg: `缺失文风特点必填字段：${field}` };
+      }
+    }
+
+    // 校验实体关系网络
+    if (!Array.isArray(graphData.实体关系网络) || graphData.实体关系网络.length < 5) {
+      return { isValid: false, errorMsg: `实体关系网络不足5条，当前仅${graphData.实体关系网络?.length || 0}条` };
+    }
+    for (let i = 0; i < graphData.实体关系网络.length; i++) {
+      const triple = graphData.实体关系网络[i];
+      if (!Array.isArray(triple) || triple.length !== 3) {
+        return { isValid: false, errorMsg: `第${i+1}条实体关系三元组格式错误，必须为[头实体, 关系, 尾实体]` };
+      }
+    }
+
+    // 校验变更与依赖信息必填字段
+    const dependencyFields = graphJsonSchema.value.properties.变更与依赖信息.required;
+    for (const field of dependencyFields) {
+      if (!Object.hasOwn(graphData.变更与依赖信息, field)) {
+        return { isValid: false, errorMsg: `缺失变更与依赖信息必填字段：${field}` };
+      }
+    }
+
+    // 所有校验通过
+    return { isValid: true, errorMsg: '' };
+  } catch (error) {
+    return { isValid: false, errorMsg: `Schema校验异常：${error.message}` };
+  }
+}
+
+/**
+ * 批量校验所有章节的图谱，更新状态
+ */
+function validateAllChapterGraphs() {
+  const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+  let validatePassCount = 0;
+  let validateFailedCount = 0;
+
+  currentParsedChapters.forEach(chapter => {
+    const graphData = graphMap[chapter.id];
+    if (!graphData) {
+      chapter.hasGraph = false;
+      chapter.graphValidateFailed = false;
+      chapter.validateErrorMsg = '';
+      return;
+    }
+
+    const validateResult = validateGraphSchema(graphData);
+    if (validateResult.isValid) {
+      chapter.hasGraph = true;
+      chapter.graphValidateFailed = false;
+      chapter.validateErrorMsg = '';
+      validatePassCount++;
+    } else {
+      chapter.hasGraph = false;
+      chapter.graphValidateFailed = true;
+      chapter.validateErrorMsg = validateResult.errorMsg;
+      validateFailedCount++;
+    }
+  });
+
+  // 保存更新后的章节列表
+  extension_settings[extensionName].chapterList = currentParsedChapters;
+  saveSettingsDebounced();
+  // 重新渲染章节列表
+  renderChapterList(currentParsedChapters);
+
+  toastr.info(`图谱校验完成：${validatePassCount}个章节验证通过，${validateFailedCount}个章节验证失败`, "小说续写器");
+}
+
+// ==============================================
 // 基础工具函数（规则约束落地辅助）
 // ==============================================
 async function loadSettings() {
@@ -535,8 +630,6 @@ async function loadSettings() {
   continueWriteChain = extension_settings[extensionName].continueWriteChain || [];
   continueChapterIdCounter = extension_settings[extensionName].continueChapterIdCounter || 1;
   const lastValidatedChapterId = extension_settings[extensionName].lastValidatedChapterId;
-  const lastValidationReport = extension_settings[extensionName].lastValidationReport || {};
-  const lastWriteQuality = extension_settings[extensionName].lastWriteQuality || {};
 
   // 更新UI中的设置值
   $("#example_setting").prop("checked", extension_settings[extensionName].example_setting).trigger("input");
@@ -547,25 +640,12 @@ async function loadSettings() {
   $("#graph-dependency-preview").val(JSON.stringify(extension_settings[extensionName].mergedGraph?.反向依赖图谱 || [], null, 2));
   $("#graph-history-preview").val(JSON.stringify(extension_settings[extensionName].mergedGraph?.世界观设定库?.设定变更历史记录 || [], null, 2));
 
-  // 优化：前置校验报告空值处理，避免空白内容
-  const reportContent = lastValidationReport && Object.keys(lastValidationReport).length > 0 
-    ? JSON.stringify(lastValidationReport, null, 2) 
-    : '暂无校验报告，请先执行对应章节的前置校验';
-  const redlineContent = lastValidationReport?.续写绝对红线 && Object.keys(lastValidationReport.续写绝对红线).length > 0 
-    ? JSON.stringify(lastValidationReport.续写绝对红线, null, 2) 
-    : '暂无生成的续写红线规则，请先执行前置校验';
-  const foreshadowContent = Array.isArray(lastValidationReport?.可呼应伏笔清单) && lastValidationReport.可呼应伏笔清单.length > 0 
-    ? JSON.stringify(lastValidationReport.可呼应伏笔清单, null, 2) 
-    : '暂无检测到的前文未回收伏笔，请先执行前置校验';
-  const qualityReportContent = lastWriteQuality && Object.keys(lastWriteQuality).length > 0 
-    ? JSON.stringify(lastWriteQuality, null, 2) 
-    : '暂无质量评估报告，请先生成续写内容';
+  // 初始化前置校验报告UI（格式化文本）
+  const lastValidationReport = extension_settings[extensionName].lastValidationReport;
+  renderValidationReportToUI(lastValidationReport);
 
-  $("#validation-report").val(reportContent);
-  $("#validation-redline").val(redlineContent);
-  $("#validation-foreshadow").val(foreshadowContent);
-  $("#write-quality-report").val(qualityReportContent);
-  $("#write-content-preview").val(extension_settings[extensionName].lastWriteContent || '');
+  // 初始化质量报告UI
+  $("#write-quality-report").val(formatQualityReportToText(extension_settings[extensionName].lastWriteQuality));
 
   // 渲染UI
   renderChapterList(currentParsedChapters);
@@ -575,8 +655,6 @@ async function loadSettings() {
 
   // 生成按钮状态控制（硬锁：未校验禁用）
   updateWriteButtonStatus(lastValidatedChapterId);
-  // 重新生成按钮状态控制
-  updateRetryButtonStatus();
 }
 
 // 小数据场景判断（规则专项适配）
@@ -591,23 +669,12 @@ function updateWriteButtonStatus(validatedChapterId) {
   
   if (isValidationMatch) {
     $('#write-generate-btn').prop('disabled', false).removeAttr('title');
+    // 有生成记录时，修改按钮文本为重新生成
+    const hasGenerated = $('#write-content-preview').val().trim().length > 0;
+    $('#write-generate-btn').val(hasGenerated ? '重新生成续写' : '生成续写章节');
   } else {
     $('#write-generate-btn').prop('disabled', true).attr('title', '请先执行对应章节的前置校验，校验通过后方可生成续写');
-  }
-}
-
-// 新增：重新生成按钮状态控制
-function updateRetryButtonStatus() {
-  const lastWriteContent = extension_settings[extensionName].lastWriteContent;
-  const hasContent = lastWriteContent && lastWriteContent.trim().length > 0;
-  const validatedChapterId = extension_settings[extensionName].lastValidatedChapterId;
-  const selectedChapterId = $('#write-chapter-select').val();
-  const isValidationMatch = validatedChapterId && selectedChapterId && validatedChapterId == selectedChapterId;
-
-  if (hasContent && isValidationMatch) {
-    $('#write-retry-btn').prop('disabled', false).removeAttr('title');
-  } else {
-    $('#write-retry-btn').prop('disabled', true).attr('title', '需先执行对应章节前置校验，且生成过续写内容后方可使用');
+    $('#write-generate-btn').val('生成续写章节');
   }
 }
 
@@ -661,6 +728,87 @@ function cleanWriteContent(content) {
 }
 
 // ==============================================
+// 新增优化函数：格式化报告为易读文本（解决空值问题）
+// ==============================================
+/**
+ * 格式化前置校验报告为易读文本，渲染到UI
+ * @param {object} validationReport 校验报告对象
+ */
+function renderValidationReportToUI(validationReport) {
+  if (!validationReport || Object.keys(validationReport).length === 0) {
+    $('#validation-redline').val('');
+    $('#validation-foreshadow').val('');
+    $('#validation-report').val('');
+    return;
+  }
+
+  // 1. 格式化续写绝对红线
+  const redline = validationReport.续写绝对红线 || {};
+  const redlineText = `■ 人设红线：${redline.人设红线 || '暂无明确人设红线'}\n■ 设定禁区：${redline.设定禁区 || '暂无明确设定禁区'}\n■ 剧情逻辑底线：${redline.剧情逻辑底线 || '暂无明确剧情逻辑底线'}`;
+  $('#validation-redline').val(redlineText);
+
+  // 2. 格式化可呼应伏笔清单
+  const foreshadowList = validationReport.可呼应伏笔清单 || [];
+  let foreshadowText = '';
+  if (foreshadowList.length === 0) {
+    foreshadowText = '暂无前文未回收的伏笔';
+  } else {
+    foreshadowList.forEach((item, index) => {
+      foreshadowText += `${index + 1}. 伏笔内容：${item.伏笔内容 || '暂无'}\n   出现章节：第${item.出现章节 || 0}章\n   当前状态：${item.当前回收状态 || '未回收'}\n   回收建议：${item.预判回收节点 || '暂无'}\n\n`;
+    });
+    foreshadowText = foreshadowText.trim();
+  }
+  $('#validation-foreshadow').val(foreshadowText);
+
+  // 3. 格式化完整校验报告
+  let fullReportText = `===== 续写节点前置校验完整报告 =====\n\n`;
+  fullReportText += `一、基准节点信息\n`;
+  const baseInfo = validationReport.基准节点信息 || {};
+  fullReportText += `章节号：${baseInfo.章节号 || '暂无'}\n章节标题：${baseInfo.章节标题 || '暂无'}\n叙事时间线节点：${baseInfo.叙事时间线节点 || '暂无'}\n章节版本号：${baseInfo.章节版本号 || '暂无'}\n\n`;
+
+  fullReportText += `二、生效状态汇总\n`;
+  fullReportText += `■ 生效人设状态：${validationReport.生效人设状态 || '暂无'}\n`;
+  fullReportText += `■ 生效设定状态：${validationReport.生效设定状态 || '暂无'}\n`;
+  fullReportText += `■ 生效剧情状态：${validationReport.生效剧情状态 || '暂无'}\n\n`;
+
+  fullReportText += `三、续写绝对红线（不可违反）\n${redlineText}\n\n`;
+
+  fullReportText += `四、可呼应伏笔清单\n${foreshadowText}\n\n`;
+
+  fullReportText += `五、其他合规说明\n`;
+  fullReportText += `■ 潜在矛盾预警与采信标准：${validationReport.潜在矛盾预警与采信标准 || '暂无'}\n`;
+  fullReportText += `■ 可推进剧情方向：${Array.isArray(validationReport.可推进剧情方向) ? validationReport.可推进剧情方向.join('、') : '暂无'}\n`;
+  fullReportText += `■ 文风匹配标准：${validationReport.文风匹配标准 || '暂无'}\n`;
+  fullReportText += `■ 小数据场景适配规则：${validationReport.小数据场景适配规则 || '暂无'}\n`;
+
+  $('#validation-report').val(fullReportText);
+}
+
+/**
+ * 格式化质量评估报告为易读文本
+ * @param {object} qualityReport 质量评估报告对象
+ * @returns {string} 格式化后的文本
+ */
+function formatQualityReportToText(qualityReport) {
+  if (!qualityReport || Object.keys(qualityReport).length === 0) {
+    return '';
+  }
+
+  let reportText = `===== 续写质量5维度评估报告 =====\n\n`;
+  reportText += `1. 人设一致性得分：${qualityReport.人设一致性得分 || 0}分\n`;
+  reportText += `2. 设定合规性得分：${qualityReport.设定合规性得分 || 0}分\n`;
+  reportText += `3. 剧情衔接度得分：${qualityReport.剧情衔接度得分 || 0}分\n`;
+  reportText += `4. 文风匹配度得分：${qualityReport.文风匹配度得分 || 0}分\n`;
+  reportText += `5. 内容质量得分：${qualityReport.内容质量得分 || 0}分\n\n`;
+  reportText += `■ 综合总分：${qualityReport.总分 || 0}分\n`;
+  reportText += `■ 评估结果：${qualityReport.是否合格 ? '✅ 合格' : '❌ 不合格'}\n\n`;
+  reportText += `===== 问题明细 =====\n${qualityReport.问题明细 || '暂无问题'}\n\n`;
+  reportText += `===== 修正建议 =====\n${qualityReport.修正建议 || '暂无修正建议'}`;
+
+  return reportText;
+}
+
+// ==============================================
 // 章节管理核心函数
 // ==============================================
 // 章节拆分逻辑（规则版本号适配）
@@ -671,7 +819,7 @@ function splitNovelIntoChapters(novelText, regexSource) {
     const chapters = [];
 
     if (matches.length === 0) {
-      return [{ id: 0, title: '全文', content: novelText, hasGraph: false, version: '1.0' }];
+      return [{ id: 0, title: '全文', content: novelText, hasGraph: false, graphValidateFailed: false, validateErrorMsg: '', version: '1.0' }];
     }
 
     for (let i = 0; i < matches.length; i++) {
@@ -686,6 +834,8 @@ function splitNovelIntoChapters(novelText, regexSource) {
           title,
           content,
           hasGraph: false,
+          graphValidateFailed: false,
+          validateErrorMsg: '',
           version: '1.0'
         });
       }
@@ -704,7 +854,7 @@ function splitNovelIntoChapters(novelText, regexSource) {
   }
 }
 
-// 章节列表渲染（已接入图谱有效性验证，解决无图谱显示已生成问题）
+// 章节列表渲染（新增图谱校验状态三态显示）
 function renderChapterList(chapters) {
   const $listContainer = $('#novel-chapter-list');
   const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -714,57 +864,56 @@ function renderChapterList(chapters) {
     return;
   }
 
-  // 优化：用验证函数判断图谱有效性，而非仅判断key是否存在
+  // 更新章节图谱状态+校验结果
   chapters.forEach(chapter => {
     const graphData = graphMap[chapter.id];
-    chapter.hasGraph = validateChapterGraph(graphData);
+    if (!graphData) {
+      chapter.hasGraph = false;
+      chapter.graphValidateFailed = false;
+      chapter.validateErrorMsg = '';
+      return;
+    }
+    // 已有数据的章节，重新校验Schema
+    const validateResult = validateGraphSchema(graphData);
+    if (validateResult.isValid) {
+      chapter.hasGraph = true;
+      chapter.graphValidateFailed = false;
+      chapter.validateErrorMsg = '';
+    } else {
+      chapter.hasGraph = false;
+      chapter.graphValidateFailed = true;
+      chapter.validateErrorMsg = validateResult.errorMsg;
+    }
   });
 
-  // 仅显示标题、选择框、图谱状态
-  const listHtml = chapters.map((chapter) => `
+  // 渲染列表，显示三态
+  const listHtml = chapters.map((chapter) => {
+    let statusText = '';
+    let statusClass = '';
+    if (chapter.hasGraph) {
+      statusText = '已生成(验证通过)';
+      statusClass = 'text-success';
+    } else if (chapter.graphValidateFailed) {
+      statusText = '生成失败(校验不通过)';
+      statusClass = 'text-danger';
+    } else {
+      statusText = '未生成图谱';
+      statusClass = 'text-muted';
+    }
+
+    return `
     <div class="chapter-item flex-container alignCenter justifySpaceBetween" data-chapter-id="${chapter.id}">
       <label class="chapter-checkbox flex-container alignCenter gap5">
         <input type="checkbox" class="chapter-select" data-index="${chapter.id}" checked />
         <span class="chapter-title fontBold">${chapter.title}</span>
       </label>
-      <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">
-        ${chapter.hasGraph ? '已生成有效图谱' : '未生成有效图谱'}
+      <span class="text-sm ${statusClass}" title="${chapter.validateErrorMsg || ''}">
+        ${statusText}
       </span>
     </div>
-  `).join('');
+  `}).join('');
 
   $listContainer.html(listHtml);
-}
-
-// 新增：全章节图谱有效性验证功能
-async function validateAllChapterGraphs() {
-  const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-  let validCount = 0;
-  let invalidCount = 0;
-
-  currentParsedChapters.forEach(chapter => {
-    const graphData = graphMap[chapter.id];
-    const isValid = validateChapterGraph(graphData);
-    if (isValid) {
-      validCount++;
-      chapter.hasGraph = true;
-    } else {
-      invalidCount++;
-      chapter.hasGraph = false;
-      // 清除无效图谱
-      delete graphMap[chapter.id];
-    }
-  });
-
-  // 保存清理后的图谱
-  extension_settings[extensionName].chapterGraphMap = graphMap;
-  extension_settings[extensionName].chapterList = currentParsedChapters;
-  saveSettingsDebounced();
-
-  // 重新渲染列表
-  renderChapterList(currentParsedChapters);
-
-  toastr.info(`图谱验证完成！有效图谱：${validCount}个，无效图谱：${invalidCount}个，已自动清理无效数据`, "小说续写器");
 }
 
 // 渲染续写模块的章节选择下拉框
@@ -786,7 +935,6 @@ function renderChapterSelect(chapters) {
   $('#write-chapter-content').val('').prop('readonly', true);
   // 更新按钮状态
   updateWriteButtonStatus(extension_settings[extensionName].lastValidatedChapterId);
-  updateRetryButtonStatus();
 }
 
 // 渲染前置校验模块的章节选择下拉框
@@ -868,9 +1016,9 @@ function getSelectedChapters() {
 }
 
 // ==============================================
-// 规则核心：知识图谱核心函数（100%落地规则约束）
+// 规则核心：知识图谱核心函数（新增Schema校验）
 // ==============================================
-// 生成单章节知识图谱（严格匹配规则单章节分析要求）
+// 生成单章节知识图谱（新增Schema校验，仅通过的才保存）
 async function generateSingleChapterGraph(chapter) {
   const context = getContext();
   const { generateRaw } = context;
@@ -886,6 +1034,7 @@ async function generateSingleChapterGraph(chapter) {
 5. 必须保证语义与结构一致性，同一个人物、设定、事件不能重复出现，同一人物的不同别名/称号必须合并为同一个唯一实体条目，绝对不能重复创建。
 6. 实体关系网络必须生成不少于5条三元组，格式为(头实体, 关系, 尾实体)，覆盖人物、设定、事件、地点等维度。
 ${isSmallData ? `7. 小数据场景专项约束：深度挖掘有限文本中的隐性信息，包括人物口头禅、习惯性动作、潜在性格特质、隐藏的关系暗示、文风细节特征，禁止遗漏任何隐性信息。` : ''}
+
 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察
 `;
 
@@ -894,19 +1043,24 @@ ${isSmallData ? `7. 小数据场景专项约束：深度挖掘有限文本中的
   try {
     const result = await generateRaw({ systemPrompt, prompt: userPrompt, jsonSchema: graphJsonSchema });
     const graphData = JSON.parse(result.trim());
-    // 生成后立即验证有效性
-    if (!validateChapterGraph(graphData)) {
-      throw new Error('生成的图谱不符合Schema规范，缺少必填字段');
+
+    // 新增：Schema校验，仅通过的才返回
+    const validateResult = validateGraphSchema(graphData);
+    if (!validateResult.isValid) {
+      console.error(`章节${chapter.title}图谱校验失败:`, validateResult.errorMsg);
+      toastr.error(`章节${chapter.title}图谱校验失败：${validateResult.errorMsg}`, "小说续写器");
+      return null;
     }
+
     return graphData;
   } catch (error) {
     console.error(`章节${chapter.title}图谱生成失败:`, error);
-    toastr.error(`章节${chapter.title}图谱生成失败：${error.message}`, "小说续写器");
+    toastr.error(`章节${chapter.title}图谱生成失败`, "小说续写器");
     return null;
   }
 }
 
-// 批量生成章节图谱
+// 批量生成章节图谱（优化：跳过已验证通过的，重新生成校验失败的）
 async function generateChapterGraphBatch(chapters) {
   if (isGeneratingGraph) {
     toastr.warning('正在生成图谱中，请等待完成', "小说续写器");
@@ -928,7 +1082,8 @@ async function generateChapterGraphBatch(chapters) {
       const chapter = chapters[i];
       updateProgress('graph-progress', 'graph-generate-status', i + 1, chapters.length, "图谱生成进度");
 
-      if (validateChapterGraph(graphMap[chapter.id])) {
+      // 跳过已验证通过的章节
+      if (chapter.hasGraph && !chapter.graphValidateFailed) {
         successCount++;
         continue;
       }
@@ -937,7 +1092,13 @@ async function generateChapterGraphBatch(chapters) {
       if (graphData) {
         graphMap[chapter.id] = graphData;
         currentParsedChapters.find(item => item.id === chapter.id).hasGraph = true;
+        currentParsedChapters.find(item => item.id === chapter.id).graphValidateFailed = false;
+        currentParsedChapters.find(item => item.id === chapter.id).validateErrorMsg = '';
         successCount++;
+      } else {
+        // 标记生成失败
+        currentParsedChapters.find(item => item.id === chapter.id).hasGraph = false;
+        currentParsedChapters.find(item => item.id === chapter.id).graphValidateFailed = true;
       }
 
       if (i < chapters.length - 1 && !stopGenerateFlag) {
@@ -950,7 +1111,7 @@ async function generateChapterGraphBatch(chapters) {
     saveSettingsDebounced();
     renderChapterList(currentParsedChapters);
 
-    toastr.success(`图谱生成完成！成功生成 ${successCount}/${chapters.length} 个有效章节图谱`, "小说续写器");
+    toastr.success(`图谱生成完成！成功生成 ${successCount}/${chapters.length} 个章节图谱`, "小说续写器");
   } catch (error) {
     console.error('批量生成图谱失败:', error);
     toastr.error(`图谱生成失败: ${error.message}`, "小说续写器");
@@ -966,12 +1127,11 @@ async function mergeAllGraphs() {
   const context = getContext();
   const { generateRaw } = context;
   const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-  // 仅合并有效图谱
-  const validGraphList = Object.values(graphMap).filter(graph => validateChapterGraph(graph));
+  const graphList = Object.values(graphMap);
   const isSmallData = isSmallDataScene();
 
-  if (validGraphList.length === 0) {
-    toastr.warning('没有可合并的有效章节图谱，请先生成符合规范的图谱', "小说续写器");
+  if (graphList.length === 0) {
+    toastr.warning('没有可合并的章节图谱，请先生成并通过校验的图谱', "小说续写器");
     return;
   }
 
@@ -985,10 +1145,11 @@ async function mergeAllGraphs() {
 5. 必须构建完整的反向依赖图谱，以每个章节节点为核心，标注该节点生效的人设、设定、剧情状态，以及依赖的前置节点，用于任意章节续写的前置信息提取。
 6. 全量实体关系网络必须生成不少于20条三元组，按人物、设定、事件、地点分类，覆盖全本核心关联关系。
 ${isSmallData ? `7. 小数据场景专项约束：基于有限文本做结构化信息增强，完整挖掘所有隐性信息，明确全局约束边界，禁止无限制新增设定、人物。` : ''}
+
 必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估
 `;
 
-  const userPrompt = `小说总章节数：${currentParsedChapters.length}\n待合并的多组有效章节知识图谱：\n${JSON.stringify(validGraphList, null, 2)}`;
+  const userPrompt = `小说总章节数：${currentParsedChapters.length}\n待合并的多组章节知识图谱：\n${JSON.stringify(graphList, null, 2)}`;
 
   try {
     toastr.info('开始合并知识图谱，请稍候...', "小说续写器");
@@ -1014,7 +1175,7 @@ ${isSmallData ? `7. 小数据场景专项约束：基于有限文本做结构化
 }
 
 // ==============================================
-// 规则核心：续写节点逆向分析与前置校验（硬锁不可跳过）
+// 规则核心：续写节点逆向分析与前置校验（解决空值问题）
 // ==============================================
 async function runPreWriteValidation(baseChapterId) {
   const context = getContext();
@@ -1048,10 +1209,12 @@ async function runPreWriteValidation(baseChapterId) {
 强制约束（100%遵守，违反则输出完全无效）：
 1. 所有分析内容只能来自续写节点（章节号${baseChapterId}）之前的所有文本内容与全量知识图谱，绝对不能引入、提及、暗示续写节点之后的任何剧情、设定、人物变化，绝对不能提前剧透后续内容，哪怕合并图谱里有后续内容也绝对不能使用。
 2. 必须以续写节点为终点，提取该节点时间线之前最终生效的人设、设定、剧情状态，若前文有设定冲突，必须以续写节点前最后一次出现的内容为准，同时明确标注冲突预警与采信标准。
-3. 必须明确续写的合规边界，输出续写绝对不能违反的人设红线、设定禁区、剧情逻辑底线，绝对不能模糊，必须清晰可执行。
+3. 必须明确续写的合规边界，输出续写绝对不能违反的人设红线、设定禁区、剧情逻辑底线，绝对不能模糊，必须清晰可执行，无对应内容时填"暂无明确约束"，绝对不能留空。
 4. 所有内容必须100%基于提供的全量知识图谱与原文内容，绝对不能引入任何外部信息、主观新增设定。
 5. 必须严格保留所有要求的字段，不能缺失、不能修改字段名；无对应内容时，字符串字段必须设为"暂无"，数组字段必须设为[]，绝对不能留空或删除字段。
-${isSmallData ? `6. 小数据场景专项约束：深度挖掘有限文本中的隐性约束，明确续写的核心边界，禁止无限制新增设定、人物，保证续写与现有文本高度贴合，严格遵循现有文本的叙事范式。` : ''}
+6. 可呼应伏笔清单必须完整提取续写节点之前所有未回收的伏笔，每条必须包含伏笔内容、出现章节、回收状态、回收建议，无未回收伏笔时数组不能为空，需填入一条内容为"暂无未回收伏笔"的条目。
+${isSmallData ? `7. 小数据场景专项约束：深度挖掘有限文本中的隐性约束，明确续写的核心边界，禁止无限制新增设定、人物，保证续写与现有文本高度贴合，严格遵循现有文本的叙事范式。` : ''}
+
 必填字段：基准节点信息、生效人设状态、生效设定状态、生效剧情状态、续写绝对红线、可呼应伏笔清单、潜在矛盾预警与采信标准、可推进剧情方向、文风匹配标准、小数据场景适配规则
 `;
 
@@ -1065,36 +1228,18 @@ ${isSmallData ? `6. 小数据场景专项约束：深度挖掘有限文本中的
     extension_settings[extensionName].lastValidatedChapterId = baseChapterId;
     saveSettingsDebounced();
     
-    // 优化：空值处理，确保不会出现空白内容
-    const reportContent = JSON.stringify(validationReport, null, 2);
-    const redlineContent = validationReport?.续写绝对红线 && Object.keys(validationReport.续写绝对红线).length > 0 
-      ? JSON.stringify(validationReport.续写绝对红线, null, 2) 
-      : '暂无生成的续写红线规则，请检查校验结果';
-    const foreshadowContent = Array.isArray(validationReport?.可呼应伏笔清单) && validationReport.可呼应伏笔清单.length > 0 
-      ? JSON.stringify(validationReport.可呼应伏笔清单, null, 2) 
-      : '暂无检测到的前文未回收伏笔';
-
-    // 更新UI
-    $('#validation-report').val(reportContent);
-    $('#validation-redline').val(redlineContent);
-    $('#validation-foreshadow').val(foreshadowContent);
-    $('#validation-status').text('前置校验完成！已生成续写合规边界，可开始续写');
-    updateProgress('validation-progress', 'validation-status', 0, 0);
+    // 新增：格式化报告渲染到UI，解决空值问题
+    renderValidationReportToUI(validationReport);
 
     // 同步续写模块的基准章节选择
     $('#write-chapter-select').val(baseChapterId).trigger('change');
     // 更新生成按钮状态
     updateWriteButtonStatus(baseChapterId);
-    updateRetryButtonStatus();
 
     toastr.success('续写节点前置校验完成！已明确续写合规边界与红线规则', "小说续写器");
     return validationReport;
   } catch (error) {
     console.error('前置校验失败:', error);
-    // 校验失败也填充提示内容，避免空白
-    $('#validation-report').val(`校验失败：${error.message}`);
-    $('#validation-redline').val('校验失败，未生成红线规则');
-    $('#validation-foreshadow').val('校验失败，未检测到伏笔');
     $('#validation-status').text(`前置校验失败: ${error.message}`);
     updateProgress('validation-progress', 'validation-status', 0, 0);
     toastr.error(`前置校验失败: ${error.message}`, "小说续写器");
@@ -1106,12 +1251,11 @@ ${isSmallData ? `6. 小数据场景专项约束：深度挖掘有限文本中的
 }
 
 // ==============================================
-// 规则核心：续写质量评估与闭环优化（已取消字数强制校验）
+// 规则核心：续写质量评估（已移除字数评估）
 // ==============================================
-async function evaluateWriteQuality(writeContent, baseChapterId, validationReport, mergedGraph, writeScene, targetWordCount) {
+async function evaluateWriteQuality(writeContent, baseChapterId, validationReport, mergedGraph, writeScene) {
   const context = getContext();
   const { generateRaw } = context;
-  const actualWordCount = writeContent.length;
 
   const systemPrompt = `
 触发词：小说续写质量评估、续写合规性校验
@@ -1119,18 +1263,16 @@ async function evaluateWriteQuality(writeContent, baseChapterId, validationRepor
 1. 评估只能基于提供的全量知识图谱、前置校验报告、基准章节内容、续写内容，绝对不能引入任何外部标准。
 2. 严格按照5个维度执行评估，每个维度满分100分，**单项得分不得低于80分，总分不得低于85分**，只要有一个单项低于80分，或总分低于85分，必须判定为不合格。
 3. 出现严重人设崩塌(OOC)、设定吃书、剧情前后矛盾的，直接判定为不合格，所有单项得分不得超过60分。
-4. 必须如实标注续写内容存在的所有问题，给出针对性的、可执行的修正建议，绝对不能模糊敷衍。
+4. 必须如实标注续写内容存在的所有问题，给出针对性的、可执行的修正建议，绝对不能模糊敷衍，无问题时填"暂无问题"，绝对不能留空。
 5. 必须严格保留所有要求的字段，不能缺失、不能修改字段名。
+
 评估维度：
 1. 人设一致性：校验续写内容中人物的言行、性格、动机是否符合人设设定，有无OOC问题，是否违反人设红线
 2. 设定合规性：校验续写内容是否符合世界观设定，有无吃书、新增违规设定、违反原有规则、触碰设定禁区的问题
 3. 剧情衔接度：校验续写内容与前文的衔接是否自然，逻辑是否自洽，有无剧情断层、前后矛盾、违反剧情逻辑底线的问题，是否符合${writeScene}场景的衔接要求
 4. 文风匹配度：校验续写内容的叙事视角、语言风格、对话模式、节奏规律是否与原文一致，有无风格割裂
 5. 内容质量：校验续写内容是否有完整的情节、生动的细节、符合逻辑的对话，有无无意义水内容、剧情拖沓、逻辑混乱的问题
-本次校验基础数据：
-- 目标字数参考：${targetWordCount}字
-- 实际字数：${actualWordCount}字
-- 续写场景：${writeScene}
+
 必填字段：人设一致性得分、设定合规性得分、剧情衔接度得分、文风匹配度得分、内容质量得分、总分、是否合格、问题明细、修正建议
 `;
 
@@ -1139,6 +1281,7 @@ async function evaluateWriteQuality(writeContent, baseChapterId, validationRepor
 前置校验合规边界报告：${JSON.stringify(validationReport)}
 基准章节ID：${baseChapterId}
 续写内容：${writeContent}
+续写场景：${writeScene}
 `;
 
   try {
@@ -1189,7 +1332,7 @@ async function saveWriteContentToGraph(writeContent, chainId) {
 }
 
 // ==============================================
-// 规则核心：分场景续写生成函数（全场景专项规则适配，已优化不合格内容输出逻辑）
+// 规则核心：分场景续写生成函数（全需求优化）
 // ==============================================
 // 魔改内容增量图谱更新与校验刷新（规则魔改续写要求）
 async function updateModifyChapterGraph(chapterId, modifiedContent) {
@@ -1203,6 +1346,7 @@ async function updateModifyChapterGraph(chapterId, modifiedContent) {
   targetChapter.content = modifiedContent;
   targetChapter.version = (parseFloat(targetChapter.version) + 0.1).toFixed(1);
   targetChapter.hasGraph = false;
+  targetChapter.graphValidateFailed = false;
 
   // 重新生成该章节图谱
   const newGraph = await generateSingleChapterGraph(targetChapter);
@@ -1228,8 +1372,8 @@ async function updateModifyChapterGraph(chapterId, modifiedContent) {
   return true;
 }
 
-// 核心续写生成函数（优化：无论是否合格均输出内容，取消自动重试，支持手动重发带修正建议）
-async function generateNovelWrite(isRetry = false) {
+// 核心续写生成函数（优化：移除自动循环，不合格也输出，支持重生成带入问题）
+async function generateNovelWrite() {
   const context = getContext();
   const { generateRaw } = context;
   const selectedChapterId = $('#write-chapter-select').val();
@@ -1239,7 +1383,7 @@ async function generateNovelWrite(isRetry = false) {
   const mergedGraph = extension_settings[extensionName].mergedGraph || {};
   const validationReport = extension_settings[extensionName].lastValidationReport || {};
   const validatedChapterId = extension_settings[extensionName].lastValidatedChapterId;
-  const lastWriteQuality = extension_settings[extensionName].lastWriteQuality || {};
+  const lastFailedReport = extension_settings[extensionName].lastGenerateFailedReport || {};
   const isSmallData = isSmallDataScene();
 
   // 规则强制硬锁：必须执行对应章节的前置校验，绝对不能跳过
@@ -1310,14 +1454,14 @@ async function generateNovelWrite(isRetry = false) {
 3. 深度贴合现有文本中的人物隐性特质、文风细节，保证续写与原文无缝融合，无任何割裂感。
 ` : '';
 
-  // 优化：重新生成时自动带上次不合格原因与修正建议
-  let retrySupplement = '';
-  if (isRetry && lastWriteQuality && !lastWriteQuality.是否合格) {
-    retrySupplement = `
-【上次生成不合格修正要求】
-上次生成问题明细：${lastWriteQuality.问题明细}
-必须严格遵循的修正建议：${lastWriteQuality.修正建议}
-本次生成必须完全解决上述问题，否则仍会判定为不合格
+  // 重生成优化：带入上一次的不合格报告
+  let retryOptimizePrompt = '';
+  if (lastFailedReport && Object.keys(lastFailedReport).length > 0) {
+    retryOptimizePrompt = `
+【上次生成不合格优化要求】
+上次生成的内容存在以下问题，必须严格修正，绝对不能重复出现：
+问题明细：${lastFailedReport.问题明细 || '无'}
+修正建议：${lastFailedReport.修正建议 || '无'}
 `;
   }
 
@@ -1331,12 +1475,12 @@ async function generateNovelWrite(isRetry = false) {
 5. 文风统一：续写内容必须完全贴合前置校验报告中的文风匹配标准，与原文无缝融合，无任何风格割裂。
 6. 剧情合理：续写内容要推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话，绝对不能有无意义水内容。
 7. 输出要求：只输出续写的正文内容，绝对不能有任何标题、章节名、解释、备注、说明、分割线、作者语、括号注释、markdown格式，只输出纯正文内容，一个多余字符都不能有。
-8. 字数参考：续写约${wordCount}字，仅作生成参考，不做强制扣分要求。
+8. 字数要求：续写约${wordCount}字，仅作参考，不影响质量评估。
 9. 内容限制：绝对不能引入原文中不存在的外部人物、设定、剧情元素，所有内容必须100%基于提供的原文与知识图谱。
 
 ${sceneSpecialRules}
 ${smallDataRules}
-${retrySupplement}
+${retryOptimizePrompt}
 
 【续写绝对红线 不可违反】
 人设红线：${validationReport.续写绝对红线?.人设红线 || '暂无'}
@@ -1362,7 +1506,7 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
   updateProgress('write-progress', 'write-status', 1, 1, "生成进度");
 
   try {
-    // 优化：取消自动重试循环，仅生成一次，无论是否合格均输出
+    // 移除自动循环，单次生成即输出
     if (stopGenerateFlag) {
       $('#write-status').text('已停止生成');
       updateProgress('write-progress', 'write-status', 0, 0);
@@ -1375,42 +1519,42 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
       throw new Error('生成内容为空');
     }
     // 后处理：只保留纯正文
-    const finalWriteContent = cleanWriteContent(result.trim());
+    const currentWriteContent = cleanWriteContent(result.trim());
 
     // 执行质量评估
-    const finalQualityReport = await evaluateWriteQuality(
-      finalWriteContent, 
+    const qualityReport = await evaluateWriteQuality(
+      currentWriteContent, 
       selectedChapterId, 
       validationReport, 
       mergedGraph, 
-      writeScene, 
-      wordCount
+      writeScene
     );
-    if (!finalQualityReport) {
+    if (!qualityReport) {
       throw new Error('质量评估失败');
     }
 
-    // 优化：无论是否合格，均更新UI、输出内容、填写报告
-    $('#write-content-preview').val(finalWriteContent);
-    $('#write-quality-report').val(JSON.stringify(finalQualityReport, null, 2));
-    const statusText = finalQualityReport.是否合格 
-      ? `续写章节生成完成！质量总分：${finalQualityReport.总分}分，已合格` 
-      : `续写章节生成完成！质量总分：${finalQualityReport.总分}分，不合格，可查看报告修正或重新生成`;
-    $('#write-status').text(statusText);
+    // 无论是否合格，都输出内容到UI
+    $('#write-content-preview').val(currentWriteContent);
+    $('#write-quality-report').val(formatQualityReportToText(qualityReport));
+    $('#write-status').text(`续写章节生成完成！质量总分：${qualityReport.总分}分，${qualityReport.是否合格 ? '已合格' : '不合格'}`);
     updateProgress('write-progress', 'write-status', 0, 0);
 
-    // 保存生成内容与质量报告
-    extension_settings[extensionName].lastWriteQuality = finalQualityReport;
-    extension_settings[extensionName].lastWriteContent = finalWriteContent;
+    // 保存质量报告与失败报告（用于重生成）
+    extension_settings[extensionName].lastWriteQuality = qualityReport;
+    if (!qualityReport.是否合格) {
+      extension_settings[extensionName].lastGenerateFailedReport = qualityReport;
+    } else {
+      extension_settings[extensionName].lastGenerateFailedReport = {};
+    }
     saveSettingsDebounced();
 
-    // 优化：无论是否合格，均自动添加到无限续写链条
+    // 无论是否合格，都添加到无限续写链条
     const newChapter = {
       id: continueChapterIdCounter++,
       title: `续写章节 ${continueWriteChain.length + 1}`,
-      content: finalWriteContent,
+      content: currentWriteContent,
       baseChapterId: selectedChapterId,
-      qualityReport: finalQualityReport,
+      qualityReport: qualityReport,
       createTime: new Date().toISOString()
     };
     continueWriteChain.push(newChapter);
@@ -1422,17 +1566,15 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
 
     // 渲染续写链条
     renderContinueWriteChain(continueWriteChain);
-    // 更新重新生成按钮状态
-    updateRetryButtonStatus();
 
-    // 规则强制：无论是否合格，均同步更新到知识图谱，实现闭环治理
-    await saveWriteContentToGraph(finalWriteContent, newChapter.id);
+    // 更新生成按钮文本为重新生成
+    updateWriteButtonStatus(validatedChapterId);
 
-    // 提示结果
-    if (finalQualityReport.是否合格) {
-      toastr.success(`续写章节生成完成！质量总分：${finalQualityReport.总分}分，已合格并同步更新到知识图谱`, "小说续写器");
+    // 合格内容自动同步到知识图谱，不合格的不自动同步，用户可手动选择
+    if (qualityReport.是否合格) {
+      await saveWriteContentToGraph(currentWriteContent, newChapter.id);
     } else {
-      toastr.warning(`续写章节生成完成！质量总分：${finalQualityReport.总分}分，不合格，可查看报告修正或点击重新生成`, "小说续写器");
+      toastr.info(`续写内容不合格，已输出结果，可点击重新生成优化，或直接基于此内容继续续写`, "小说续写器");
     }
 
   } catch (error) {
@@ -1447,9 +1589,9 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
 }
 
 // ==============================================
-// 无限续写核心函数（优化：无论是否合格均可继续续写）
+// 无限续写核心函数（优化：支持不合格章节续写）
 // ==============================================
-// 渲染无限续写链条（优化：不合格内容标红，支持继续续写）
+// 渲染无限续写链条（优化：无论合格与否都支持所有操作）
 function renderContinueWriteChain(chain) {
   const $chainContainer = $('#continue-write-chain');
   if (chain.length === 0) {
@@ -1457,15 +1599,17 @@ function renderContinueWriteChain(chain) {
     return;
   }
 
-  // 生成所有续写章节的HTML，不合格内容标红提示
+  // 生成所有续写章节的HTML
   const chainHtml = chain.map((chapter, index) => {
-    const isQualified = chapter.qualityReport?.是否合格;
-    const scoreColor = isQualified ? 'text-success' : 'text-danger';
+    const isQualified = chapter.qualityReport?.是否合格 || false;
+    const score = chapter.qualityReport?.总分 || 0;
     const statusText = isQualified ? '已合格' : '不合格';
+    const statusClass = isQualified ? 'text-success' : 'text-danger';
+
     return `
     <div class="continue-chapter-item" data-chain-id="${chapter.id}">
       <div class="flex-container justifySpaceBetween alignCenter margin-b5">
-        <b class="continue-chapter-title ${scoreColor}">续写章节 ${index + 1} | 质量分：${chapter.qualityReport?.总分 || '暂无'}分 | ${statusText}</b>
+        <b class="continue-chapter-title">续写章节 ${index + 1} | 质量分：${score}分 | <span class="${statusClass}">${statusText}</span> | ${new Date(chapter.createTime).toLocaleString()}</b>
         <div class="flex-container gap5">
           <input class="menu_button menu_button--sm menu_button--primary continue-write-btn" data-chain-id="${chapter.id}" type="submit" value="基于此章继续续写" />
           <input class="menu_button menu_button--sm continue-copy-btn" data-chain-id="${chapter.id}" type="submit" value="复制内容" />
@@ -1491,7 +1635,7 @@ function renderContinueWriteChain(chain) {
     }
   });
 
-  // 绑定继续续写按钮事件（无论是否合格均可点击）
+  // 绑定继续续写按钮事件（无论合格与否都可触发）
   $('.continue-write-btn').on('click', function(e) {
     const chainId = parseInt($(e.target).data('chain-id'));
     generateContinueWrite(chainId);
@@ -1553,7 +1697,7 @@ function renderContinueWriteChain(chain) {
   });
 }
 
-// 无限续写生成逻辑（优化：无论是否合格均输出内容）
+// 无限续写生成逻辑（优化：带入不合格章节的问题）
 async function generateContinueWrite(targetChainId) {
   const context = getContext();
   const { generateRaw } = context;
@@ -1618,6 +1762,18 @@ async function generateContinueWrite(targetChainId) {
 3. 深度贴合现有文本中的人物隐性特质、文风细节，保证续写与原文无缝融合。
 ` : '';
 
+  // 带入目标章节的不合格问题（如果有）
+  const targetChapter = continueWriteChain[targetChapterIndex];
+  let optimizePrompt = '';
+  if (targetChapter.qualityReport && !targetChapter.qualityReport.是否合格) {
+    optimizePrompt = `
+【前置章节优化要求】
+上一章节续写内容存在以下问题，本次续写必须规避，同时修正前文的逻辑漏洞：
+问题明细：${targetChapter.qualityReport.问题明细 || '无'}
+修正建议：${targetChapter.qualityReport.修正建议 || '无'}
+`;
+  }
+
   // 构建续写prompt
   const systemPrompt = `
 小说续写通用强制规则（100%遵守，违反则输出完全无效）：
@@ -1628,10 +1784,11 @@ async function generateContinueWrite(targetChainId) {
 5. 文风统一：续写内容必须完全贴合前置校验报告中的文风匹配标准，与原文无缝融合，无任何风格割裂。
 6. 剧情合理：续写内容要推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话，绝对不能有无意义水内容。
 7. 输出要求：只输出续写的正文内容，绝对不能有任何标题、章节名、解释、备注、说明、分割线、作者语、括号注释、markdown格式，只输出纯正文内容，一个多余字符都不能有。
-8. 字数参考：续写约${wordCount}字，仅作生成参考，不做强制扣分要求。
+8. 字数要求：续写约${wordCount}字，仅作参考，不影响质量评估。
 9. 内容限制：绝对不能引入原文中不存在的外部人物、设定、剧情元素，所有内容必须100%基于提供的原文与知识图谱。
 
 ${smallDataRules}
+${optimizePrompt}
 
 【续写绝对红线 不可违反】
 人设红线：${validationReport.续写绝对红线?.人设红线 || '暂无'}
@@ -1657,7 +1814,7 @@ ${fullContextContent}
   toastr.info('正在生成续写章节，请稍候...', "小说续写器");
 
   try {
-    // 优化：取消自动重试，仅生成一次，无论是否合格均输出
+    // 单次生成，无论是否合格都输出
     if (stopGenerateFlag) {
       toastr.info('已停止生成', "小说续写器");
       return;
@@ -1667,28 +1824,27 @@ ${fullContextContent}
     if (!result.trim()) {
       throw new Error('生成内容为空');
     }
-    const finalWriteContent = cleanWriteContent(result.trim());
+    const currentWriteContent = cleanWriteContent(result.trim());
 
     // 质量评估
-    const finalQualityReport = await evaluateWriteQuality(
-      finalWriteContent, 
+    const qualityReport = await evaluateWriteQuality(
+      currentWriteContent, 
       selectedBaseChapterId, 
       validationReport, 
       mergedGraph, 
-      'next', 
-      wordCount
+      'next'
     );
-    if (!finalQualityReport) {
+    if (!qualityReport) {
       throw new Error('质量评估失败');
     }
 
-    // 无论是否合格，均新增到续写链条
+    // 新增到续写链条
     const newChapter = {
       id: continueChapterIdCounter++,
       title: `续写章节 ${continueWriteChain.length + 1}`,
-      content: finalWriteContent,
+      content: currentWriteContent,
       baseChapterId: selectedBaseChapterId,
-      qualityReport: finalQualityReport,
+      qualityReport: qualityReport,
       createTime: new Date().toISOString()
     };
     continueWriteChain.push(newChapter);
@@ -1701,14 +1857,12 @@ ${fullContextContent}
     // 重新渲染链条
     renderContinueWriteChain(continueWriteChain);
 
-    // 自动同步到知识图谱
-    await saveWriteContentToGraph(finalWriteContent, newChapter.id);
-
-    // 提示结果
-    if (finalQualityReport.是否合格) {
-      toastr.success(`续写章节生成完成！质量总分：${finalQualityReport.总分}分，已合格并同步更新到知识图谱`, "小说续写器");
+    // 合格内容自动同步到知识图谱
+    if (qualityReport.是否合格) {
+      await saveWriteContentToGraph(currentWriteContent, newChapter.id);
+      toastr.success(`续写章节生成完成！质量总分：${qualityReport.总分}分，已合格并同步更新到知识图谱`, "小说续写器");
     } else {
-      toastr.warning(`续写章节生成完成！质量总分：${finalQualityReport.总分}分，不合格，已添加到链条，可继续续写或重新生成`, "小说续写器");
+      toastr.info(`续写章节生成完成！质量总分：${qualityReport.总分}分，不合格，已添加到续写链条，可重新生成或继续续写`, "小说续写器");
     }
 
   } catch (error) {
@@ -1762,16 +1916,13 @@ jQuery(async () => {
       extension_settings[extensionName].lastValidationReport = {};
       extension_settings[extensionName].lastValidatedChapterId = null;
       extension_settings[extensionName].lastWriteQuality = {};
-      extension_settings[extensionName].lastWriteContent = "";
+      extension_settings[extensionName].lastGenerateFailedReport = {};
       // 更新UI
       $('#merged-graph-preview').val('');
       $('#graph-dependency-preview').val('');
       $('#graph-history-preview').val('');
-      $('#validation-report').val('暂无校验报告，请先执行对应章节的前置校验');
-      $('#validation-redline').val('暂无生成的续写红线规则，请先执行前置校验');
-      $('#validation-foreshadow').val('暂无检测到的前文未回收伏笔，请先执行前置校验');
-      $('#write-quality-report').val('暂无质量评估报告，请先生成续写内容');
-      $('#write-content-preview').val('');
+      renderValidationReportToUI({});
+      $('#write-quality-report').val('');
       // 清空旧续写链条
       continueWriteChain = [];
       continueChapterIdCounter = 1;
@@ -1785,16 +1936,12 @@ jQuery(async () => {
       renderChapterSelect(currentParsedChapters);
       renderValidateChapterSelect(currentParsedChapters);
       updateWriteButtonStatus(null);
-      updateRetryButtonStatus();
     };
     reader.onerror = () => {
       toastr.error('文件读取失败，请检查文件编码（仅支持UTF-8）', "小说续写器");
     };
     reader.readAsText(file, 'UTF-8');
   });
-
-  // 新增：全章节图谱验证按钮事件
-  $("#validate-all-graph-btn").on("click", validateAllChapterGraphs);
 
   // 全选/全不选
   $("#select-all-btn").on("click", () => {
@@ -1803,6 +1950,9 @@ jQuery(async () => {
   $("#unselect-all-btn").on("click", () => {
     $(".chapter-select").prop("checked", false);
   });
+
+  // 新增：重新校验所有图谱按钮
+  $("#validate-all-graph-btn").on("click", validateAllChapterGraphs);
 
   // 保存模板和间隔设置
   $("#send-template-input").on("change", (e) => {
@@ -1862,7 +2012,7 @@ jQuery(async () => {
       try {
         const graphData = JSON.parse(event.target.result.trim());
         // 验证图谱核心字段
-        const requiredFields = ["全局基础信息", "人物信息库", "世界观设定库", "全剧情时间线", "全局文风标准", "全量实体关系网络", "反向依赖图谱", "逆向分析与质量评估"];
+        const requiredFields = mergeGraphJsonSchema.value.required;
         const hasAllRequired = requiredFields.every(field => Object.hasOwn(graphData, field));
         
         if (!hasAllRequired) {
@@ -1930,19 +2080,19 @@ jQuery(async () => {
     extension_settings[extensionName].lastValidationReport = {};
     extension_settings[extensionName].lastValidatedChapterId = null;
     extension_settings[extensionName].lastWriteQuality = {};
-    extension_settings[extensionName].lastWriteContent = "";
+    extension_settings[extensionName].lastGenerateFailedReport = {};
     $('#merged-graph-preview').val('');
     $('#graph-dependency-preview').val('');
     $('#graph-history-preview').val('');
-    $('#validation-report').val('暂无校验报告，请先执行对应章节的前置校验');
-    $('#validation-redline').val('暂无生成的续写红线规则，请先执行前置校验');
-    $('#validation-foreshadow').val('暂无检测到的前文未回收伏笔，请先执行前置校验');
-    $('#write-quality-report').val('暂无质量评估报告，请先生成续写内容');
-    $('#write-content-preview').val('');
-    currentParsedChapters.forEach(chapter => chapter.hasGraph = false);
+    renderValidationReportToUI({});
+    $('#write-quality-report').val('');
+    currentParsedChapters.forEach(chapter => {
+      chapter.hasGraph = false;
+      chapter.graphValidateFailed = false;
+      chapter.validateErrorMsg = '';
+    });
     renderChapterList(currentParsedChapters);
     updateWriteButtonStatus(null);
-    updateRetryButtonStatus();
     saveSettingsDebounced();
     toastr.success('已清空所有图谱数据与校验记录', "小说续写器");
   });
@@ -2001,9 +2151,15 @@ jQuery(async () => {
         $('#write-chapter-content').val(targetChapter.content).prop('readonly', false);
       }
     }
+    // 清空上一次生成的内容与失败报告
+    $('#write-content-preview').val('');
+    $('#write-quality-report').val('');
+    $('#write-status').text('');
+    extension_settings[extensionName].lastGenerateFailedReport = {};
+    extension_settings[extensionName].lastWriteQuality = {};
+    saveSettingsDebounced();
     // 更新生成按钮状态
     updateWriteButtonStatus(extension_settings[extensionName].lastValidatedChapterId);
-    updateRetryButtonStatus();
   });
 
   // 魔改内容图谱更新按钮
@@ -2022,10 +2178,7 @@ jQuery(async () => {
   });
 
   // 生成续写章节按钮
-  $("#write-generate-btn").on("click", () => generateNovelWrite(false));
-
-  // 新增：重新生成按钮（带修正建议）
-  $("#write-retry-btn").on("click", () => generateNovelWrite(true));
+  $("#write-generate-btn").on("click", generateNovelWrite);
 
   // 停止生成
   $("#write-stop-btn").on("click", () => {
@@ -2079,12 +2232,12 @@ jQuery(async () => {
   $("#write-clear-btn").on("click", () => {
     $('#write-content-preview').val('');
     $('#write-status').text('');
-    $('#write-quality-report').val('暂无质量评估报告，请先生成续写内容');
+    $('#write-quality-report').val('');
     updateProgress('write-progress', 'write-status', 0, 0);
     extension_settings[extensionName].lastWriteQuality = {};
-    extension_settings[extensionName].lastWriteContent = "";
+    extension_settings[extensionName].lastGenerateFailedReport = {};
     saveSettingsDebounced();
-    updateRetryButtonStatus();
+    updateWriteButtonStatus(extension_settings[extensionName].lastValidatedChapterId);
     toastr.success('已清空续写内容', "小说续写器");
   });
 
