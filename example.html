@@ -34,7 +34,6 @@
             <!-- 解析按钮 -->
             <div class="novel-block flex-container">
                 <input id="parse-chapter-btn" class="menu_button menu_button--primary" type="submit" value="解析章节" />
-                <input id="validate-all-graph-btn" class="menu_button menu_button--secondary" type="submit" value="验证全章节图谱有效性" />
             </div>
 
             <hr class="sysHR" />
@@ -45,10 +44,11 @@
                 <div class="flex-container gap5">
                     <input id="select-all-btn" class="menu_button menu_button--sm" type="submit" value="全选" />
                     <input id="unselect-all-btn" class="menu_button menu_button--sm" type="submit" value="全不选" />
+                    <input id="validate-all-graph-btn" class="menu_button menu_button--sm menu_button--secondary" type="submit" value="重新校验所有图谱" />
                 </div>
             </div>
 
-            <!-- 章节列表容器（仅显示标题） -->
+            <!-- 章节列表容器（仅显示标题+图谱校验状态） -->
             <div id="novel-chapter-list" class="novel-block chapter-list">
                 <p class="text-muted text-center">请上传小说文件并点击「解析章节」</p>
             </div>
@@ -162,17 +162,17 @@
 
             <div class="novel-block">
                 <label class="form-label">【续写绝对红线 不可违反】人设/设定/剧情边界</label>
-                <textarea id="validation-redline" rows="3" class="form-control w100" readonly placeholder="执行校验后生成，续写绝对不能违反的红线规则..."></textarea>
+                <textarea id="validation-redline" rows="4" class="form-control w100" readonly placeholder="执行校验后自动生成，续写绝对不能违反的红线规则..."></textarea>
             </div>
 
             <div class="novel-block">
                 <label class="form-label">【可呼应伏笔清单】前文未回收伏笔</label>
-                <textarea id="validation-foreshadow" rows="3" class="form-control w100" readonly placeholder="执行校验后生成，续写可呼应的伏笔清单..."></textarea>
+                <textarea id="validation-foreshadow" rows="4" class="form-control w100" readonly placeholder="执行校验后自动生成，续写可呼应的伏笔清单..."></textarea>
             </div>
 
             <div class="novel-block">
                 <label class="form-label">前置校验完整报告</label>
-                <textarea id="validation-report" rows="6" class="form-control w100" readonly placeholder="执行前置校验后，生成完整的续写合规边界报告..."></textarea>
+                <textarea id="validation-report" rows="8" class="form-control w100" readonly placeholder="执行前置校验后，生成完整的续写合规边界报告..."></textarea>
             </div>
         </div>
     </div>
@@ -220,7 +220,7 @@
             <div class="novel-block flex-container">
                 <label for="write-word-count" class="margin-r5">续写字数</label>
                 <input id="write-word-count" type="number" min="500" max="10000" step="100" class="flex1" value="2000" />
-                <span class="margin-l5 text-muted">范围：500-10000，仅作生成参考</span>
+                <span class="margin-l5 text-muted">范围：500-10000，仅作参考，不影响质量评估</span>
             </div>
 
             <hr class="sysHR" />
@@ -228,7 +228,6 @@
             <!-- 生成控制按钮（硬锁：未校验禁用） -->
             <div class="novel-block flex-container gap5">
                 <input id="write-generate-btn" class="menu_button menu_button--primary" type="submit" value="生成续写章节" disabled title="请先执行对应章节的前置校验" />
-                <input id="write-retry-btn" class="menu_button menu_button--secondary" type="submit" value="重新生成（带修正建议）" disabled title="生成过内容后可使用" />
                 <input id="write-stop-btn" class="menu_button menu_button--danger" type="submit" value="停止生成" />
             </div>
 
@@ -245,15 +244,15 @@
             <!-- 续写质量评估报告（规则闭环核心） -->
             <div class="novel-block">
                 <label class="form-label">续写质量评估报告（单项≥80分 总分≥85分 方为合格）</label>
-                <textarea id="write-quality-report" rows="4" class="form-control w100" readonly placeholder="生成续写内容后，自动执行5维度强制质量评估，无论是否合格均会输出报告..."></textarea>
+                <textarea id="write-quality-report" rows="6" class="form-control w100" readonly placeholder="生成续写内容后，自动执行5维度强制质量评估..."></textarea>
             </div>
 
             <hr class="sysHR" />
 
             <!-- 续写内容预览 -->
             <div class="novel-block">
-                <label class="form-label">续写生成结果</label>
-                <textarea id="write-content-preview" rows="12" class="form-control w100" placeholder="生成的续写章节内容将显示在这里，无论是否合格均会输出..."></textarea>
+                <label class="form-label">续写生成结果（无论是否合格均会输出）</label>
+                <textarea id="write-content-preview" rows="12" class="form-control w100" placeholder="生成的续写章节内容将显示在这里..."></textarea>
                 <div class="flex-container gap5 margin-t5">
                     <input id="write-copy-btn" class="menu_button menu_button--sm" type="submit" value="复制内容" />
                     <input id="write-send-btn" class="menu_button menu_button--primary" type="submit" value="发送到对话框" />
@@ -265,7 +264,7 @@
 
             <!-- 无限续写链条模块 -->
             <div class="novel-block flex-container justifySpaceBetween">
-                <b>续写章节链条（可无限叠加续写）</b>
+                <b>续写章节链条（可无限叠加续写，合格/不合格均可操作）</b>
                 <div class="flex-container gap5">
                     <input id="clear-chain-btn" class="menu_button menu_button--sm menu_button--danger" type="submit" value="清空所有续写章节" />
                 </div>
