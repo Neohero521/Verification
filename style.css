@@ -228,8 +228,6 @@ textarea.form-control {
     color: var(--text-color);
     resize: vertical;
     font-family: inherit;
-    white-space: pre-wrap;
-    word-wrap: break-word;
 }
 
 textarea.form-control:focus {
