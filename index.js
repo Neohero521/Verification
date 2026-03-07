@@ -512,10 +512,9 @@ async function loadSettings() {
     $("#graph-dependency-preview").val(JSON.stringify(extension_settings[extensionName].mergedGraph?.反向依赖图谱 || [], null, 2));
     $("#graph-history-preview").val(JSON.stringify(extension_settings[extensionName].mergedGraph?.世界观设定库?.设定变更历史记录 || [], null, 2));
     $("#validation-report").val(JSON.stringify(extension_settings[extensionName].lastValidationReport, null, 2));
-    // 确保红线区域和伏笔区域有默认值（即使字段缺失也显示 {} 或 []）
-    const report = extension_settings[extensionName].lastValidationReport || {};
-    $("#validation-redline").val(JSON.stringify(report.续写绝对红线 || {}, null, 2));
-    $("#validation-foreshadow").val(JSON.stringify(report.可呼应伏笔清单 || [], null, 2));
+    // 修复：添加默认值，避免字段缺失导致空白
+    $("#validation-redline").val(JSON.stringify(extension_settings[extensionName].lastValidationReport?.续写绝对红线 || {}, null, 2));
+    $("#validation-foreshadow").val(JSON.stringify(extension_settings[extensionName].lastValidationReport?.可呼应伏笔清单 || [], null, 2));
     $("#write-quality-report").val(JSON.stringify(extension_settings[extensionName].lastWriteQuality, null, 2));
 
     // 渲染UI
@@ -632,7 +631,7 @@ function splitNovelIntoChapters(novelText, regexSource) {
     }
 }
 
-// 章节列表渲染（增加图谱有效性验证：仅检查graphMap中是否存在且为对象）
+// 章节列表渲染
 function renderChapterList(chapters) {
     const $listContainer = $('#novel-chapter-list');
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -642,10 +641,10 @@ function renderChapterList(chapters) {
         return;
     }
 
-    // 更新章节图谱状态：只要graphMap中有该ID且为对象（非空），即认为有图谱
+    // 更新章节图谱状态：仅当图谱存在且不为空对象时才视为已生成
     chapters.forEach(chapter => {
         const graph = graphMap[chapter.id];
-        chapter.hasGraph = !!(graph && typeof graph === 'object' && Object.keys(graph).length > 0);
+        chapter.hasGraph = graph && typeof graph === 'object' && Object.keys(graph).length > 0;
     });
 
     // 仅显示标题、选择框、图谱状态
@@ -816,21 +815,22 @@ async function generateChapterGraphBatch(chapters) {
             const chapter = chapters[i];
             updateProgress('graph-progress', 'graph-generate-status', i + 1, chapters.length, "图谱生成进度");
 
-            // 如果已有图谱，可选择跳过或覆盖；此处保留原逻辑：跳过（但为了准确，我们仍然检查图谱有效性）
-            if (graphMap[chapter.id] && typeof graphMap[chapter.id] === 'object' && Object.keys(graphMap[chapter.id]).length > 0) {
-                successCount++; // 已有有效图谱，算成功
+            // 如果章节已有图谱（且不为空），跳过生成，但仍计入成功（保留旧图谱）
+            const existingGraph = graphMap[chapter.id];
+            if (existingGraph && typeof existingGraph === 'object' && Object.keys(existingGraph).length > 0) {
+                successCount++;
                 continue;
             }
 
             const graphData = await generateSingleChapterGraph(chapter);
             if (graphData) {
                 graphMap[chapter.id] = graphData;
+                // 更新章节的hasGraph状态（用于实时渲染）
+                const foundChapter = currentParsedChapters.find(item => item.id === chapter.id);
+                if (foundChapter) foundChapter.hasGraph = true;
                 successCount++;
-            } else {
-                // 生成失败，若之前有旧图谱，保留还是删除？此处选择保留旧图谱（如果有），但标记未成功
-                // 如果之前有旧图谱，我们仍视为已有图谱，但本次未成功，successCount 不增加
-                // 如果之前没有图谱，则保持无图谱状态
             }
+            // 如果graphData为null，失败，不修改graphMap和hasGraph
 
             if (i < chapters.length - 1 && !stopGenerateFlag) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -838,9 +838,9 @@ async function generateChapterGraphBatch(chapters) {
         }
 
         extension_settings[extensionName].chapterGraphMap = graphMap;
-        // 重新渲染列表（renderChapterList会根据graphMap重新计算hasGraph）
-        renderChapterList(currentParsedChapters);
+        extension_settings[extensionName].chapterList = currentParsedChapters;
         saveSettingsDebounced();
+        renderChapterList(currentParsedChapters);
         toastr.success(`图谱生成完成！成功生成 ${successCount}/${chapters.length} 个章节图谱`, "小说续写器");
         if (successCount < chapters.length) {
             toastr.warning(`有 ${chapters.length - successCount} 个章节生成失败，请检查错误提示`, "小说续写器");
@@ -963,7 +963,7 @@ ${isSmallData ? `6. 小数据场景专项约束：深度挖掘有限文本中的
         extension_settings[extensionName].lastValidatedChapterId = baseChapterId;
         saveSettingsDebounced();
 
-        // 更新UI（使用默认值防止字段缺失）
+        // 更新UI（添加默认值防止字段缺失）
         $('#validation-report').val(JSON.stringify(validationReport, null, 2));
         $('#validation-redline').val(JSON.stringify(validationReport.续写绝对红线 || {}, null, 2));
         $('#validation-foreshadow').val(JSON.stringify(validationReport.可呼应伏笔清单 || [], null, 2));
@@ -1228,7 +1228,7 @@ ${smallDataRules}
 ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
 `;
 
-    const userPrompt = `
+    let userPrompt = `
 小说核心设定知识图谱：${JSON.stringify(mergedGraph)}
 前置校验合规边界：${JSON.stringify(validationReport)}
 基准章节核心内容：${baseContent}
@@ -1249,7 +1249,7 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
         let finalQualityReport = null;
         let retryCount = 0;
 
-        // 规则强制：不合格必须重生成，但每次生成后都显示内容
+        // 规则强制：不合格内容必须重新生成，直到合格或用户停止
         while (true) {
             if (stopGenerateFlag) break;
 
@@ -1275,11 +1275,9 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
                 throw new Error('质量评估失败');
             }
 
-            // 无论是否合格，先更新UI显示本次生成的内容和报告
+            // 立即显示本次生成的内容和质量报告（无论合格与否）
             $('#write-content-preview').val(currentWriteContent);
             $('#write-quality-report').val(JSON.stringify(qualityReport, null, 2));
-            $('#write-status').text(`第${retryCount + 1}次生成完成，质量总分：${qualityReport.总分}分，${qualityReport.是否合格 ? '已合格' : '不合格，继续尝试...'}`);
-            updateProgress('write-progress', 'write-status', 0, 0); // 进度条重置
 
             // 校验是否合格（规则强制：单项≥80，总分≥85）
             if (qualityReport.是否合格) {
@@ -1300,7 +1298,12 @@ ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
             return;
         }
 
-        // 如果最终合格，finalWriteContent 和 finalQualityReport 已在循环内赋值
+        // 更新UI（再次确保显示最终内容）
+        $('#write-content-preview').val(finalWriteContent);
+        $('#write-quality-report').val(JSON.stringify(finalQualityReport, null, 2));
+        $('#write-status').text(`续写章节生成完成！质量总分：${finalQualityReport.总分}分，已合格`);
+        updateProgress('write-progress', 'write-status', 0, 0);
+
         // 保存质量报告
         extension_settings[extensionName].lastWriteQuality = finalQualityReport;
         saveSettingsDebounced();
@@ -1534,7 +1537,7 @@ ${smallDataRules}
 ${JSON.stringify(validationReport.可呼应伏笔清单 || [])}
 `;
 
-    const userPrompt = `
+    let userPrompt = `
 小说核心设定知识图谱：${JSON.stringify(mergedGraph)}
 前置校验合规边界：${JSON.stringify(validationReport)}
 
@@ -1554,7 +1557,7 @@ ${fullContextContent}
         let finalQualityReport = null;
         let retryCount = 0;
 
-        // 规则强制：不合格必须重生成，每次显示内容
+        // 规则强制：不合格必须重生成
         while (true) {
             if (stopGenerateFlag) break;
 
@@ -1578,10 +1581,9 @@ ${fullContextContent}
                 throw new Error('质量评估失败');
             }
 
-            // 显示本次生成内容
+            // 立即显示本次生成的内容和质量报告（无论合格与否）
             $('#write-content-preview').val(currentWriteContent);
             $('#write-quality-report').val(JSON.stringify(qualityReport, null, 2));
-            $('#write-status').text(`第${retryCount + 1}次生成完成，质量总分：${qualityReport.总分}分，${qualityReport.是否合格 ? '已合格' : '不合格，继续尝试...'}`);
 
             if (qualityReport.是否合格) {
                 finalWriteContent = currentWriteContent;
@@ -1671,7 +1673,7 @@ jQuery(async () => {
             // 持久化保存
             extension_settings[extensionName].chapterList = currentParsedChapters;
 
-            // 清空旧数据（图谱、校验报告等）
+            // 清空旧数据
             extension_settings[extensionName].chapterGraphMap = {};
             extension_settings[extensionName].mergedGraph = {};
             extension_settings[extensionName].lastValidationReport = {};
@@ -1848,7 +1850,7 @@ jQuery(async () => {
         $('#validation-redline').val('');
         $('#validation-foreshadow').val('');
 
-        // 更新章节列表的图谱状态
+        currentParsedChapters.forEach(chapter => chapter.hasGraph = false);
         renderChapterList(currentParsedChapters);
         updateWriteButtonStatus(null);
 
