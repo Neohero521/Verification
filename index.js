@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 默认配置（与原版本完全一致，无任何修改，保证兼容性）
@@ -53,7 +53,7 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 
 // ==============================================
-// 新增：悬浮框核心交互模块（不影响原有业务逻辑）
+// 悬浮框核心交互模块（不影响原有业务逻辑）
 // ==============================================
 const FloatBox = {
   box: null,
@@ -61,7 +61,7 @@ const FloatBox = {
   triggerBtn: null,
   isDragging: false,
   offset: { x: 0, y: 0 },
-  originalSize: { width: "900px", height: "800px" },
+  originalSize: { width: "950px", height: "850px" },
   originalPosition: { x: 0, y: 0 },
 
   // 初始化悬浮框
@@ -267,7 +267,7 @@ async function loadSettings() {
   if (settings.qualityResultShow) $("#quality-result-block").show();
 
   // 恢复前置校验状态
-  $("#precheck-status").text(settings.precheckStatus || "未执行").removeClass("text-muted text-success text-danger").addClass(settings.precheckStatus === "通过" ? "text-success" : settings.precheckStatus === "不通过" ? "text-danger" : "text-muted");
+  $("#precheck-status").text(settings.precheckStatus || "未执行").removeClass("status-default status-success status-danger").addClass(settings.precheckStatus === "通过" ? "status-success" : settings.precheckStatus === "不通过" ? "status-danger" : "status-default");
   $("#precheck-report").val(settings.precheckReportText || "");
 
   // 渲染核心组件
@@ -787,7 +787,7 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
 详细报告：${precheckResult["合规性报告"]}`.trim();
 
     const statusText = precheckResult.isPass ? "通过" : "不通过";
-    $("#precheck-status").text(statusText).removeClass("text-muted text-success text-danger").addClass(precheckResult.isPass ? "text-success" : "text-danger");
+    $("#precheck-status").text(statusText).removeClass("status-default status-success status-danger").addClass(precheckResult.isPass ? "status-success" : "status-danger");
     $("#precheck-report").val(reportText);
     extension_settings[extensionName].precheckReport = precheckResult;
     extension_settings[extensionName].precheckStatus = statusText;
@@ -1021,17 +1021,17 @@ function renderChapterList(chapters) {
   const $listContainer = $('#novel-chapter-list');
   const graphMap = extension_settings[extensionName].chapterGraphMap || {};
   if (chapters.length === 0) {
-    $listContainer.html('<p class="text-muted text-center">请上传小说文件并点击「解析章节」</p>');
+    $listContainer.html('<p class="empty-tip">请上传小说文件并点击「解析章节」</p>');
     return;
   }
   chapters.forEach(chapter => {
     chapter.hasGraph = !!graphMap[chapter.id];
   });
   const listHtml = chapters.map((chapter) => `
-    <div class="chapter-item flex-container alignCenter justifySpaceBetween" data-chapter-id="${chapter.id}">
-      <label class="chapter-checkbox flex-container alignCenter gap5">
+    <div class="chapter-item" data-chapter-id="${chapter.id}">
+      <label class="chapter-checkbox">
         <input type="checkbox" class="chapter-select" data-index="${chapter.id}" checked />
-        <span class="chapter-title fontBold">${chapter.title}</span>
+        <span class="chapter-title">${chapter.title}</span>
       </label>
       <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'} </span>
     </div>
@@ -1042,7 +1042,7 @@ function renderChapterList(chapters) {
 function renderChapterSelect(chapters) {
   const $select = $('#write-chapter-select');
   $('#write-chapter-content').val('').prop('readonly', true);
-  $('#precheck-status').text("未执行").removeClass("text-success text-danger").addClass("text-muted");
+  $('#precheck-status').text("未执行").removeClass("status-success status-danger").addClass("status-default");
   $('#precheck-report').val('');
   $('#quality-result-block').hide();
 
@@ -1238,7 +1238,7 @@ function renderContinueWriteChain(chain) {
   const scrollTop = $chainContainer.scrollTop();
 
   if (chain.length === 0) {
-    $chainContainer.html('<p class="text-muted text-center">暂无续写章节，生成续写内容后自动添加到此处</p>');
+    $chainContainer.html('<p class="empty-tip">暂无续写章节，生成续写内容后自动添加到此处</p>');
     return;
   }
   const chainHtml = chain.map((chapter, index) => `
@@ -1246,13 +1246,13 @@ function renderContinueWriteChain(chain) {
       <div class="flex-container justifySpaceBetween alignCenter margin-b5 flex-wrap">
         <b class="continue-chapter-title">续写章节 ${index + 1}</b>
         <div class="flex-container gap5 flex-wrap">
-          <input class="menu_button menu_button--sm menu_button--primary continue-write-btn" data-chain-id="${chapter.id}" type="submit" value="基于此章继续续写"/>
-          <input class="menu_button menu_button--sm continue-copy-btn" data-chain-id="${chapter.id}" type="submit" value="复制内容"/>
-          <input class="menu_button menu_button--sm continue-send-btn" data-chain-id="${chapter.id}" type="submit" value="发送到对话框"/>
-          <input class="menu_button menu_button--sm menu_button--danger continue-delete-btn" data-chain-id="${chapter.id}" type="submit" value="删除此章"/>
+          <input class="btn btn-sm btn-primary continue-write-btn" data-chain-id="${chapter.id}" type="submit" value="基于此章继续续写"/>
+          <input class="btn btn-sm btn-secondary continue-copy-btn" data-chain-id="${chapter.id}" type="submit" value="复制内容"/>
+          <input class="btn btn-sm btn-outline continue-send-btn" data-chain-id="${chapter.id}" type="submit" value="发送到对话框"/>
+          <input class="btn btn-sm btn-danger continue-delete-btn" data-chain-id="${chapter.id}" type="submit" value="删除此章"/>
         </div>
       </div>
-      <textarea class="form-control w100 continue-chapter-content" data-chain-id="${chapter.id}" rows="12" placeholder="续写章节内容..." wrap="soft" resize="vertical">${chapter.content}</textarea>
+      <textarea class="form-textarea continue-chapter-content" data-chain-id="${chapter.id}" rows="12" placeholder="续写章节内容..." wrap="soft" resize="vertical">${chapter.content}</textarea>
     </div>
   `).join('');
   $chainContainer.html(chainHtml);
@@ -1572,7 +1572,7 @@ async function generateNovelWrite() {
 }
 
 // ==============================================
-// 扩展入口（重构为悬浮框加载模式，原有逻辑100%保留）
+// 扩展入口（功能100%完整保留）
 // ==============================================
 jQuery(async () => {
   // 加载悬浮框HTML到页面
@@ -1770,7 +1770,7 @@ jQuery(async () => {
   $("#write-chapter-select").on("change", function(e) {
     const selectedChapterId = $(e.target).val();
     currentPrecheckResult = null;
-    $("#precheck-status").text("未执行").removeClass("text-success text-danger").addClass("text-muted");
+    $("#precheck-status").text("未执行").removeClass("status-success status-danger").addClass("status-default");
     $("#precheck-report").val("");
     $("#write-content-preview").val("");
     $("#write-status").text("");
