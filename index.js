@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 默认配置（原有字段完全不变，100%兼容旧数据）
@@ -236,7 +236,7 @@ const FloatBall = {
 };
 
 // ==============================================
-// 小说阅读器核心模块（BUG终极修复版）
+// 小说阅读器核心模块（无限跳章BUG终极根治）
 // ============================================== */
 const NovelReader = {
   currentChapterId: null,
@@ -244,12 +244,20 @@ const NovelReader = {
   fontSize: 16,
   maxFontSize: 24,
   minFontSize: 12,
-  // 核心修复：双锁机制，彻底杜绝循环跳章
+
+  // ==============================================
+  // 核心根治：四重锁机制，彻底杜绝无限循环跳章
+  // ==============================================
   isPageTurning: false, // 翻页执行锁：翻页过程中禁止任何操作
-  boundaryCooldown: false, // 边界冷却锁：翻页后1秒内禁止再次触发边界翻页
-  cooldownTime: 1000, // 冷却时间1000ms，彻底杜绝循环触发
-  scrollDebounceTime: 200, // 滚动防抖时间200ms，避免频繁执行
-  scrollDebounceTimer: null, // 滚动防抖定时器
+  globalPageCooldown: false, // 全局翻页冷却锁：翻页后3秒内绝对禁止再次翻页
+  isProgrammaticScroll: false, // 代码滚动标志位：区分用户滚动和代码设置的滚动
+  isUserScrolling: false, // 用户滚动标志位：仅用户主动滚动才触发翻页
+
+  cooldownTime: 3000, // 全局冷却时间3秒，彻底杜绝循环
+  scrollDebounceTime: 200, // 滚动防抖时间200ms
+  scrollDebounceTimer: null,
+  safeScrollOffset: 350, // 安全滚动偏移量，翻页后强制远离边界
+  pageTriggerThreshold: 250, // 翻页触发阈值，必须滑到离边界250px以内才触发
 
   // 防抖工具函数
   debounce(func, delay) {
@@ -261,11 +269,11 @@ const NovelReader = {
     };
   },
 
-  // 冷却锁工具函数
-  setBoundaryCooldown() {
-    this.boundaryCooldown = true;
+  // 全局冷却锁设置
+  setGlobalCooldown() {
+    this.globalPageCooldown = true;
     setTimeout(() => {
-      this.boundaryCooldown = false;
+      this.globalPageCooldown = false;
     }, this.cooldownTime);
   },
 
@@ -295,9 +303,8 @@ const NovelReader = {
       this.hideChapterDrawer();
     });
 
-    // 核心修复：点击内容区域唤出抽屉（精准判断，不影响滚动）
+    // 点击内容区域唤出抽屉（精准判断，不影响滚动）
     document.querySelector(".reader-content-wrap").addEventListener("click", (e) => {
-      // 排除所有可交互元素，仅点击空白区域唤出抽屉
       if (
         e.target.closest(".reader-content") || 
         e.target.closest(".reader-controls") || 
@@ -310,38 +317,136 @@ const NovelReader = {
       this.toggleChapterDrawer();
     });
 
-    // 核心修复：滚动事件防抖+双锁判断，彻底解决乱跳章
-    document.getElementById("reader-content").addEventListener("scroll", 
-      this.debounce(() => this.updateProgress(), this.scrollDebounceTime)
-    );
+    // ==============================================
+    // 核心根治：滚动事件全链路阻断循环
+    // ==============================================
+    const contentEl = document.getElementById("reader-content");
 
-    // 核心修复：阻止滚动事件冒泡到父元素
-    document.getElementById("reader-content").addEventListener("scroll", (e) => {
-      e.stopPropagation();
-    });
+    // 滚动开始：标记用户正在滚动
+    contentEl.addEventListener("scrollstart", () => {
+      this.isUserScrolling = true;
+    }, { passive: true });
 
-    // 核心修复：阻止抽屉内的所有事件冒泡，避免关闭面板/抽屉
-    document.getElementById("reader-chapter-drawer").addEventListener("click", (e) => {
-      e.stopPropagation();
-    });
-    document.getElementById("reader-chapter-drawer").addEventListener("scroll", (e) => {
-      e.stopPropagation();
-    });
+    // 滚动结束：标记用户滚动结束
+    contentEl.addEventListener("scrollend", () => {
+      this.isUserScrolling = false;
+      // 滚动结束后才执行边界判断，避免滚动过程中频繁触发
+      this.handleScrollEnd();
+    }, { passive: true });
 
-    // 点击抽屉外区域关闭抽屉（精准判断）
-    document.addEventListener("click", (e) => {
-      const drawer = document.getElementById("reader-chapter-drawer");
-      const selectBtn = document.getElementById("reader-chapter-select-btn");
-      const isInDrawer = e.target.closest(".reader-chapter-drawer");
-      const isInSelectBtn = e.target.closest("#reader-chapter-select-btn");
-      
-      if (!isInDrawer && !isInSelectBtn && drawer.classList.contains("show")) {
-        this.hideChapterDrawer();
+    // 滚动事件：仅更新进度，不执行翻页逻辑，彻底阻断循环触发
+    contentEl.addEventListener("scroll", (e) => {
+      // 核心根治：代码设置的滚动，完全不执行任何逻辑
+      if (this.isProgrammaticScroll) {
+        e.stopPropagation();
+        return;
       }
+      // 阻止滚动事件冒泡，避免父元素干扰
+      e.stopPropagation();
+      // 标记用户正在滚动
+      this.isUserScrolling = true;
+      // 仅更新进度，不执行翻页逻辑
+      this.updateProgressOnly();
+    }, { passive: true });
+
+    // 核心修复：阻止所有滚动事件冒泡到父元素
+    contentEl.addEventListener("wheel", (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+    contentEl.addEventListener("touchmove", (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+
+    // 抽屉事件阻止冒泡
+    const drawerEl = document.getElementById("reader-chapter-drawer");
+    drawerEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    });
+    drawerEl.addEventListener("scroll", (e) => {
+      e.stopPropagation();
     });
   },
 
-  // 渲染章节列表（修复active状态+事件冒泡）
+  // 核心根治：仅滚动结束后，才执行边界判断和翻页逻辑
+  handleScrollEnd() {
+    // 四重锁判断，任何锁开启，都不执行翻页
+    if (
+      this.isPageTurning || 
+      this.globalPageCooldown || 
+      this.isProgrammaticScroll ||
+      !document.getElementById("tab-reader").classList.contains("active")
+    ) {
+      this.isUserScrolling = false;
+      return;
+    }
+
+    const contentEl = document.getElementById("reader-content");
+    const scrollTop = contentEl.scrollTop;
+    const scrollHeight = contentEl.scrollHeight;
+    const clientHeight = contentEl.clientHeight;
+    const maxScrollTop = scrollHeight - clientHeight;
+
+    // 核心根治：内容不足一屏，绝对不触发翻页
+    if (maxScrollTop <= 0) {
+      this.isUserScrolling = false;
+      return;
+    }
+
+    // 核心根治：过滤弹性滚动的非法值
+    if (scrollTop < 0 || scrollTop > maxScrollTop) {
+      this.isUserScrolling = false;
+      return;
+    }
+
+    // 核心根治：仅用户滚动到边界，才触发翻页
+    // 滚动到底部，加载下一章
+    if (scrollTop >= maxScrollTop - this.pageTriggerThreshold) {
+      this.loadNextChapter();
+    }
+    // 滚动到顶部，加载上一章
+    if (scrollTop <= this.pageTriggerThreshold) {
+      this.loadPrevChapter();
+    }
+
+    this.isUserScrolling = false;
+  },
+
+  // 仅更新进度，不执行翻页逻辑
+  updateProgressOnly() {
+    // 任何锁开启，都不更新进度
+    if (this.isPageTurning || this.isProgrammaticScroll) return;
+
+    const contentEl = document.getElementById("reader-content");
+    const progressEl = document.getElementById("reader-progress-fill");
+    const progressTextEl = document.getElementById("reader-progress-text");
+
+    const scrollTop = contentEl.scrollTop;
+    const scrollHeight = contentEl.scrollHeight;
+    const clientHeight = contentEl.clientHeight;
+    const maxScrollTop = scrollHeight - clientHeight;
+
+    // 内容不足一屏，直接显示100%
+    if (maxScrollTop <= 0) {
+      progressEl.style.width = `100%`;
+      progressTextEl.textContent = `100%`;
+      return;
+    }
+
+    // 过滤弹性滚动的非法值
+    const validScrollTop = Math.max(0, Math.min(scrollTop, maxScrollTop));
+    const progress = Math.floor((validScrollTop / maxScrollTop) * 100);
+    
+    progressEl.style.width = `${progress}%`;
+    progressTextEl.textContent = `${progress}%`;
+
+    // 保存阅读进度
+    const progressKey = `${this.currentChapterType}_${this.currentChapterId}`;
+    extension_settings[extensionName].readerState.readProgress[progressKey] = validScrollTop;
+    saveSettingsDebounced();
+  },
+
+  // 渲染章节列表（事件冒泡彻底修复）
   renderChapterList() {
     const listContainer = document.getElementById("reader-chapter-list");
     const chapterCountEl = document.getElementById("reader-chapter-count");
@@ -388,12 +493,12 @@ const NovelReader = {
 
     listContainer.innerHTML = listHtml;
 
-    // 绑定章节点击事件（彻底阻止事件冒泡+默认行为）
+    // 绑定章节点击事件（彻底阻止事件冒泡）
     document.querySelectorAll(".reader-chapter-item, .reader-continue-chapter-item").forEach(item => {
       item.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        e.stopImmediatePropagation(); // 彻底阻止事件传播
+        e.stopImmediatePropagation();
         
         const chapterId = parseInt(item.dataset.chapterId);
         const chapterType = item.dataset.chapterType;
@@ -403,11 +508,13 @@ const NovelReader = {
     });
   },
 
-  // 加载章节（终极修复：滚动位置+翻页锁+时序问题）
+  // 加载章节（终极修复：彻底阻断循环触发）
   loadChapter(chapterId, chapterType = "original") {
-    // 加载章节时，先上锁，禁止任何自动翻页
+    // 加载章节时，所有锁全部开启，彻底阻断任何意外触发
     this.isPageTurning = true;
-    this.boundaryCooldown = true;
+    this.globalPageCooldown = true;
+    this.isProgrammaticScroll = true;
+    this.isUserScrolling = false;
 
     const contentEl = document.getElementById("reader-content");
     const titleEl = document.getElementById("reader-current-chapter-title");
@@ -422,9 +529,7 @@ const NovelReader = {
     if (chapterType === "original") {
       chapterData = currentParsedChapters.find(item => item.id === chapterId);
       if (!chapterData) {
-        // 章节不存在，解锁并返回
-        this.isPageTurning = false;
-        this.boundaryCooldown = false;
+        this.resetAllLocks();
         return;
       }
       chapterTitle = chapterData.title;
@@ -432,8 +537,7 @@ const NovelReader = {
     } else {
       chapterData = continueWriteChain.find(item => item.id === chapterId);
       if (!chapterData) {
-        this.isPageTurning = false;
-        this.boundaryCooldown = false;
+        this.resetAllLocks();
         return;
       }
       const baseChapter = currentParsedChapters.find(item => item.id === chapterData.baseChapterId);
@@ -459,19 +563,29 @@ const NovelReader = {
     const progressKey = `${chapterType}_${chapterId}`;
     const savedScrollTop = extension_settings[extensionName].readerState.readProgress[progressKey] || 0;
 
-    // 核心修复：双重时序保障，确保DOM完全渲染后再设置滚动位置
+    // 核心根治：三重时序保障，确保DOM完全渲染后再设置滚动位置
     requestAnimationFrame(() => {
+      // 第一次设置滚动位置
       contentEl.scrollTop = savedScrollTop;
       
-      // 二次保障：延迟设置滚动位置，避免DOM渲染延迟导致的位置错误
-      setTimeout(() => {
+      requestAnimationFrame(() => {
+        // 第二次确认滚动位置
         contentEl.scrollTop = savedScrollTop;
-        // 解锁翻页锁，延迟解锁冷却锁
-        this.isPageTurning = false;
+        
+        // 延迟解锁，确保所有滚动事件都已触发完毕
         setTimeout(() => {
-          this.boundaryCooldown = false;
-        }, 300);
-      }, 100);
+          // 最终确认滚动位置
+          contentEl.scrollTop = savedScrollTop;
+          // 关闭代码滚动标志，开启用户滚动权限
+          this.isProgrammaticScroll = false;
+          // 关闭翻页执行锁
+          this.isPageTurning = false;
+          // 延迟关闭全局冷却锁，给用户足够的操作时间
+          setTimeout(() => {
+            this.globalPageCooldown = false;
+          }, 500);
+        }, 200);
+      });
     });
 
     // 更新章节列表选中状态
@@ -479,59 +593,32 @@ const NovelReader = {
     saveSettingsDebounced();
   },
 
-  // 更新阅读进度（终极修复：边界判断+双锁机制）
-  updateProgress() {
-    // 核心修复：双锁判断，任何锁开启时，不执行任何翻页逻辑
-    if (this.isPageTurning || this.boundaryCooldown) return;
+  // 重置所有锁
+  resetAllLocks() {
+    this.isPageTurning = false;
+    this.isProgrammaticScroll = false;
+    this.isUserScrolling = false;
+    setTimeout(() => {
+      this.globalPageCooldown = false;
+    }, 200);
+  },
 
-    // 核心修复：只有阅读器选项卡激活时，才执行逻辑
-    if (!document.getElementById("tab-reader").classList.contains("active")) return;
-
-    const contentEl = document.getElementById("reader-content");
-    const progressEl = document.getElementById("reader-progress-fill");
-    const progressTextEl = document.getElementById("reader-progress-text");
-
-    // 计算滚动高度
-    const scrollTop = contentEl.scrollTop;
-    const scrollHeight = contentEl.scrollHeight;
-    const clientHeight = contentEl.clientHeight;
-    const maxScrollTop = scrollHeight - clientHeight;
-
-    // 核心修复：内容不足一屏时，直接返回，不执行任何逻辑
-    if (maxScrollTop <= 0) {
-      progressEl.style.width = `100%`;
-      progressTextEl.textContent = `100%`;
+  // 加载下一章（终极修复：彻底杜绝循环）
+  loadNextChapter() {
+    // 四重锁判断，任何锁开启，直接返回
+    if (
+      this.isPageTurning || 
+      this.globalPageCooldown || 
+      this.isProgrammaticScroll || 
+      !this.isUserScrolling
+    ) {
       return;
     }
 
-    // 计算进度
-    const progress = Math.floor((scrollTop / maxScrollTop) * 100);
-    progressEl.style.width = `${progress}%`;
-    progressTextEl.textContent = `${progress}%`;
-
-    // 保存阅读进度
-    const progressKey = `${this.currentChapterType}_${this.currentChapterId}`;
-    extension_settings[extensionName].readerState.readProgress[progressKey] = scrollTop;
-    saveSettingsDebounced();
-
-    // 核心修复：自动翻页逻辑，严格边界判断+双锁
-    // 滚动到底部，加载下一章（阈值200px，必须超过maxScrollTop-200）
-    if (scrollTop >= maxScrollTop - 200) {
-      this.loadNextChapter();
-    }
-    // 滚动到顶部，加载上一章（阈值200px，必须小于200）
-    if (scrollTop <= 200) {
-      this.loadPrevChapter();
-    }
-  },
-
-  // 加载下一章（终极修复：严格边界判断+冷却锁）
-  loadNextChapter() {
-    // 双锁判断，禁止重复触发
-    if (this.isPageTurning || this.boundaryCooldown) return;
-    // 立即上锁+设置冷却，彻底杜绝循环触发
+    // 立即开启所有锁，彻底阻断重复触发
     this.isPageTurning = true;
-    this.setBoundaryCooldown();
+    this.globalPageCooldown = true;
+    this.isProgrammaticScroll = true;
 
     let nextChapterId = null;
     let nextChapterType = "original";
@@ -539,9 +626,9 @@ const NovelReader = {
     if (this.currentChapterType === "original") {
       // 原章节：下一章原章节
       const currentIndex = currentParsedChapters.findIndex(item => item.id === this.currentChapterId);
-      // 核心修复：严格边界判断，没有下一章时，直接解锁返回
+      // 严格边界判断，没有下一章，直接解锁返回
       if (currentIndex < 0 || currentIndex >= currentParsedChapters.length - 1) {
-        this.isPageTurning = false;
+        this.resetAllLocks();
         return;
       }
       nextChapterId = currentParsedChapters[currentIndex + 1].id;
@@ -550,7 +637,7 @@ const NovelReader = {
       // 续写章节：同基准章节的下一个续写章节
       const currentChapter = continueWriteChain.find(item => item.id === this.currentChapterId);
       if (!currentChapter) {
-        this.isPageTurning = false;
+        this.resetAllLocks();
         return;
       }
       const sameBaseChapters = continueWriteChain.filter(item => item.baseChapterId === currentChapter.baseChapterId);
@@ -564,7 +651,7 @@ const NovelReader = {
         // 同基准章节的续写看完了，加载下一个原章节
         const baseChapterIndex = currentParsedChapters.findIndex(item => item.id === currentChapter.baseChapterId);
         if (baseChapterIndex < 0 || baseChapterIndex >= currentParsedChapters.length - 1) {
-          this.isPageTurning = false;
+          this.resetAllLocks();
           return;
         }
         nextChapterId = currentParsedChapters[baseChapterIndex + 1].id;
@@ -572,28 +659,46 @@ const NovelReader = {
       }
     }
 
-    // 核心修复：没有下一章时，直接解锁返回
+    // 没有下一章，直接解锁返回
     if (nextChapterId === null) {
-      this.isPageTurning = false;
+      this.resetAllLocks();
       return;
     }
 
-    // 加载下一章，滚动到顶部200px位置，避免触发上一章翻页
+    // 加载下一章，翻页后强制滚动到安全位置
     this.loadChapter(nextChapterId, nextChapterType);
-    // 强制设置滚动位置到非边界区域
+    
+    // 章节加载完成后，强制滚动到远离顶部的安全位置
     setTimeout(() => {
       const contentEl = document.getElementById("reader-content");
-      contentEl.scrollTop = 200;
-    }, 150);
+      this.isProgrammaticScroll = true;
+      contentEl.scrollTop = this.safeScrollOffset;
+      requestAnimationFrame(() => {
+        contentEl.scrollTop = this.safeScrollOffset;
+        this.isProgrammaticScroll = false;
+      });
+    }, 300);
+
+    // 设置全局冷却锁，3秒内禁止再次翻页
+    this.setGlobalCooldown();
   },
 
-  // 加载上一章（终极修复：严格边界判断+冷却锁）
+  // 加载上一章（终极修复：彻底杜绝循环）
   loadPrevChapter() {
-    // 双锁判断，禁止重复触发
-    if (this.isPageTurning || this.boundaryCooldown) return;
-    // 立即上锁+设置冷却，彻底杜绝循环触发
+    // 四重锁判断，任何锁开启，直接返回
+    if (
+      this.isPageTurning || 
+      this.globalPageCooldown || 
+      this.isProgrammaticScroll || 
+      !this.isUserScrolling
+    ) {
+      return;
+    }
+
+    // 立即开启所有锁，彻底阻断重复触发
     this.isPageTurning = true;
-    this.setBoundaryCooldown();
+    this.globalPageCooldown = true;
+    this.isProgrammaticScroll = true;
 
     let prevChapterId = null;
     let prevChapterType = "original";
@@ -601,9 +706,9 @@ const NovelReader = {
     if (this.currentChapterType === "original") {
       // 原章节：上一章原章节
       const currentIndex = currentParsedChapters.findIndex(item => item.id === this.currentChapterId);
-      // 核心修复：严格边界判断，没有上一章时，直接解锁返回
+      // 严格边界判断，没有上一章，直接解锁返回
       if (currentIndex <= 0) {
-        this.isPageTurning = false;
+        this.resetAllLocks();
         return;
       }
       prevChapterId = currentParsedChapters[currentIndex - 1].id;
@@ -612,7 +717,7 @@ const NovelReader = {
       // 续写章节：同基准章节的上一个续写章节
       const currentChapter = continueWriteChain.find(item => item.id === this.currentChapterId);
       if (!currentChapter) {
-        this.isPageTurning = false;
+        this.resetAllLocks();
         return;
       }
       const sameBaseChapters = continueWriteChain.filter(item => item.baseChapterId === currentChapter.baseChapterId);
@@ -629,41 +734,54 @@ const NovelReader = {
       }
     }
 
-    // 核心修复：没有上一章时，直接解锁返回
+    // 没有上一章，直接解锁返回
     if (prevChapterId === null) {
-      this.isPageTurning = false;
+      this.resetAllLocks();
       return;
     }
 
-    // 加载上一章，滚动到底部200px位置，避免触发下一章翻页
+    // 加载上一章，翻页后强制滚动到远离底部的安全位置
     this.loadChapter(prevChapterId, prevChapterType);
-    // 强制设置滚动位置到非边界区域
+    
+    // 章节加载完成后，强制滚动到远离底部的安全位置
     setTimeout(() => {
       const contentEl = document.getElementById("reader-content");
       const maxScrollTop = contentEl.scrollHeight - contentEl.clientHeight;
-      contentEl.scrollTop = Math.max(0, maxScrollTop - 200);
-    }, 150);
+      const targetScrollTop = Math.max(0, maxScrollTop - this.safeScrollOffset);
+      
+      this.isProgrammaticScroll = true;
+      contentEl.scrollTop = targetScrollTop;
+      requestAnimationFrame(() => {
+        contentEl.scrollTop = targetScrollTop;
+        this.isProgrammaticScroll = false;
+      });
+    }, 300);
+
+    // 设置全局冷却锁，3秒内禁止再次翻页
+    this.setGlobalCooldown();
   },
 
-  // 设置字体大小（修复：翻页锁+冷却）
+  // 设置字体大小（修复：彻底阻断翻页触发）
   setFontSize(size) {
     if (size < this.minFontSize || size > this.maxFontSize) return;
 
-    // 字体调整时，上锁，禁止自动翻页
+    // 字体调整时，开启所有锁，禁止任何翻页
     this.isPageTurning = true;
-    this.boundaryCooldown = true;
+    this.globalPageCooldown = true;
+    this.isProgrammaticScroll = true;
 
     this.fontSize = size;
     const contentEl = document.getElementById("reader-content");
     contentEl.style.setProperty("--reader-font-size", `${size}px`);
 
-    // 等待字体渲染完成后解锁
+    // 等待字体渲染完成后，延迟解锁
     setTimeout(() => {
+      this.isProgrammaticScroll = false;
       this.isPageTurning = false;
       setTimeout(() => {
-        this.boundaryCooldown = false;
-      }, 200);
-    }, 200);
+        this.globalPageCooldown = false;
+      }, 300);
+    }, 300);
 
     // 保存字体大小
     extension_settings[extensionName].readerState.fontSize = size;
@@ -1887,6 +2005,7 @@ async function generateContinueWrite(targetChainId) {
           prompt: userPrompt
         });
         if (stopGenerateFlag) {
+          $('#write-status').text('已停止生成');
           toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
           return;
         }
