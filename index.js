@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 默认配置（与原版本完全一致，无任何修改，保证兼容性）
@@ -31,11 +31,10 @@ const defaultSettings = {
   qualityResultShow: false,
   precheckStatus: "未执行",
   precheckReportText: "",
-  // 新增：悬浮框状态持久化
-  floatBoxState: {
-    isMinimized: false,
-    isFullscreen: false,
-    position: { x: window.innerWidth / 2 - 450, y: window.innerHeight / 2 - 400 },
+  // 新增：悬浮球状态持久化
+  floatBallState: {
+    position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
+    isPanelOpen: false,
     activeTab: "tab-chapter"
   }
 };
@@ -53,59 +52,57 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 
 // ==============================================
-// 悬浮框核心交互模块（不影响原有业务逻辑）
+// 可移动悬浮球核心交互模块（不影响原有业务逻辑）
 // ==============================================
-const FloatBox = {
-  box: null,
-  header: null,
-  triggerBtn: null,
+const FloatBall = {
+  ball: null,
+  panel: null,
   isDragging: false,
   offset: { x: 0, y: 0 },
-  originalSize: { width: "950px", height: "850px" },
-  originalPosition: { x: 0, y: 0 },
+  isEdgeAdsorbed: false,
 
-  // 初始化悬浮框
+  // 初始化悬浮球
   init() {
-    this.box = document.getElementById("novel-writer-float-box");
-    this.header = document.getElementById("float-box-header");
-    this.triggerBtn = document.getElementById("float-trigger-btn");
+    this.ball = document.getElementById("novel-writer-float-ball");
+    this.panel = document.getElementById("novel-writer-panel");
     this.bindEvents();
     this.restoreState();
-    this.show();
   },
 
-  // 绑定悬浮框事件
+  // 绑定悬浮球事件
   bindEvents() {
-    // 拖动功能
-    this.header.addEventListener("mousedown", this.startDrag.bind(this));
+    // 拖动事件
+    this.ball.addEventListener("mousedown", this.startDrag.bind(this));
     document.addEventListener("mousemove", this.onDrag.bind(this));
     document.addEventListener("mouseup", this.stopDrag.bind(this));
 
-    // 窗口大小变化适配
-    window.addEventListener("resize", this.adaptPosition.bind(this));
-
-    // 控制按钮事件
-    document.getElementById("float-min-btn").addEventListener("click", this.toggleMinimize.bind(this));
-    document.getElementById("float-full-btn").addEventListener("click", this.toggleFullscreen.bind(this));
-    document.getElementById("float-close-btn").addEventListener("click", this.hide.bind(this));
-    this.triggerBtn.addEventListener("click", this.show.bind(this));
+    // 点击展开/收起面板
+    this.ball.addEventListener("click", this.togglePanel.bind(this));
+    // 关闭面板按钮
+    document.getElementById("panel-close-btn").addEventListener("click", this.hidePanel.bind(this));
 
     // 选项卡切换事件
-    document.querySelectorAll(".float-tab-item").forEach(tab => {
+    document.querySelectorAll(".panel-tab-item").forEach(tab => {
       tab.addEventListener("click", (e) => {
         this.switchTab(e.currentTarget.dataset.tab);
       });
+    });
+
+    // 点击面板外区域关闭面板
+    document.addEventListener("click", (e) => {
+      if (!this.panel.contains(e.target) && !this.ball.contains(e.target) && this.panel.classList.contains("show")) {
+        this.hidePanel();
+      }
     });
   },
 
   // 开始拖动
   startDrag(e) {
-    if (this.isFullscreen()) return;
     this.isDragging = true;
-    const rect = this.box.getBoundingClientRect();
+    const rect = this.ball.getBoundingClientRect();
     this.offset.x = e.clientX - rect.left;
     this.offset.y = e.clientY - rect.top;
-    this.box.classList.add("dragging");
+    this.ball.classList.add("dragging");
   },
 
   // 拖动中
@@ -115,112 +112,100 @@ const FloatBox = {
     let y = e.clientY - this.offset.y;
 
     // 边界限制，不超出屏幕
-    const maxX = window.innerWidth - this.box.offsetWidth;
-    const maxY = window.innerHeight - this.box.offsetHeight;
+    const maxX = window.innerWidth - this.ball.offsetWidth;
+    const maxY = window.innerHeight - this.ball.offsetHeight;
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
 
-    this.box.style.left = `${x}px`;
-    this.box.style.top = `${y}px`;
+    this.ball.style.left = `${x}px`;
+    this.ball.style.top = `${y}px`;
+    this.ball.style.right = "auto";
+    this.ball.style.transform = "none";
 
     // 保存位置
-    extension_settings[extensionName].floatBoxState.position = { x, y };
+    extension_settings[extensionName].floatBallState.position = { x, y };
     saveSettingsDebounced();
   },
 
-  // 停止拖动
+  // 停止拖动，自动贴边
   stopDrag() {
+    if (!this.isDragging) return;
     this.isDragging = false;
-    this.box.classList.remove("dragging");
-  },
+    this.ball.classList.remove("dragging");
 
-  // 最小化/还原
-  toggleMinimize() {
-    const isMinimized = this.box.classList.toggle("minimized");
-    const icon = document.querySelector("#float-min-btn i");
-    icon.classList.toggle("fa-minus", !isMinimized);
-    icon.classList.toggle("fa-plus", isMinimized);
+    // 自动吸附到左右边缘
+    const rect = this.ball.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const centerX = windowWidth / 2;
 
-    extension_settings[extensionName].floatBoxState.isMinimized = isMinimized;
+    if (rect.left < centerX) {
+      // 吸附到左边缘
+      this.ball.style.left = "10px";
+      this.ball.style.right = "auto";
+    } else {
+      // 吸附到右边缘
+      this.ball.style.right = "10px";
+      this.ball.style.left = "auto";
+    }
+    this.ball.style.transform = "translateY(-50%)";
+
+    // 更新保存的位置
+    const newRect = this.ball.getBoundingClientRect();
+    extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
     saveSettingsDebounced();
   },
 
-  // 全屏/还原
-  toggleFullscreen() {
-    const isFullscreen = this.box.classList.toggle("fullscreen");
-    const icon = document.querySelector("#float-full-btn i");
-    icon.classList.toggle("fa-expand", !isFullscreen);
-    icon.classList.toggle("fa-compress", isFullscreen);
-
-    if (isFullscreen) {
-      this.originalSize = { width: this.box.style.width, height: this.box.style.height };
-      this.originalPosition = { x: this.box.style.left, y: this.box.style.top };
+  // 切换面板显示/隐藏
+  togglePanel() {
+    if (this.panel.classList.contains("show")) {
+      this.hidePanel();
     } else {
-      this.box.style.width = this.originalSize.width;
-      this.box.style.height = this.originalSize.height;
-      this.box.style.left = this.originalPosition.x;
-      this.box.style.top = this.originalPosition.y;
+      this.showPanel();
     }
+  },
 
-    extension_settings[extensionName].floatBoxState.isFullscreen = isFullscreen;
+  // 显示面板
+  showPanel() {
+    this.panel.classList.add("show");
+    extension_settings[extensionName].floatBallState.isPanelOpen = true;
+    saveSettingsDebounced();
+  },
+
+  // 隐藏面板
+  hidePanel() {
+    this.panel.classList.remove("show");
+    extension_settings[extensionName].floatBallState.isPanelOpen = false;
     saveSettingsDebounced();
   },
 
   // 切换选项卡
   switchTab(tabId) {
     // 切换导航选中状态
-    document.querySelectorAll(".float-tab-item").forEach(tab => {
+    document.querySelectorAll(".panel-tab-item").forEach(tab => {
       tab.classList.toggle("active", tab.dataset.tab === tabId);
     });
     // 切换面板显示
-    document.querySelectorAll(".float-tab-panel").forEach(panel => {
+    document.querySelectorAll(".panel-tab-panel").forEach(panel => {
       panel.classList.toggle("active", panel.id === tabId);
     });
 
     // 保存选中的选项卡
-    extension_settings[extensionName].floatBoxState.activeTab = tabId;
+    extension_settings[extensionName].floatBallState.activeTab = tabId;
     saveSettingsDebounced();
-  },
-
-  // 显示悬浮框
-  show() {
-    this.box.classList.remove("hidden");
-    this.triggerBtn.classList.add("hidden");
-  },
-
-  // 隐藏悬浮框
-  hide() {
-    this.box.classList.add("hidden");
-    this.triggerBtn.classList.remove("hidden");
-  },
-
-  // 判断是否全屏
-  isFullscreen() {
-    return this.box.classList.contains("fullscreen");
-  },
-
-  // 适配屏幕位置
-  adaptPosition() {
-    const rect = this.box.getBoundingClientRect();
-    const maxX = window.innerWidth - rect.width;
-    const maxY = window.innerHeight - rect.height;
-    let x = Math.max(0, Math.min(rect.left, maxX));
-    let y = Math.max(0, Math.min(rect.top, maxY));
-    this.box.style.left = `${x}px`;
-    this.box.style.top = `${y}px`;
   },
 
   // 恢复保存的状态
   restoreState() {
-    const state = extension_settings[extensionName].floatBoxState || defaultSettings.floatBoxState;
+    const state = extension_settings[extensionName].floatBallState || defaultSettings.floatBallState;
     // 恢复位置
-    this.box.style.left = `${state.position.x}px`;
-    this.box.style.top = `${state.position.y}px`;
+    this.ball.style.left = `${state.position.x}px`;
+    this.ball.style.top = `${state.position.y}px`;
+    this.ball.style.right = "auto";
+    this.ball.style.transform = "none";
     // 恢复选项卡
     this.switchTab(state.activeTab);
-    // 恢复全屏/最小化状态
-    if (state.isFullscreen) this.toggleFullscreen();
-    if (state.isMinimized) this.toggleMinimize();
+    // 恢复面板状态
+    if (state.isPanelOpen) this.showPanel();
   }
 };
 
@@ -284,8 +269,8 @@ async function loadSettings() {
   }
 
   isInitialized = true;
-  // 初始化悬浮框
-  FloatBox.init();
+  // 初始化悬浮球
+  FloatBall.init();
 }
 
 // 原有抽屉状态管理函数（100%完整保留）
@@ -312,7 +297,7 @@ function restoreDrawerState() {
 }
 
 function initDrawerToggle() {
-  $('#novel-writer-float-box').off('click', '.inline-drawer-header').on('click', '.inline-drawer-header', function(e) {
+  $('#novel-writer-panel').off('click', '.inline-drawer-header').on('click', '.inline-drawer-header', function(e) {
     e.preventDefault();
     e.stopPropagation();
     const $drawer = $(this).closest('.inline-drawer');
@@ -1260,7 +1245,7 @@ function renderContinueWriteChain(chain) {
 }
 
 function initContinueChainEvents() {
-  const $root = $('#novel-writer-float-box');
+  const $root = $('#novel-writer-panel');
   $root.off('input', '.continue-chapter-content').on('input', '.continue-chapter-content', function(e) {
     const chainId = parseInt($(e.target).data('chain-id'));
     const newContent = $(e.target).val();
@@ -1575,7 +1560,7 @@ async function generateNovelWrite() {
 // 扩展入口（功能100%完整保留）
 // ==============================================
 jQuery(async () => {
-  // 加载悬浮框HTML到页面
+  // 加载HTML到页面
   try {
     const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
     $("body").append(settingsHtml);
