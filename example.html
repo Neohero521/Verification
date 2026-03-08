@@ -31,6 +31,11 @@
       <i class="fa-solid fa-pen-nib"></i>
       <span>内容续写</span>
     </button>
+    <!-- 新增：小说阅读器选项卡 -->
+    <button class="panel-tab-item" data-tab="tab-reader">
+      <i class="fa-solid fa-book-reader"></i>
+      <span>小说阅读</span>
+    </button>
   </div>
 
   <!-- 选项卡内容容器 -->
@@ -270,6 +275,59 @@
         </div>
         <div id="continue-write-chain" class="chain-container">
           <p class="empty-tip">暂无续写章节，生成续写内容后自动添加到此处</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增：选项卡4 小说阅读器 -->
+    <div class="panel-tab-panel" id="tab-reader">
+      <!-- 阅读器顶部控制栏 -->
+      <div class="reader-header">
+        <div class="reader-title">
+          <i class="fa-solid fa-book-open"></i>
+          <span id="reader-current-chapter-title">未选择章节</span>
+        </div>
+        <div class="reader-controls">
+          <button class="btn btn-sm btn-outline reader-font-btn" id="reader-font-minus" title="缩小字体">
+            <i class="fa-solid fa-font"></i><i class="fa-solid fa-minus"></i>
+          </button>
+          <button class="btn btn-sm btn-outline reader-font-btn" id="reader-font-plus" title="放大字体">
+            <i class="fa-solid fa-font"></i><i class="fa-solid fa-plus"></i>
+          </button>
+          <button class="btn btn-sm btn-primary" id="reader-chapter-select-btn">
+            <i class="fa-solid fa-list"></i> 章节列表
+          </button>
+        </div>
+      </div>
+
+      <!-- 阅读器核心内容区域（上下滑动翻页） -->
+      <div class="reader-content-wrap">
+        <div class="reader-content" id="reader-content">
+          <p class="reader-empty-tip">请先在「章节管理」中解析小说文件，然后选择章节开始阅读</p>
+        </div>
+        <!-- 点击中间区域透明遮罩，唤出章节选择 -->
+        <div class="reader-click-mask" id="reader-click-mask"></div>
+      </div>
+
+      <!-- 阅读器底部进度条 -->
+      <div class="reader-footer">
+        <span id="reader-progress-text">0%</span>
+        <div class="reader-progress-bar">
+          <div class="reader-progress-fill" id="reader-progress-fill"></div>
+        </div>
+        <span id="reader-chapter-count">0/0</span>
+      </div>
+
+      <!-- 章节选择侧边抽屉 -->
+      <div class="reader-chapter-drawer" id="reader-chapter-drawer">
+        <div class="reader-drawer-header">
+          <h3><i class="fa-solid fa-list-ul"></i> 章节列表</h3>
+          <button class="btn btn-sm btn-outline" id="reader-drawer-close">
+            <i class="fa-solid fa-xmark"></i> 关闭
+          </button>
+        </div>
+        <div class="reader-chapter-list" id="reader-chapter-list">
+          <p class="empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>
         </div>
       </div>
     </div>
