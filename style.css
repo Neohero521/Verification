@@ -1,354 +1,510 @@
-/* AI小说续写器扩展全局样式 */
-/* 悬浮球核心样式 */
-#st-novel-float-ball {
-  position: fixed !important;
-  z-index: 9999 !important;
-  width: 50px !important;
+/* ==============================================
+   原有样式100%完整保留，保证功能兼容性
+   ============================================== */
+/* 顶级命名空间，强化样式优先级 */
+.novel-writer-extension * {
+  box-sizing: border-box;
+}
+
+/* 基础通用样式 */
+.novel-writer-extension .novel-block {
+  margin-bottom: 12px;
+}
+.novel-writer-extension .chapter-item {
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  border-radius: 5px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.novel-writer-extension .chapter-checkbox {
+  cursor: pointer;
+}
+.novel-writer-extension .chapter-title {
+  font-size: 0.95rem;
+}
+.novel-writer-extension .progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--input-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.novel-writer-extension .progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+/* 通用工具样式 */
+.novel-writer-extension .text-sm {
+  font-size: 0.85rem;
+}
+.novel-writer-extension .text-muted {
+  color: var(--text-muted);
+}
+.novel-writer-extension .text-success {
+  color: var(--success);
+}
+.novel-writer-extension .text-danger {
+  color: var(--danger);
+}
+.novel-writer-extension .text-center {
+  text-align: center;
+}
+.novel-writer-extension .margin0 {
+  margin: 0;
+}
+.novel-writer-extension .margin-t5 {
+  margin-top: 5px;
+}
+.novel-writer-extension .margin-b5 {
+  margin-bottom: 5px;
+}
+.novel-writer-extension .margin-r5 {
+  margin-right: 5px;
+}
+.novel-writer-extension .margin-l5 {
+  margin-left: 5px;
+}
+.novel-writer-extension .padding5 {
+  padding: 5px;
+}
+.novel-writer-extension .borderR5 {
+  border-radius: 5px;
+}
+.novel-writer-extension .gap5 {
+  gap: 5px;
+}
+.novel-writer-extension .gap10 {
+  gap: 10px;
+}
+.novel-writer-extension .flex1 {
+  flex: 1;
+  min-width: 120px;
+}
+.novel-writer-extension .flexColumn {
+  flex-direction: column;
+}
+.novel-writer-extension .alignCenter {
+  align-items: center;
+}
+.novel-writer-extension .alignEnd {
+  align-items: flex-end;
+}
+.novel-writer-extension .justifySpaceBetween {
+  justify-content: space-between;
+}
+.novel-writer-extension .fontBold {
+  font-weight: 600;
+}
+.novel-writer-extension .w100 {
+  width: 100%;
+}
+
+/* 表单样式 */
+.novel-writer-extension .form-group {
+  margin-bottom: 12px;
+}
+.novel-writer-extension .form-group-header {
+  margin-bottom: 8px;
+}
+.novel-writer-extension .form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.novel-writer-extension .grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+/* 章节列表滚动容器 */
+.novel-writer-extension .chapter-list {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+/* 下拉框样式适配 */
+.novel-writer-extension select.form-control {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+.novel-writer-extension select.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* 无限续写链条样式 */
+.novel-writer-extension .continue-chapter-item {
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  border-radius: 5px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.novel-writer-extension .chain-container {
+  max-height: 600px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.novel-writer-extension .continue-chapter-content {
+  margin-top: 8px;
+  min-height: 100px;
+}
+
+/* 抽屉核心样式 */
+.novel-writer-extension .inline-drawer {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--secondary-bg);
+}
+.novel-writer-extension .inline-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+.novel-writer-extension .inline-drawer-content {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  display: none;
+}
+.novel-writer-extension .inline-drawer.open .inline-drawer-content {
+  display: block;
+}
+.novel-writer-extension .inline-drawer-icon {
+  transition: transform 0.3s ease;
+}
+.novel-writer-extension .inline-drawer.open .inline-drawer-icon.down {
+  transform: rotate(180deg);
+}
+
+/* 内嵌抽屉层级样式 */
+.novel-writer-extension .inline-drawer .inline-drawer {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  background: var(--secondary-bg);
+}
+
+/* textarea样式 */
+.novel-writer-extension textarea.form-control {
+  min-height: 60px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+.novel-writer-extension textarea.form-control[readonly] {
+  background: var(--secondary-bg);
+  cursor: not-allowed;
+}
+.novel-writer-extension textarea.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* 输入框样式 */
+.novel-writer-extension input.form-control {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text-color);
+}
+.novel-writer-extension input.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* 按钮禁用状态样式 */
+.novel-writer-extension .menu_button--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* flex容器兼容性 */
+.novel-writer-extension .flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* hr样式 */
+.novel-writer-extension hr.sysHR {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* ==============================================
+   新增：悬浮框核心美化样式
+   ============================================== */
+/* 悬浮框主容器 */
+.float-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px;
+  height: 800px;
+  max-width: 95vw;
+  max-height: 95vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 99999;
+  transition: all 0.3s ease;
+}
+
+/* 拖动状态 */
+.float-box.dragging {
+  opacity: 0.9;
+  user-select: none;
+}
+
+/* 最小化状态 */
+.float-box.minimized {
   height: 50px !important;
-  border-radius: 50% !important;
-  background: linear-gradient(135deg, var(--main-color, #667eea) 0%, var(--main-hover-color, #764ba2) 100%) !important;
-  box-shadow: 0 4px 12px rgba(var(--main-color-rgb, 102, 126, 234), 0.4) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-  user-select: none !important;
-  transition: all 0.2s ease !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
+  width: 300px !important;
+  max-height: 50px;
+  transform: none;
+}
+.float-box.minimized .float-tab-nav,
+.float-box.minimized .float-tab-content {
+  display: none;
 }
 
-#st-novel-float-ball:hover {
-  transform: scale(1.1) !important;
-  box-shadow: 0 6px 16px rgba(var(--main-color-rgb, 102, 126, 234), 0.5) !important;
+/* 全屏状态 */
+.float-box.fullscreen {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  transform: none;
 }
 
-#st-novel-float-ball .st-novel-ball-icon {
-  font-size: 24px !important;
-  line-height: 1 !important;
-  color: #ffffff !important;
-}
-
-#st-novel-float-ball .st-novel-ball-badge {
-  position: absolute !important;
-  top: -4px !important;
-  right: -4px !important;
-  width: 20px !important;
-  height: 20px !important;
-  border-radius: 50% !important;
-  background: var(--danger-color, #ef4444) !important;
-  color: #ffffff !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-}
-
-/* 续写面板核心样式 */
-#st-novel-continuation-panel {
-  position: fixed !important;
-  z-index: 9998 !important;
-  width: 380px !important;
-  max-height: 80vh !important;
-  border-radius: 12px !important;
-  background: var(--secondary-bg-color, #ffffff) !important;
-  border: 1px solid var(--border-color, #e5e7eb) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-  overflow: hidden !important;
+/* 隐藏状态 */
+.float-box.hidden {
   display: none !important;
-  flex-direction: column !important;
-  transition: all 0.3s ease !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }
 
-#st-novel-continuation-panel .st-novel-panel-header {
-  padding: 16px 20px !important;
-  border-bottom: 1px solid var(--border-color, #e5e7eb) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  background: linear-gradient(135deg, var(--main-color, #667eea) 0%, var(--main-hover-color, #764ba2) 100%) !important;
-  color: #ffffff !important;
-  margin: 0 !important;
+/* 悬浮框头部 */
+.float-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--secondary-bg);
+  border-bottom: 1px solid var(--border);
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+.float-box-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+.float-box-title i {
+  color: var(--primary);
 }
 
-#st-novel-continuation-panel .st-novel-panel-title {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: #ffffff !important;
-  margin: 0 !important;
-  line-height: 1 !important;
+/* 头部控制按钮 */
+.float-box-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.float-control-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.float-control-btn:hover {
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+.float-close-btn:hover {
+  background: var(--danger);
+  color: white;
 }
 
-#st-novel-continuation-panel .st-novel-panel-close {
-  font-size: 24px !important;
-  cursor: pointer !important;
-  line-height: 1 !important;
-  opacity: 0.8 !important;
-  transition: opacity 0.2s ease !important;
-  color: #ffffff !important;
-  font-weight: 400 !important;
+/* 选项卡导航栏 */
+.float-tab-nav {
+  display: flex;
+  background: var(--secondary-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  padding: 0 8px;
+  gap: 4px;
+}
+.float-tab-item {
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  position: relative;
+}
+.float-tab-item:hover {
+  color: var(--text-color);
+  background: var(--input-bg);
+}
+.float-tab-item.active {
+  color: var(--primary);
+  background: var(--bg);
+}
+.float-tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
 }
 
-#st-novel-continuation-panel .st-novel-panel-close:hover {
-  opacity: 1 !important;
+/* 选项卡内容容器 */
+.float-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+}
+.float-tab-panel {
+  display: none;
+}
+.float-tab-panel.active {
+  display: block;
+  animation: fadeIn 0.2s ease;
 }
 
-#st-novel-continuation-panel .st-novel-panel-content {
-  padding: 16px 20px !important;
-  overflow-y: auto !important;
-  flex: 1 !important;
-  margin: 0 !important;
+/* 唤起按钮 */
+.float-trigger-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 99998;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.float-trigger-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+.float-trigger-btn.hidden {
+  display: none !important;
 }
 
-#st-novel-continuation-panel .st-novel-input-group {
-  margin-bottom: 16px !important;
-}
-
-#st-novel-continuation-panel .st-novel-input-group label {
-  display: block !important;
-  margin-bottom: 8px !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: var(--primary-text-color, #333333) !important;
-  line-height: 1 !important;
-}
-
-#st-novel-continuation-panel .st-novel-content-input {
-  width: 100% !important;
-  min-height: 120px !important;
-  padding: 12px !important;
-  border: 1px solid var(--border-color, #e5e7eb) !important;
-  border-radius: 8px !important;
-  font-size: 14px !important;
-  line-height: 1.5 !important;
-  resize: vertical !important;
-  outline: none !important;
-  box-sizing: border-box !important;
-  transition: border-color 0.2s ease !important;
-  background: var(--input-bg-color, #ffffff) !important;
-  color: var(--primary-text-color, #333333) !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-content-input:focus {
-  border-color: var(--main-color, #667eea) !important;
-}
-
-#st-novel-continuation-panel .st-novel-params-group {
-  margin-bottom: 16px !important;
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 12px !important;
-}
-
-#st-novel-continuation-panel .st-novel-param-item {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-}
-
-#st-novel-continuation-panel .st-novel-param-item.full-width {
-  grid-column: 1 / -1 !important;
-}
-
-#st-novel-continuation-panel .st-novel-param-item label {
-  font-size: 13px !important;
-  color: var(--secondary-text-color, #666666) !important;
-  line-height: 1 !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-param-item .param-header {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-}
-
-#st-novel-continuation-panel .st-novel-param-item select {
-  width: 100% !important;
-  padding: 8px 12px !important;
-  border: 1px solid var(--border-color, #e5e7eb) !important;
-  border-radius: 6px !important;
-  font-size: 13px !important;
-  outline: none !important;
-  box-sizing: border-box !important;
-  background: var(--input-bg-color, #ffffff) !important;
-  color: var(--primary-text-color, #333333) !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-temperature-slider {
-  width: 100% !important;
-  height: 6px !important;
-  border-radius: 3px !important;
-  background: var(--tertiary-bg-color, #e5e7eb) !important;
-  outline: none !important;
-  accent-color: var(--main-color, #667eea) !important;
-  cursor: pointer !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-btn-group {
-  margin-bottom: 16px !important;
-  display: flex !important;
-  gap: 10px !important;
-}
-
-#st-novel-continuation-panel .st-novel-continue-btn {
-  flex: 1 !important;
-  padding: 10px 0 !important;
-  border: none !important;
-  border-radius: 8px !important;
-  background: linear-gradient(135deg, var(--main-color, #667eea) 0%, var(--main-hover-color, #764ba2) 100%) !important;
-  color: #ffffff !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-continue-btn:hover:not(.disabled) {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(var(--main-color-rgb, 102, 126, 234), 0.4) !important;
-}
-
-#st-novel-continuation-panel .st-novel-continue-btn.disabled {
-  opacity: 0.7 !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-}
-
-#st-novel-continuation-panel .st-novel-clear-btn {
-  width: 60px !important;
-  padding: 10px 0 !important;
-  border: 1px solid var(--border-color, #e5e7eb) !important;
-  border-radius: 8px !important;
-  background: var(--secondary-bg-color, #ffffff) !important;
-  color: var(--secondary-text-color, #666666) !important;
-  font-size: 14px !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-clear-btn:hover {
-  background: var(--tertiary-bg-color, #f9fafb) !important;
-}
-
-#st-novel-continuation-panel .st-novel-result-group {
-  margin-bottom: 0 !important;
-}
-
-#st-novel-continuation-panel .result-header {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  margin-bottom: 8px !important;
-}
-
-#st-novel-continuation-panel .result-header label {
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: var(--primary-text-color, #333333) !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .result-actions {
-  display: flex !important;
-  gap: 8px !important;
-}
-
-#st-novel-continuation-panel .st-novel-copy-btn,
-#st-novel-continuation-panel .st-novel-insert-btn {
-  padding: 4px 10px !important;
-  border: none !important;
-  border-radius: 4px !important;
-  background: var(--main-color-transparent, #f0f0ff) !important;
-  color: var(--main-color, #667eea) !important;
-  font-size: 12px !important;
-  cursor: pointer !important;
-  transition: background 0.2s ease !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .st-novel-copy-btn:hover,
-#st-novel-continuation-panel .st-novel-insert-btn:hover {
-  background: var(--main-color-light, #e5e5ff) !important;
-}
-
-#st-novel-continuation-panel .st-novel-result-container {
-  width: 100% !important;
-  min-height: 100px !important;
-  max-height: 300px !important;
-  padding: 12px !important;
-  border: 1px solid var(--border-color, #e5e7eb) !important;
-  border-radius: 8px !important;
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-  color: var(--primary-text-color, #333333) !important;
-  overflow-y: auto !important;
-  box-sizing: border-box !important;
-  white-space: pre-wrap !important;
-  word-break: break-word !important;
-  background: var(--tertiary-bg-color, #fafafa) !important;
-  margin: 0 !important;
-}
-
-#st-novel-continuation-panel .error-text {
-  color: var(--danger-color, #ef4444) !important;
-}
-
-/* 滚动条样式适配 */
-#st-novel-continuation-panel .st-novel-panel-content::-webkit-scrollbar,
-#st-novel-continuation-panel .st-novel-content-input::-webkit-scrollbar,
-#st-novel-continuation-panel .st-novel-result-container::-webkit-scrollbar {
-  width: 6px !important;
-}
-
-#st-novel-continuation-panel .st-novel-panel-content::-webkit-scrollbar-track,
-#st-novel-continuation-panel .st-novel-content-input::-webkit-scrollbar-track,
-#st-novel-continuation-panel .st-novel-result-container::-webkit-scrollbar-track {
-  background: var(--tertiary-bg-color, #f1f1f1) !important;
-  border-radius: 3px !important;
-}
-
-#st-novel-continuation-panel .st-novel-panel-content::-webkit-scrollbar-thumb,
-#st-novel-continuation-panel .st-novel-content-input::-webkit-scrollbar-thumb,
-#st-novel-continuation-panel .st-novel-result-container::-webkit-scrollbar-thumb {
-  background: var(--border-color, #c1c1c1) !important;
-  border-radius: 3px !important;
-}
-
-/* 响应式适配 */
-@media (max-width: 480px) {
-  #st-novel-continuation-panel {
-    width: 90vw !important;
-    left: 5vw !important;
-    right: 5vw !important;
-    top: 10vh !important;
-    max-height: 80vh !important;
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* 设置面板样式适配 */
-.st-novel-continuation_block .text-muted {
-  font-size: 12px !important;
-  color: var(--secondary-text-color, #666666) !important;
-  margin: 0 !important;
+/* 滚动条美化 */
+.float-box ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.float-box ::-webkit-scrollbar-track {
+  background: var(--input-bg);
+  border-radius: 3px;
+}
+.float-box ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+.float-box ::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
 }
 
-.st-novel-continuation_block .text_pole {
-  flex: 1 !important;
-}
-
-.st-novel-continuation_block label {
-  min-width: 120px !important;
-  margin-right: 10px !important;
-  align-self: center !important;
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .float-box {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+  }
+  .float-tab-item span {
+    display: none;
+  }
+  .float-tab-item {
+    padding: 12px;
+  }
+  .float-tab-content {
+    padding: 12px;
+  }
 }
