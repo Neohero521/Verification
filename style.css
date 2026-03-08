@@ -822,7 +822,7 @@ input[type="checkbox"] {
 }
 
 /* ==============================================
-   小说阅读器完整样式（终极BUG修复版）
+   小说阅读器完整样式（无限循环滚动根源修复）
    ============================================== */
 /* 阅读器整体容器 */
 #tab-reader {
@@ -869,7 +869,7 @@ input[type="checkbox"] {
   gap: 2px;
 }
 
-/* 阅读器内容区域（核心滚动BUG终极修复） */
+/* 阅读器内容区域（核心循环BUG根源修复） */
 .reader-content-wrap {
   flex: 1;
   position: relative;
@@ -877,7 +877,7 @@ input[type="checkbox"] {
   border-radius: var(--radius-md);
   background: var(--reader-bg);
   border: 1px solid var(--border-color);
-  /* 核心修复：阻止滚动链，防止弹性滚动冒泡 */
+  /* 核心修复：彻底阻断滚动链，禁止弹性滚动冒泡到父元素 */
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
@@ -891,12 +891,13 @@ input[type="checkbox"] {
   color: var(--reader-text);
   word-break: break-word;
   white-space: pre-wrap;
-  /* 核心修复：彻底解决弹性滚动、循环滑动问题 */
+  /* 核心修复：彻底根治弹性滚动、循环触发问题 */
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  /* 修复：阻止滚动事件冒泡到父元素 */
+  /* 核心修复：禁用平滑滚动，避免滚动过程中持续触发事件 */
+  scroll-behavior: auto;
+  /* 核心修复：阻止滚动锚定，避免内容变化时自动调整滚动位置 */
   overflow-anchor: none;
 }
 .reader-empty-tip {
