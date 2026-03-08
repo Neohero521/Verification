@@ -1,5 +1,5 @@
 /* ==============================================
-   全局重置与核心变量（完全脱离ST原生主题）
+   全局变量与重置（赛博极光暗黑风）
    ============================================== */
 * {
   margin: 0;
@@ -8,21 +8,22 @@
 }
 
 :root {
-  /* 主背景色（完全不透明） */
-  --bg-main: #0f0f1a;
-  --bg-card: #1a1a2e;
-  --bg-card-hover: #22223f;
-  --bg-input: #16162a;
-  --bg-drawer: #141425;
+  /* 主背景色（100%不透明） */
+  --bg-main: #0c0c18;
+  --bg-card: #151528;
+  --bg-card-hover: #1e1e3a;
+  --bg-input: #121224;
+  --bg-drawer: #101020;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
 
-  /* 主色调 */
-  --primary: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.5);
+  /* 主色调：极光紫蓝渐变 */
+  --primary: #7c3aed;
+  --primary-light: #a78bfa;
+  --primary-dark: #6d28d9;
+  --primary-glow: rgba(124, 58, 237, 0.6);
 
   /* 辅助色 */
-  --secondary: #22d3ee;
+  --secondary: #06b6d4;
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
@@ -38,8 +39,9 @@
   --border-light: #475569;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 16px var(--primary-glow);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px var(--primary-glow);
+  --shadow-ball: 0 0 25px rgba(124, 58, 237, 0.7);
 
   /* 圆角 */
   --radius-sm: 6px;
@@ -55,8 +57,8 @@
 
 /* 滚动条全局美化 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-input);
@@ -72,105 +74,121 @@
 }
 
 /* ==============================================
-   悬浮框核心样式（完全不透明，背景彻底解决）
+   可移动悬浮球核心样式
    ============================================== */
-.float-box {
+.float-ball {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 70px;
+  height: 70px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--secondary) 100%);
+  box-shadow: var(--shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 99999;
+  transition: all var(--transition-normal);
+  user-select: none;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 悬浮球拖动状态 */
+.float-ball.dragging {
+  opacity: 0.8;
+  transform: scale(1.05);
+  transition: none;
+}
+
+/* 悬浮球hover效果 */
+.float-ball:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: var(--shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* 悬浮球图标 */
+.ball-icon {
+  font-size: 1.5rem;
+  color: white;
+  margin-bottom: 2px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* 悬浮球文字 */
+.ball-tip {
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ==============================================
+   功能面板核心样式
+   ============================================== */
+.writer-panel {
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  width: 950px;
+  transform: translate(-50%, -50%) scale(0.8);
+  width: 900px;
   height: 850px;
-  max-width: 96vw;
-  max-height: 96vh;
-  /* 完全不透明主背景，渐变质感 */
-  background: linear-gradient(135deg, var(--bg-main) 0%, #131325 100%);
+  max-width: 95vw;
+  max-height: 95vh;
+  background: linear-gradient(135deg, var(--bg-main) 0%, #101022 100%);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), 0 0 60px rgba(0, 0, 0, 0.7);
-  display: flex;
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(0, 0, 0, 0.8);
+  display: none;
   flex-direction: column;
   overflow: hidden;
-  z-index: 99999;
+  z-index: 99998;
+  opacity: 0;
   transition: all var(--transition-normal);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* 拖动状态 */
-.float-box.dragging {
-  opacity: 0.95;
-  user-select: none;
-  transform: translate(-50%, -50%) scale(1.01);
-}
-
-/* 最小化状态 */
-.float-box.minimized {
-  height: 60px !important;
-  width: 350px !important;
-  max-height: 60px;
-  transform: none;
-  border-radius: var(--radius-md);
-}
-.float-box.minimized .float-tab-nav,
-.float-box.minimized .float-tab-content {
-  display: none;
-}
-
-/* 全屏状态 */
-.float-box.fullscreen {
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: 100vw;
-  max-height: 100vh;
-  border-radius: 0;
-  transform: none;
-}
-
-/* 隐藏状态 */
-.float-box.hidden {
-  display: none !important;
+/* 面板展开状态 */
+.writer-panel.show {
+  display: flex;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 /* ==============================================
-   悬浮框头部美化
+   面板头部样式
    ============================================== */
-.float-box-header {
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
+  padding: 16px 24px;
   background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-main) 100%);
   border-bottom: 1px solid var(--border-color);
-  cursor: move;
-  user-select: none;
   flex-shrink: 0;
 }
-.float-box-title {
+.panel-title {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   color: var(--text-white);
   letter-spacing: 0.5px;
 }
-.float-box-title i {
+.panel-title i {
   color: var(--primary);
   font-size: 1.3rem;
   text-shadow: 0 0 10px var(--primary-glow);
 }
 
-/* 头部控制按钮 */
-.float-box-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.float-control-btn {
-  width: 36px;
-  height: 36px;
+/* 关闭按钮 */
+.panel-close-btn {
+  width: 38px;
+  height: 38px;
   border: none;
   border-radius: var(--radius-sm);
   background: var(--bg-input);
@@ -181,30 +199,26 @@
   justify-content: center;
   transition: all var(--transition-fast);
 }
-.float-control-btn:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-white);
-  transform: scale(1.05);
-}
-.float-close-btn:hover {
+.panel-close-btn:hover {
   background: var(--danger);
   color: white;
+  transform: scale(1.05);
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 
 /* ==============================================
-   选项卡导航美化
+   选项卡导航样式
    ============================================== */
-.float-tab-nav {
+.panel-tab-nav {
   display: flex;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-  padding: 0 12px;
-  gap: 8px;
+  padding: 0 16px;
+  gap: 4px;
 }
-.float-tab-item {
-  padding: 14px 22px;
+.panel-tab-item {
+  padding: 14px 24px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -218,14 +232,14 @@
   font-size: 0.95rem;
   position: relative;
 }
-.float-tab-item i {
+.panel-tab-item i {
   font-size: 1rem;
 }
-.float-tab-item:hover {
+.panel-tab-item:hover {
   color: var(--text-primary);
   background: var(--bg-input);
 }
-.float-tab-item.active {
+.panel-tab-item.active {
   color: var(--text-white);
   background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary) 100%);
   box-shadow: 0 -2px 12px var(--primary-glow);
@@ -234,18 +248,18 @@
 /* ==============================================
    选项卡内容容器
    ============================================== */
-.float-tab-content {
+.panel-tab-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 20px 24px;
   background: var(--bg-main);
 }
-.float-tab-panel {
+.panel-tab-panel {
   display: none;
   animation: fadeInUp var(--transition-normal);
 }
-.float-tab-panel.active {
+.panel-tab-panel.active {
   display: block;
 }
 
@@ -262,9 +276,9 @@
 }
 
 /* ==============================================
-   卡片组件美化（核心布局单元）
+   内容卡片样式（核心布局单元）
    ============================================== */
-.card {
+.content-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -273,7 +287,7 @@
   overflow: hidden;
   transition: all var(--transition-fast);
 }
-.card:hover {
+.content-card:hover {
   border-color: var(--border-light);
   box-shadow: var(--shadow-md);
 }
@@ -297,15 +311,16 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-.card-header h3 {
+.card-header h4 {
   color: var(--text-white);
   font-size: 1.05rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
 }
-.card-header h3 i {
+.card-header h4 i {
   color: var(--primary);
 }
 
@@ -335,7 +350,7 @@
 }
 
 /* ==============================================
-   表单元素美化（输入框、下拉框、文本域）
+   表单元素美化
    ============================================== */
 .form-group {
   width: 100%;
@@ -376,7 +391,7 @@
 }
 .form-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 .form-input::placeholder {
   color: var(--text-muted);
@@ -397,7 +412,7 @@
 }
 .form-select:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
 /* 文本域 */
@@ -417,7 +432,7 @@
 }
 .form-textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 .form-textarea::placeholder {
   color: var(--text-muted);
@@ -452,7 +467,7 @@ input[type="checkbox"] {
 }
 
 /* ==============================================
-   按钮组件美化（全状态覆盖）
+   按钮组件美化
    ============================================== */
 .btn {
   border: none;
@@ -473,7 +488,7 @@ input[type="checkbox"] {
   font-size: 0.85rem;
 }
 .btn-lg {
-  padding: 12px 28px;
+  padding: 12px 32px;
   font-size: 1rem;
 }
 
@@ -481,7 +496,7 @@ input[type="checkbox"] {
 .btn-primary {
   background: linear-gradient(90deg, var(--primary-dark) 0%, var(--primary) 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 .btn-primary:hover {
   transform: translateY(-2px);
@@ -493,13 +508,13 @@ input[type="checkbox"] {
 
 /* 次要按钮 */
 .btn-secondary {
-  background: var(--secondary);
+  background: linear-gradient(90deg, #0891b2 0%, var(--secondary) 100%);
   color: var(--bg-main);
-  box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
 }
 .btn-secondary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.5);
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.5);
 }
 
 /* 描边按钮 */
@@ -511,7 +526,7 @@ input[type="checkbox"] {
 .btn-outline:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(124, 58, 237, 0.1);
 }
 
 /* 危险按钮 */
@@ -544,9 +559,18 @@ input[type="checkbox"] {
 .btn-group-wrap {
   margin-top: 12px;
 }
+.btn-group-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.btn-center {
+  justify-content: center;
+}
 
-/* 文件选择行 */
-.file-select-row {
+/* 文件选择组 */
+.file-select-group {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -787,40 +811,22 @@ input[type="checkbox"] {
 }
 
 /* ==============================================
-   唤起按钮美化
-   ============================================== */
-.float-trigger-btn {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  width: 64px;
-  height: 64px;
-  border: none;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
-  color: white;
-  font-size: 1.4rem;
-  cursor: pointer;
-  box-shadow: var(--shadow-lg), 0 0 24px var(--primary-glow);
-  z-index: 99998;
-  transition: all var(--transition-normal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.float-trigger-btn:hover {
-  transform: scale(1.1);
-  box-shadow: var(--shadow-lg), 0 0 32px var(--primary-glow);
-}
-.float-trigger-btn.hidden {
-  display: none !important;
-}
-
-/* ==============================================
    响应式适配
    ============================================== */
 @media (max-width: 768px) {
-  .float-box {
+  .float-ball {
+    width: 60px;
+    height: 60px;
+    right: 15px;
+  }
+  .ball-icon {
+    font-size: 1.3rem;
+  }
+  .ball-tip {
+    font-size: 0.6rem;
+  }
+
+  .writer-panel {
     width: 100vw !important;
     height: 100vh !important;
     max-width: 100vw;
@@ -830,14 +836,15 @@ input[type="checkbox"] {
     left: 0 !important;
     transform: none !important;
   }
-  .float-tab-item span {
+
+  .panel-tab-item span {
     display: none;
   }
-  .float-tab-item {
+  .panel-tab-item {
     padding: 14px;
   }
-  .float-tab-content {
-    padding: 12px;
+  .panel-tab-content {
+    padding: 12px 16px;
   }
   .grid-2 {
     grid-template-columns: 1fr;
