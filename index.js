@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Always_remember_me";
+const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 默认配置（与原版本完全一致，无任何修改，保证兼容性）
