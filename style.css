@@ -62,26 +62,26 @@
     font-family: inherit;
 }
 
-/* 插件内部滚动条美化，不影响全局 */
+/* 插件内部滚动条美化，加!important防止被主题覆盖 */
 .novel-writer-extension-root ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 6px !important;
+    height: 6px !important;
 }
 .novel-writer-extension-root ::-webkit-scrollbar-track {
-    background: var(--novel-bg-input);
-    border-radius: var(--novel-radius-full);
+    background: var(--novel-bg-input) !important;
+    border-radius: var(--novel-radius-full) !important;
 }
 .novel-writer-extension-root ::-webkit-scrollbar-thumb {
-    background: var(--novel-border-color);
-    border-radius: var(--novel-radius-full);
-    transition: background var(--novel-transition-fast);
+    background: var(--novel-border-color) !important;
+    border-radius: var(--novel-radius-full) !important;
+    transition: background var(--novel-transition-fast) !important;
 }
 .novel-writer-extension-root ::-webkit-scrollbar-thumb:hover {
-    background: var(--novel-primary);
+    background: var(--novel-primary) !important;
 }
 
 /* ==============================================
-   可移动悬浮球核心样式（核心修复：确保始终可见）
+   可移动悬浮球核心样式（图标适配+显示修复）
    ============================================== */
 .novel-writer-extension-root .float-ball {
     position: fixed;
@@ -112,6 +112,9 @@
     /* 核心修复：强制显示，防止被原生样式隐藏 */
     visibility: visible !important;
     opacity: 1 !important;
+    display: flex !important;
+    /* 核心修复：防止拖动时触发页面滚动 */
+    touch-action: none !important;
 }
 /* 悬浮球拖动状态 */
 .novel-writer-extension-root .float-ball.dragging {
@@ -125,12 +128,13 @@
     transform: translateY(-50%) scale(1.1);
     box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
 }
-/* 悬浮球图标 */
+/* 悬浮球图标（适配Unicode） */
 .novel-writer-extension-root .ball-icon {
     font-size: 1.5rem;
     color: white;
     margin-bottom: 2px;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    line-height: 1;
 }
 /* 悬浮球文字 */
 .novel-writer-extension-root .ball-tip {
@@ -138,6 +142,7 @@
     color: white;
     font-weight: 600;
     text-align: center;
+    line-height: 1;
 }
 
 /* ==============================================
@@ -191,7 +196,7 @@
     color: var(--novel-text-white);
     letter-spacing: 0.5px;
 }
-.novel-writer-extension-root .panel-title i {
+.novel-writer-extension-root .panel-title span:first-child {
     color: var(--novel-primary);
     font-size: 1.3rem;
     text-shadow: 0 0 10px var(--novel-primary-glow);
@@ -209,6 +214,8 @@
     align-items: center;
     justify-content: center;
     transition: all var(--novel-transition-fast);
+    font-size: 1rem;
+    font-weight: bold;
 }
 .novel-writer-extension-root .panel-close-btn:hover {
     background: var(--novel-danger);
@@ -243,7 +250,7 @@
     font-size: 0.9rem;
     position: relative;
 }
-.novel-writer-extension-root .panel-tab-item i {
+.novel-writer-extension-root .panel-tab-item span:first-child {
     font-size: 1rem;
 }
 .novel-writer-extension-root .panel-tab-item:hover {
@@ -329,7 +336,7 @@
     gap: 8px;
     margin: 0;
 }
-.novel-writer-extension-root .card-header h4 i {
+.novel-writer-extension-root .card-header h4 span:first-child {
     color: var(--novel-primary);
 }
 /* 卡片内容 */
@@ -539,9 +546,9 @@
 /* 禁用状态 */
 .novel-writer-extension-root .btn:disabled,
 .novel-writer-extension-root .menu_button--disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
     transform: none !important;
 }
 /* 按钮组 */
@@ -712,12 +719,14 @@
     align-items: center;
     gap: 8px;
 }
-.novel-writer-extension-root .inline-drawer-header b i {
+.novel-writer-extension-root .inline-drawer-header b span:first-child {
     color: var(--novel-secondary);
 }
 .novel-writer-extension-root .inline-drawer-icon {
     color: var(--novel-text-secondary);
     transition: transform var(--novel-transition-fast);
+    font-size: 1rem;
+    font-weight: bold;
 }
 .novel-writer-extension-root .inline-drawer-content {
     padding: 20px;
@@ -828,7 +837,7 @@
     font-size: 1.1rem;
     color: var(--novel-text-white);
 }
-.novel-writer-extension-root .reader-title i {
+.novel-writer-extension-root .reader-title span:first-child {
     color: var(--novel-primary);
 }
 .novel-writer-extension-root .reader-controls {
@@ -953,7 +962,7 @@
     gap: 8px;
     margin: 0;
 }
-.novel-writer-extension-root .reader-drawer-header h3 i {
+.novel-writer-extension-root .reader-drawer-header h3 span:first-child {
     color: var(--novel-primary);
 }
 .novel-writer-extension-root .reader-chapter-list {
@@ -1018,7 +1027,7 @@
     color: var(--novel-primary-light);
     font-weight: 600;
 }
-.novel-writer-extension-root .reader-continue-chapter-item i {
+.novel-writer-extension-root .reader-continue-chapter-item span {
     font-size: 0.75rem;
     color: var(--novel-secondary);
     flex-shrink: 0;
@@ -1049,7 +1058,7 @@
         left: 0 !important;
         transform: none !important;
     }
-    .novel-writer-extension-root .panel-tab-item span {
+    .novel-writer-extension-root .panel-tab-item span:last-child {
         display: none;
     }
     .novel-writer-extension-root .panel-tab-item {
