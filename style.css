@@ -84,7 +84,6 @@
    ============================================== */
 .float-ball {
   position: fixed;
-  /* 初始位置统一用left/top，避免right与left混用导致拖动错乱 */
   left: calc(100vw - 90px);
   top: 50%;
   transform: translateY(-50%);
@@ -102,7 +101,6 @@
   transition: all var(--transition-normal);
   user-select: none;
   border: 2px solid rgba(255, 255, 255, 0.1);
-  /* 禁止文本选中，避免拖动时选中页面文字 */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -824,7 +822,7 @@ input[type="checkbox"] {
 }
 
 /* ==============================================
-   新增：小说阅读器完整样式
+   小说阅读器完整样式（修复滑动+新增分支样式）
    ============================================== */
 /* 阅读器整体容器 */
 #tab-reader {
@@ -871,7 +869,7 @@ input[type="checkbox"] {
   gap: 2px;
 }
 
-/* 阅读器内容区域（核心滑动区域） */
+/* 阅读器内容区域（核心修复滑动问题） */
 .reader-content-wrap {
   flex: 1;
   position: relative;
@@ -890,6 +888,9 @@ input[type="checkbox"] {
   color: var(--reader-text);
   word-break: break-word;
   white-space: pre-wrap;
+  /* 修复：确保滚动事件正常触发 */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 .reader-empty-tip {
   text-align: center;
@@ -898,7 +899,7 @@ input[type="checkbox"] {
   font-size: 1rem;
 }
 
-/* 点击中间区域的透明遮罩 */
+/* 透明遮罩（核心修复：不拦截滚动事件，仅响应点击） */
 .reader-click-mask {
   position: absolute;
   top: 0;
@@ -907,7 +908,8 @@ input[type="checkbox"] {
   height: 100%;
   background: transparent;
   z-index: 1;
-  pointer-events: auto;
+  /* 关键修复：不拦截滚动、触摸滑动事件，仅让点击事件穿透到父元素 */
+  pointer-events: none;
 }
 
 /* 阅读器底部进度条 */
@@ -1007,6 +1009,45 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
+/* 新增：续写章节竖向分支样式 */
+.reader-chapter-branch {
+  margin-left: 20px;
+  padding-left: 15px;
+  border-left: 2px solid var(--border-color);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+.reader-continue-chapter-item {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.reader-continue-chapter-item::before {
+  content: "└─";
+  color: var(--border-color);
+  font-size: 0.8rem;
+}
+.reader-continue-chapter-item:hover {
+  background: var(--bg-input);
+  color: var(--primary-light);
+}
+.reader-continue-chapter-item.active {
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--primary-light);
+  font-weight: 600;
+}
+.reader-continue-chapter-item i {
+  font-size: 0.75rem;
+  color: var(--secondary);
+}
+
 /* ==============================================
    响应式适配
    ============================================== */
@@ -1076,5 +1117,9 @@ input[type="checkbox"] {
   .reader-controls {
     width: 100%;
     justify-content: space-between;
+  }
+  .reader-chapter-branch {
+    margin-left: 12px;
+    padding-left: 10px;
   }
 }
