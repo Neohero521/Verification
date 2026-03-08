@@ -279,7 +279,7 @@
       </div>
     </div>
 
-    <!-- 选项卡4 小说阅读器（结构不变，渲染逻辑新增分支） -->
+    <!-- 选项卡4 小说阅读器（结构不变，BUG修复在JS/CSS） -->
     <div class="panel-tab-panel" id="tab-reader">
       <!-- 阅读器顶部控制栏 -->
       <div class="reader-header">
@@ -300,12 +300,12 @@
         </div>
       </div>
 
-      <!-- 阅读器核心内容区域（修复滑动问题） -->
+      <!-- 阅读器核心内容区域 -->
       <div class="reader-content-wrap">
         <div class="reader-content" id="reader-content">
           <p class="reader-empty-tip">请先在「章节管理」中解析小说文件，然后选择章节开始阅读</p>
         </div>
-        <!-- 透明遮罩（修复：不拦截滚动事件，仅响应点击） -->
+        <!-- 透明遮罩（仅响应点击，不拦截滚动） -->
         <div class="reader-click-mask" id="reader-click-mask"></div>
       </div>
 
@@ -318,7 +318,7 @@
         <span id="reader-chapter-count">0/0</span>
       </div>
 
-      <!-- 章节选择侧边抽屉（新增续写分支渲染） -->
+      <!-- 章节选择侧边抽屉 -->
       <div class="reader-chapter-drawer" id="reader-chapter-drawer">
         <div class="reader-drawer-header">
           <h3><i class="fa-solid fa-list-ul"></i> 章节列表</h3>
