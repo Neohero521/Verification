@@ -1,5 +1,4 @@
 <!-- 章节导入与管理 小说TXT文件 -->
-<!-- 章节拆分正则 -->
 <div class="novel-block flex-container">
     <label for="chapter-regex-input" class="margin-r5">章节拆分正则</label>
     <input id="chapter-regex-input" type="text" class="flex1" placeholder="^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$"/>
@@ -16,16 +15,16 @@
 </div>
 <!-- 解析&验证按钮 -->
 <div class="novel-block flex-container gap5">
-    <input id="parse-chapter-btn" class="menu_button menu_button--primary" type="button" value="解析章节"/>
-    <input id="validate-graph-btn" class="menu_button menu_button--secondary" type="button" value="验证图谱状态"/>
+    <input id="parse-chapter-btn" class="menu_button menu_button--primary" type="submit" value="解析章节"/>
+    <input id="validate-graph-btn" class="menu_button menu_button--secondary" type="submit" value="验证图谱状态"/>
 </div>
 <hr class="sysHR"/>
 <!-- 章节列表控制 -->
 <div class="novel-block flex-container justifySpaceBetween">
     <b>章节列表（仅显示标题）</b>
     <div class="flex-container gap5">
-        <input id="select-all-btn" class="menu_button menu_button--sm" type="button" value="全选"/>
-        <input id="unselect-all-btn" class="menu_button menu_button--sm" type="button" value="全不选"/>
+        <input id="select-all-btn" class="menu_button menu_button--sm" type="submit" value="全选"/>
+        <input id="unselect-all-btn" class="menu_button menu_button--sm" type="submit" value="全不选"/>
     </div>
 </div>
 <!-- 章节列表容器（仅显示标题，图谱状态实时验证） -->
@@ -42,14 +41,14 @@
 <hr class="sysHR"/>
 <!-- 操作按钮组 -->
 <div class="novel-block flex-container gap5">
-    <input id="stop-send-btn" class="menu_button menu_button--danger" type="button" value="停止发送"/>
-    <input id="import-selected-btn" class="menu_button menu_button--primary" type="button" value="导入选中章节到对话框"/>
-    <input id="import-all-btn" class="menu_button menu_button--secondary" type="button" value="导入全部章节到对话框"/>
+    <input id="stop-send-btn" class="menu_button menu_button--danger" type="submit" value="停止发送"/>
+    <input id="import-selected-btn" class="menu_button menu_button--primary" type="submit" value="导入选中章节到对话框"/>
+    <input id="import-all-btn" class="menu_button menu_button--secondary" type="submit" value="导入全部章节到对话框"/>
 </div>
 <!-- 保留模板示例元素，兼容官方模板结构 -->
 <hr class="sysHR"/>
 <div class="example-extension_block flex-container">
-    <input id="my_button" class="menu_button" type="button" value="示例按钮"/>
+    <input id="my_button" class="menu_button" type="submit" value="示例按钮"/>
 </div>
 <div class="example-extension_block flex-container">
     <input id="example_setting" type="checkbox"/>
@@ -68,8 +67,8 @@
         <div class="novel-block flex-container justifySpaceBetween">
             <b>图谱生成</b>
             <div class="flex-container gap5">
-                <input id="graph-single-btn" class="menu_button menu_button--primary" type="button" value="生成选中章节图谱"/>
-                <input id="graph-batch-btn" class="menu_button menu_button--secondary" type="button" value="批量生成全章节图谱"/>
+                <input id="graph-single-btn" class="menu_button menu_button--primary" type="submit" value="生成选中章节图谱"/>
+                <input id="graph-batch-btn" class="menu_button menu_button--secondary" type="submit" value="批量生成全章节图谱"/>
             </div>
         </div>
         <div class="novel-block">
@@ -81,16 +80,16 @@
         <hr class="sysHR"/>
         <div class="novel-block flex-container justifySpaceBetween">
             <b>全量图谱合并</b>
-            <input id="graph-merge-btn" class="menu_button menu_button--primary" type="button" value="合并已生成的章节图谱"/>
+            <input id="graph-merge-btn" class="menu_button menu_button--primary" type="submit" value="合并已生成的章节图谱"/>
         </div>
         <div class="novel-block">
             <label class="form-label">合并后完整知识图谱</label>
             <textarea id="merged-graph-preview" rows="6" class="form-control w100" readonly placeholder="合并后的图谱JSON将显示在这里..."></textarea>
             <div class="flex-container gap5 margin-t5">
-                <input id="graph-import-btn" class="menu_button menu_button--sm" type="button" value="导入JSON"/>
-                <input id="graph-copy-btn" class="menu_button menu_button--sm" type="button" value="复制JSON"/>
-                <input id="graph-export-btn" class="menu_button menu_button--sm" type="button" value="导出JSON文件"/>
-                <input id="graph-clear-btn" class="menu_button menu_button--sm menu_button--danger" type="button" value="清空图谱"/>
+                <input id="graph-import-btn" class="menu_button menu_button--sm" type="submit" value="导入JSON"/>
+                <input id="graph-copy-btn" class="menu_button menu_button--sm" type="submit" value="复制JSON"/>
+                <input id="graph-export-btn" class="menu_button menu_button--sm" type="submit" value="导出JSON文件"/>
+                <input id="graph-clear-btn" class="menu_button menu_button--sm menu_button--danger" type="submit" value="清空图谱"/>
             </div>
             <input id="graph-file-upload" type="file" accept=".json" style="display: none;"/>
         </div>
@@ -118,7 +117,7 @@
             <select id="validate-chapter-select" class="flex1">
                 <option value="">请先解析章节</option>
             </select>
-            <input id="run-validation-btn" class="menu_button menu_button--primary" type="button" value="执行前置校验"/>
+            <input id="run-validation-btn" class="menu_button menu_button--primary" type="submit" value="执行前置校验"/>
         </div>
         <div class="novel-block">
             <p id="validation-status" class="text-sm margin0"></p>
@@ -168,7 +167,7 @@
             <select id="write-chapter-select" class="flex1">
                 <option value="">请先解析章节</option>
             </select>
-            <input id="update-modify-graph-btn" class="menu_button menu_button--sm" type="button" value="更新魔改内容图谱" style="display: none;"/>
+            <input id="update-modify-graph-btn" class="menu_button menu_button--sm" type="submit" value="更新魔改内容图谱" style="display: none;"/>
         </div>
         <!-- 基准章节内容编辑框 -->
         <div class="novel-block">
@@ -184,10 +183,10 @@
         <hr class="sysHR"/>
         <!-- 生成控制按钮（硬锁：未校验禁用） -->
         <div class="novel-block flex-container gap5">
-            <input id="write-generate-btn" class="menu_button menu_button--primary" type="button" value="生成续写章节" disabled title="请先执行对应章节的前置校验"/>
-            <input id="write-regenerate-btn" class="menu_button menu_button--secondary" type="button" value="重新生成章节"/>
-            <input id="write-re-evaluate-btn" class="menu_button menu_button--secondary" type="button" value="重新执行质量评估"/>
-            <input id="write-stop-btn" class="menu_button menu_button--danger" type="button" value="停止生成"/>
+            <input id="write-generate-btn" class="menu_button menu_button--primary" type="submit" value="生成续写章节" disabled title="请先执行对应章节的前置校验"/>
+            <input id="write-regenerate-btn" class="menu_button menu_button--secondary" type="submit" value="重新生成章节"/>
+            <input id="write-re-evaluate-btn" class="menu_button menu_button--secondary" type="submit" value="重新执行质量评估"/>
+            <input id="write-stop-btn" class="menu_button menu_button--danger" type="submit" value="停止生成"/>
         </div>
         <!-- 生成状态 -->
         <div class="novel-block">
@@ -208,9 +207,9 @@
             <label class="form-label">续写生成结果</label>
             <textarea id="write-content-preview" rows="12" class="form-control w100" placeholder="生成的续写章节内容将显示在这里..."></textarea>
             <div class="flex-container gap5 margin-t5">
-                <input id="write-copy-btn" class="menu_button menu_button--sm" type="button" value="复制内容"/>
-                <input id="write-send-btn" class="menu_button menu_button--primary" type="button" value="发送到对话框"/>
-                <input id="write-clear-btn" class="menu_button menu_button--sm menu_button--danger" type="button" value="清空内容"/>
+                <input id="write-copy-btn" class="menu_button menu_button--sm" type="submit" value="复制内容"/>
+                <input id="write-send-btn" class="menu_button menu_button--primary" type="submit" value="发送到对话框"/>
+                <input id="write-clear-btn" class="menu_button menu_button--sm menu_button--danger" type="submit" value="清空内容"/>
             </div>
         </div>
         <hr class="sysHR"/>
@@ -218,7 +217,7 @@
         <div class="novel-block flex-container justifySpaceBetween">
             <b>续写章节链条（可无限叠加续写）</b>
             <div class="flex-container gap5">
-                <input id="clear-chain-btn" class="menu_button menu_button--sm menu_button--danger" type="button" value="清空所有续写章节"/>
+                <input id="clear-chain-btn" class="menu_button menu_button--sm menu_button--danger" type="submit" value="清空所有续写章节"/>
             </div>
         </div>
         <!-- 续写章节链条容器 -->
