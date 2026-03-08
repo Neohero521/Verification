@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 默认配置（与原版本完全一致，无任何修改，保证兼容性）
@@ -31,11 +31,17 @@ const defaultSettings = {
   qualityResultShow: false,
   precheckStatus: "未执行",
   precheckReportText: "",
-  // 新增：悬浮球状态持久化
+  // 悬浮球状态持久化
   floatBallState: {
     position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
     isPanelOpen: false,
     activeTab: "tab-chapter"
+  },
+  // 新增：阅读器状态持久化
+  readerState: {
+    fontSize: 16,
+    currentChapterId: null,
+    readProgress: {}
   }
 };
 
@@ -52,14 +58,17 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 
 // ==============================================
-// 可移动悬浮球核心交互模块（不影响原有业务逻辑）
-// ==============================================
+// 可移动悬浮球核心模块（彻底修复无法移动问题）
+// 修复点：1. 区分点击与拖动 2. 支持鼠标+触摸双端 3. 修复位置计算错乱 4. 阻止默认行为避免干扰
+// ============================================== */
 const FloatBall = {
   ball: null,
   panel: null,
   isDragging: false,
+  isClick: false, // 区分点击和拖动
+  startPos: { x: 0, y: 0 }, // 按下时的初始位置
   offset: { x: 0, y: 0 },
-  isEdgeAdsorbed: false,
+  minMoveDistance: 3, // 移动超过3px判定为拖动，不触发点击
 
   // 初始化悬浮球
   init() {
@@ -69,16 +78,19 @@ const FloatBall = {
     this.restoreState();
   },
 
-  // 绑定悬浮球事件
+  // 绑定事件（同时支持鼠标+触摸双端）
   bindEvents() {
-    // 拖动事件
+    // 鼠标事件
     this.ball.addEventListener("mousedown", this.startDrag.bind(this));
     document.addEventListener("mousemove", this.onDrag.bind(this));
     document.addEventListener("mouseup", this.stopDrag.bind(this));
 
-    // 点击展开/收起面板
-    this.ball.addEventListener("click", this.togglePanel.bind(this));
-    // 关闭面板按钮
+    // 触摸事件（移动端支持）
+    this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
+    document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
+    document.addEventListener("touchend", this.stopDrag.bind(this));
+
+    // 面板关闭按钮
     document.getElementById("panel-close-btn").addEventListener("click", this.hidePanel.bind(this));
 
     // 选项卡切换事件
@@ -96,57 +108,95 @@ const FloatBall = {
     });
   },
 
-  // 开始拖动
+  // 开始拖动（鼠标/触摸通用）
   startDrag(e) {
-    this.isDragging = true;
-    const rect = this.ball.getBoundingClientRect();
-    this.offset.x = e.clientX - rect.left;
-    this.offset.y = e.clientY - rect.top;
+    e.preventDefault(); // 阻止默认行为，避免选中文字、页面滚动
+    this.isDragging = false;
+    this.isClick = true;
     this.ball.classList.add("dragging");
+
+    // 获取坐标（兼容鼠标和触摸）
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+    // 记录初始位置和偏移量
+    const rect = this.ball.getBoundingClientRect();
+    this.startPos.x = clientX;
+    this.startPos.y = clientY;
+    this.offset.x = clientX - rect.left;
+    this.offset.y = clientY - rect.top;
   },
 
-  // 拖动中
+  // 拖动中（鼠标/触摸通用）
   onDrag(e) {
-    if (!this.isDragging) return;
-    let x = e.clientX - this.offset.x;
-    let y = e.clientY - this.offset.y;
+    if (!this.ball.classList.contains("dragging")) return;
 
-    // 边界限制，不超出屏幕
+    // 获取坐标
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+    // 计算移动距离，超过阈值判定为拖动
+    const moveX = Math.abs(clientX - this.startPos.x);
+    const moveY = Math.abs(clientY - this.startPos.y);
+    if (moveX > this.minMoveDistance || moveY > this.minMoveDistance) {
+      this.isClick = false;
+      this.isDragging = true;
+    }
+
+    if (!this.isDragging) return;
+
+    // 计算新位置，边界限制
+    let x = clientX - this.offset.x;
+    let y = clientY - this.offset.y;
     const maxX = window.innerWidth - this.ball.offsetWidth;
     const maxY = window.innerHeight - this.ball.offsetHeight;
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
 
+    // 设置位置，统一用left/top，移除transform干扰
     this.ball.style.left = `${x}px`;
     this.ball.style.top = `${y}px`;
-    this.ball.style.right = "auto";
-    this.ball.style.transform = "none";
+    this.ball.style.right = 'auto';
+    this.ball.style.transform = 'none';
 
     // 保存位置
     extension_settings[extensionName].floatBallState.position = { x, y };
     saveSettingsDebounced();
   },
 
-  // 停止拖动，自动贴边
-  stopDrag() {
-    if (!this.isDragging) return;
-    this.isDragging = false;
+  // 停止拖动（鼠标/触摸通用）
+  stopDrag(e) {
+    if (!this.ball.classList.contains("dragging")) return;
     this.ball.classList.remove("dragging");
 
-    // 自动吸附到左右边缘
+    // 如果是点击，触发面板切换
+    if (this.isClick && !this.isDragging) {
+      this.togglePanel();
+    }
+
+    // 拖动结束，自动贴边
+    if (this.isDragging) {
+      this.autoAdsorbEdge();
+    }
+
+    // 重置状态
+    this.isDragging = false;
+    this.isClick = false;
+  },
+
+  // 自动吸附到左右边缘
+  autoAdsorbEdge() {
     const rect = this.ball.getBoundingClientRect();
     const windowWidth = window.innerWidth;
     const centerX = windowWidth / 2;
 
+    // 吸附到左/右边缘
     if (rect.left < centerX) {
-      // 吸附到左边缘
       this.ball.style.left = "10px";
-      this.ball.style.right = "auto";
     } else {
-      // 吸附到右边缘
-      this.ball.style.right = "10px";
-      this.ball.style.left = "auto";
+      this.ball.style.left = `${windowWidth - this.ball.offsetWidth - 10}px`;
     }
+    this.ball.style.right = "auto";
     this.ball.style.transform = "translateY(-50%)";
 
     // 更新保存的位置
@@ -210,6 +260,179 @@ const FloatBall = {
 };
 
 // ==============================================
+// 新增：小说阅读器核心模块
+// ============================================== */
+const NovelReader = {
+  currentChapterId: null,
+  fontSize: 16,
+  maxFontSize: 24,
+  minFontSize: 12,
+
+  // 初始化阅读器
+  init() {
+    this.bindEvents();
+    this.restoreState();
+  },
+
+  // 绑定阅读器事件
+  bindEvents() {
+    // 字体大小调整
+    document.getElementById("reader-font-minus").addEventListener("click", () => this.setFontSize(this.fontSize - 1));
+    document.getElementById("reader-font-plus").addEventListener("click", () => this.setFontSize(this.fontSize + 1));
+
+    // 章节选择按钮
+    document.getElementById("reader-chapter-select-btn").addEventListener("click", () => this.showChapterDrawer());
+    document.getElementById("reader-drawer-close").addEventListener("click", () => this.hideChapterDrawer());
+
+    // 点击中间区域唤出章节选择
+    document.getElementById("reader-click-mask").addEventListener("click", () => this.toggleChapterDrawer());
+
+    // 阅读内容滚动更新进度
+    document.getElementById("reader-content").addEventListener("scroll", () => this.updateProgress());
+
+    // 点击章节列表外区域关闭抽屉
+    document.addEventListener("click", (e) => {
+      const drawer = document.getElementById("reader-chapter-drawer");
+      const mask = document.getElementById("reader-click-mask");
+      const selectBtn = document.getElementById("reader-chapter-select-btn");
+      if (!drawer.contains(e.target) && !mask.contains(e.target) && !selectBtn.contains(e.target) && drawer.classList.contains("show")) {
+        this.hideChapterDrawer();
+      }
+    });
+  },
+
+  // 渲染章节列表（解析章节后自动调用）
+  renderChapterList() {
+    const listContainer = document.getElementById("reader-chapter-list");
+    const chapterCountEl = document.getElementById("reader-chapter-count");
+
+    // 更新章节总数
+    chapterCountEl.textContent = `0/${currentParsedChapters.length}`;
+
+    if (currentParsedChapters.length === 0) {
+      listContainer.innerHTML = '<p class="empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>';
+      return;
+    }
+
+    // 渲染章节列表
+    const listHtml = currentParsedChapters.map(chapter => `
+      <div class="reader-chapter-item ${chapter.id === this.currentChapterId ? 'active' : ''}" data-chapter-id="${chapter.id}">
+        ${chapter.title}
+      </div>
+    `).join('');
+    listContainer.innerHTML = listHtml;
+
+    // 绑定章节点击事件
+    document.querySelectorAll(".reader-chapter-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const chapterId = parseInt(item.dataset.chapterId);
+        this.loadChapter(chapterId);
+        this.hideChapterDrawer();
+      });
+    });
+
+    // 如果没有当前选中章节，默认加载第一章
+    if (this.currentChapterId === null && currentParsedChapters.length > 0) {
+      this.loadChapter(currentParsedChapters[0].id);
+    }
+  },
+
+  // 加载指定章节
+  loadChapter(chapterId) {
+    const chapter = currentParsedChapters.find(item => item.id === chapterId);
+    const contentEl = document.getElementById("reader-content");
+    const titleEl = document.getElementById("reader-current-chapter-title");
+    const chapterCountEl = document.getElementById("reader-chapter-count");
+
+    if (!chapter) return;
+
+    // 更新当前章节
+    this.currentChapterId = chapterId;
+    extension_settings[extensionName].readerState.currentChapterId = chapterId;
+
+    // 更新标题和内容
+    titleEl.textContent = chapter.title;
+    contentEl.textContent = chapter.content;
+
+    // 更新章节计数
+    const currentIndex = currentParsedChapters.findIndex(item => item.id === chapterId) + 1;
+    chapterCountEl.textContent = `${currentIndex}/${currentParsedChapters.length}`;
+
+    // 恢复该章节的阅读进度
+    const savedProgress = extension_settings[extensionName].readerState.readProgress[chapterId] || 0;
+    contentEl.scrollTop = savedProgress;
+
+    // 更新章节列表选中状态
+    document.querySelectorAll(".reader-chapter-item").forEach(item => {
+      item.classList.toggle("active", parseInt(item.dataset.chapterId) === chapterId);
+    });
+
+    saveSettingsDebounced();
+  },
+
+  // 更新阅读进度
+  updateProgress() {
+    const contentEl = document.getElementById("reader-content");
+    const progressEl = document.getElementById("reader-progress-fill");
+    const progressTextEl = document.getElementById("reader-progress-text");
+
+    // 计算滚动进度
+    const scrollTop = contentEl.scrollTop;
+    const scrollHeight = contentEl.scrollHeight - contentEl.clientHeight;
+    const progress = scrollHeight <= 0 ? 0 : Math.floor((scrollTop / scrollHeight) * 100);
+
+    // 更新进度条和文本
+    progressEl.style.width = `${progress}%`;
+    progressTextEl.textContent = `${progress}%`;
+
+    // 保存当前章节的阅读进度
+    if (this.currentChapterId !== null) {
+      extension_settings[extensionName].readerState.readProgress[this.currentChapterId] = scrollTop;
+      saveSettingsDebounced();
+    }
+  },
+
+  // 设置字体大小
+  setFontSize(size) {
+    // 限制字体大小范围
+    if (size < this.minFontSize || size > this.maxFontSize) return;
+
+    this.fontSize = size;
+    const contentEl = document.getElementById("reader-content");
+    contentEl.style.setProperty("--reader-font-size", `${size}px`);
+
+    // 保存字体大小
+    extension_settings[extensionName].readerState.fontSize = size;
+    saveSettingsDebounced();
+  },
+
+  // 切换章节抽屉显示/隐藏
+  toggleChapterDrawer() {
+    const drawer = document.getElementById("reader-chapter-drawer");
+    drawer.classList.toggle("show");
+  },
+
+  // 显示章节抽屉
+  showChapterDrawer() {
+    document.getElementById("reader-chapter-drawer").classList.add("show");
+  },
+
+  // 隐藏章节抽屉
+  hideChapterDrawer() {
+    document.getElementById("reader-chapter-drawer").classList.remove("show");
+  },
+
+  // 恢复阅读器状态
+  restoreState() {
+    const state = extension_settings[extensionName].readerState || defaultSettings.readerState;
+    // 恢复字体大小
+    this.setFontSize(state.fontSize);
+    // 恢复当前章节ID
+    this.currentChapterId = state.currentChapterId;
+  }
+};
+
+// ==============================================
 // 原有核心工具函数（100%完整保留，无任何修改）
 // ==============================================
 async function loadSettings() {
@@ -259,6 +482,8 @@ async function loadSettings() {
   renderChapterList(currentParsedChapters);
   renderChapterSelect(currentParsedChapters);
   renderContinueWriteChain(continueWriteChain);
+  // 新增：渲染阅读器章节列表
+  NovelReader.renderChapterList();
 
   // 恢复抽屉展开状态
   restoreDrawerState();
@@ -269,8 +494,9 @@ async function loadSettings() {
   }
 
   isInitialized = true;
-  // 初始化悬浮球
+  // 初始化悬浮球和阅读器
   FloatBall.init();
+  NovelReader.init();
 }
 
 // 原有抽屉状态管理函数（100%完整保留）
@@ -826,7 +1052,7 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
 
   const userPrompt = `待评估续写内容：${continueContent}
 前置校验合规边界：${JSON.stringify(precheckResult)}
-小说核心知识图谱：${JSON.stringify(baseGraph)}
+小说核心设定知识图谱：${JSON.stringify(baseGraph)}
 续写基准章节内容：${baseChapterContent}
 目标续写字数：${targetWordCount}字
 实际续写字数：${actualWordCount}字
@@ -889,6 +1115,8 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
     extension_settings[extensionName].chapterList = currentParsedChapters;
     saveSettingsDebounced();
     renderChapterList(currentParsedChapters);
+    // 新增：更新阅读器章节内容
+    NovelReader.renderChapterList();
     toastr.success('魔改章节图谱更新完成！', "小说续写器");
     return graphData;
   } catch (error) {
@@ -967,7 +1195,7 @@ async function validateGraphCompliance() {
 }
 
 // ==============================================
-// 原有章节管理核心函数（100%完整保留，无任何修改）
+// 原有章节管理核心函数（100%完整保留，仅新增阅读器同步）
 // ==============================================
 function splitNovelIntoChapters(novelText, regexSource) {
   try {
@@ -1582,7 +1810,7 @@ jQuery(async () => {
   $("#example_setting").on("input", onExampleInput);
 
   // ==============================================
-  // 原有章节管理事件绑定（100%完整保留）
+  // 原有章节管理事件绑定（100%完整保留，新增阅读器同步）
   // ==============================================
   $("#select-file-btn").on("click", () => {
     $("#novel-file-upload").click();
@@ -1614,6 +1842,8 @@ jQuery(async () => {
       extension_settings[extensionName].continueChapterIdCounter = 1;
       extension_settings[extensionName].selectedBaseChapterId = "";
       extension_settings[extensionName].writeContentPreview = "";
+      // 新增：重置阅读器状态
+      extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
       $('#merged-graph-preview').val('');
       $('#write-content-preview').val('');
       continueWriteChain = [];
@@ -1622,6 +1852,8 @@ jQuery(async () => {
       renderChapterList(currentParsedChapters);
       renderChapterSelect(currentParsedChapters);
       renderContinueWriteChain(continueWriteChain);
+      // 新增：同步更新阅读器章节列表
+      NovelReader.renderChapterList();
     };
     reader.onerror = () => {
       toastr.error('文件读取失败，请检查文件编码（仅支持UTF-8）', "小说续写器");
