@@ -136,11 +136,10 @@ select.form-control:focus {
     border-color: var(--primary);
 }
 
-/* 按钮禁用样式强化 */
+/* 按钮禁用样式 */
 .menu_button:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* 无限续写链条样式 */
@@ -238,8 +237,7 @@ textarea.form-control:focus {
 
 textarea.form-control[readonly] {
     opacity: 0.8;
-    cursor: default;
-    user-select: text;
+    cursor: not-allowed;
 }
 
 /* 分隔线样式 */
