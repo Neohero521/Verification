@@ -1,7 +1,7 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 默认配置（原有字段完全不变，100%兼容旧数据）
 const defaultSettings = {
@@ -53,7 +53,7 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 
 // ==============================================
-// 可移动悬浮球核心模块（事件冒泡BUG修复）
+// 可移动悬浮球核心模块（修复初始化与显示问题）
 // ==============================================
 const FloatBall = {
     ball: null,
@@ -64,10 +64,26 @@ const FloatBall = {
     offset: { x: 0, y: 0 },
     minMoveDistance: 3,
     init() {
+        // 核心修复：校验元素是否存在，不存在则输出错误日志
         this.ball = document.getElementById("novel-writer-float-ball");
         this.panel = document.getElementById("novel-writer-panel");
+        if (!this.ball) {
+            console.error("[小说续写插件] 悬浮球元素未找到，HTML加载失败");
+            toastr.error("小说续写插件加载失败：悬浮球元素未找到", "插件错误");
+            return;
+        }
+        if (!this.panel) {
+            console.error("[小说续写插件] 面板元素未找到，HTML加载失败");
+            toastr.error("小说续写插件加载失败：面板元素未找到", "插件错误");
+            return;
+        }
+        console.log("[小说续写插件] 悬浮球初始化成功");
         this.bindEvents();
         this.restoreState();
+        // 核心修复：强制显示悬浮球，防止样式异常导致隐藏
+        this.ball.style.visibility = "visible";
+        this.ball.style.opacity = "1";
+        this.ball.style.display = "flex";
     },
     bindEvents() {
         // 鼠标事件
@@ -96,6 +112,12 @@ const FloatBall = {
             const isInBall = e.target.closest("#novel-writer-float-ball");
             if (!isInPanel &&!isInBall &&this.panel.classList.contains("show")) {
                 this.hidePanel();
+            }
+        });
+        // 核心修复：窗口大小变化时，自动吸附边缘，防止悬浮球溢出屏幕
+        window.addEventListener("resize", () => {
+            if (!this.isDragging) {
+                this.autoAdsorbEdge();
             }
         });
     },
@@ -153,6 +175,7 @@ const FloatBall = {
         const rect = this.ball.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const centerX = windowWidth / 2;
+        // 核心修复：吸附时确保不会溢出屏幕
         if (rect.left <centerX) {
             this.ball.style.left = "10px";
         } else {
@@ -193,8 +216,13 @@ const FloatBall = {
     },
     restoreState() {
         const state = extension_settings[extensionName].floatBallState || defaultSettings.floatBallState;
-        this.ball.style.left = `${state.position.x}px`;
-        this.ball.style.top = `${state.position.y}px`;
+        // 核心修复：恢复位置时确保不会溢出屏幕
+        const maxX = window.innerWidth - this.ball.offsetWidth;
+        const maxY = window.innerHeight - this.ball.offsetHeight;
+        const safeX = Math.max(0, Math.min(state.position.x, maxX));
+        const safeY = Math.max(0, Math.min(state.position.y, maxY));
+        this.ball.style.left = `${safeX}px`;
+        this.ball.style.top = `${safeY}px`;
         this.ball.style.right = "auto";
         this.ball.style.transform = "none";
         this.switchTab(state.activeTab);
@@ -203,7 +231,7 @@ const FloatBall = {
 };
 
 // ==============================================
-// 小说阅读器核心模块（无限跳章BUG终极根治 + 按钮翻章 + 衔接优化）
+// 小说阅读器核心模块（原有功能完全保留）
 // ==============================================
 const NovelReader = {
     currentChapterId: null,
@@ -611,6 +639,8 @@ async function loadSettings() {
         $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
     isInitialized = true;
+    // 核心修复：确保HTML完全渲染后再初始化悬浮球
+    await new Promise(resolve => setTimeout(resolve, 50));
     FloatBall.init();
     NovelReader.init();
 }
@@ -739,7 +769,7 @@ const graphJsonSchema = {
                 }
             },
             "人物信息": {
-                "type": "array", , "minItems": 1,
+                "type": "array", "minItems": 1,
                 "items": {
                     "type": "object",
                     "required": ["唯一人物ID", "姓名", "别名/称号", "本章更新的性格特征", "本章更新的身份/背景", "本章核心行为与动机", "本章人物关系变更", "本章人物弧光变化"],
@@ -820,7 +850,7 @@ const graphJsonSchema = {
                 }
             },
             "实体关系网络": {
-                "type": "array", , "minItems": 5,
+                "type": "array", "minItems": 5,
                 "items": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "string"} }
             },
             "变更与依赖信息": {
@@ -961,7 +991,7 @@ const mergeGraphJsonSchema = {
                 }
             },
             "全量实体关系网络": {
-                "type": "array", , "minItems": 20,
+                "type": "array", "minItems": 20,
                 "items": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "string"} }
             },
             "反向依赖图谱": {
@@ -1175,6 +1205,7 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
 5. 无对应内容设为"暂无"，数组设为[]，不得留空
 6. 必须实现全链路双向可追溯，所有信息必须关联对应原文位置
 7. 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目
+8. 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}
 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${targetChapter.title}\n魔改后章节内容：${modifiedContent}`;
     try {
@@ -1826,17 +1857,19 @@ async function generateNovelWrite() {
 }
 
 // ==============================================
-// 扩展入口（功能100%完整保留）
+// 扩展入口（功能100%完整保留，修复初始化时序）
 // ==============================================
 jQuery(async () =>{
-    // 加载HTML到页面（修复后无嵌套DOM问题）
+    // 加载HTML到页面
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
-        await new Promise(resolve =>setTimeout(resolve, 100));
+        // 核心修复：确保HTML完全渲染后再执行后续初始化
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log("[小说续写插件] HTML加载完成");
     } catch (error) {
-        console.error('扩展HTML加载失败:', error);
-        toastr.error('扩展HTML加载失败，请检查文件路径', "小说续写器");
+        console.error('[小说续写插件] 扩展HTML加载失败:', error);
+        toastr.error('小说续写插件加载失败：HTML文件加载异常，请检查文件路径', "插件错误");
         return;
     }
     // 原有初始化逻辑（100%完整保留）
