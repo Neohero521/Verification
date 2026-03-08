@@ -1,5 +1,5 @@
 /* ==============================================
-   插件根容器样式隔离，100%不影响SillyTavern原生样式
+   插件根容器（零布局影响，完全隔离原生页面）
    ============================================== */
 .novel-writer-extension-root {
     /* 插件专属CSS变量，完全避免与原生变量冲突 */
@@ -39,13 +39,27 @@
     --novel-reader-text: #e2e8f0;
     --novel-reader-font-size: 16px;
     --novel-reader-line-height: 1.8;
+
+    /* 核心：不占用任何页面空间，不影响原生布局 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    overflow: visible;
+    z-index: 999998;
+    background: transparent;
 }
 
-/* 插件内部元素全局重置，不影响外部 */
+/* 插件内部元素全局重置，不影响外部原生元素 */
 .novel-writer-extension-root * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: inherit;
 }
 
 /* 插件内部滚动条美化，不影响全局 */
@@ -67,16 +81,19 @@
 }
 
 /* ==============================================
-   可移动悬浮球核心样式（修复版，无全局影响）
+   可移动悬浮球核心样式（核心修复：确保始终可见）
    ============================================== */
 .novel-writer-extension-root .float-ball {
     position: fixed;
-    left: calc(100vw - 90px);
+    /* 核心修复：初始固定在右侧20px，不会溢出屏幕 */
+    right: 20px;
     top: 50%;
     transform: translateY(-50%);
     width: 70px;
     height: 70px;
     border-radius: var(--novel-radius-full);
+    /* 核心修复：兜底背景色，防止CSS变量失效导致透明 */
+    background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%);
     background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
     box-shadow: var(--novel-shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
     display: flex;
@@ -84,30 +101,38 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 99999;
+    /* 核心修复：提高z-index，确保在最上层 */
+    z-index: 999999;
     transition: all var(--novel-transition-normal);
     user-select: none;
     border: 2px solid rgba(255, 255, 255, 0.1);
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    /* 核心修复：强制显示，防止被原生样式隐藏 */
+    visibility: visible !important;
+    opacity: 1 !important;
 }
+/* 悬浮球拖动状态 */
 .novel-writer-extension-root .float-ball.dragging {
     opacity: 0.85;
     transform: scale(1.05);
     transition: none;
-    z-index: 100000;
+    z-index: 1000000;
 }
+/* 悬浮球hover效果 */
 .novel-writer-extension-root .float-ball:hover {
     transform: translateY(-50%) scale(1.1);
     box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
 }
+/* 悬浮球图标 */
 .novel-writer-extension-root .ball-icon {
     font-size: 1.5rem;
     color: white;
     margin-bottom: 2px;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
+/* 悬浮球文字 */
 .novel-writer-extension-root .ball-tip {
     font-size: 0.7rem;
     color: white;
@@ -134,7 +159,7 @@
     display: none;
     flex-direction: column;
     overflow: hidden;
-    z-index: 99998;
+    z-index: 999998;
     opacity: 0;
     transition: all var(--novel-transition-normal);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -171,6 +196,7 @@
     font-size: 1.3rem;
     text-shadow: 0 0 10px var(--novel-primary-glow);
 }
+/* 关闭按钮 */
 .novel-writer-extension-root .panel-close-btn {
     width: 38px;
     height: 38px;
@@ -281,6 +307,7 @@
 .novel-writer-extension-root .card-mini {
     padding: 16px 20px;
 }
+/* 卡片头部 */
 .novel-writer-extension-root .card-header {
     padding: 14px 20px;
     background: linear-gradient(90deg, var(--novel-bg-input) 0%, transparent 100%);
@@ -305,9 +332,11 @@
 .novel-writer-extension-root .card-header h4 i {
     color: var(--novel-primary);
 }
+/* 卡片内容 */
 .novel-writer-extension-root .card-body {
     padding: 20px;
 }
+/* 网格布局 */
 .novel-writer-extension-root .grid-row {
     display: grid;
     gap: 16px;
@@ -319,6 +348,7 @@
 .novel-writer-extension-root .grid-2 {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
+/* 分割线 */
 .novel-writer-extension-root .divider-line {
     height: 1px;
     background: linear-gradient(90deg, transparent 0%, var(--novel-border-color) 50%, transparent 100%);
@@ -352,6 +382,7 @@
     color: var(--novel-text-primary);
     font-size: 0.9rem;
 }
+/* 输入框 */
 .novel-writer-extension-root .form-input {
     width: 100%;
     background: var(--novel-bg-input);
@@ -370,6 +401,7 @@
 .novel-writer-extension-root .form-input::placeholder {
     color: var(--novel-text-muted);
 }
+/* 下拉选择框 */
 .novel-writer-extension-root .form-select {
     width: 100%;
     background: var(--novel-bg-input);
@@ -386,6 +418,7 @@
     border-color: var(--novel-primary);
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
+/* 文本域 */
 .novel-writer-extension-root .form-textarea {
     width: 100%;
     min-height: 60px;
@@ -412,6 +445,7 @@
     cursor: not-allowed;
     opacity: 0.8;
 }
+/* 输入框附带提示 */
 .novel-writer-extension-root .input-with-tip {
     display: flex;
     align-items: center;
@@ -425,6 +459,7 @@
     font-size: 0.85rem;
     white-space: nowrap;
 }
+/* 复选框美化 */
 .novel-writer-extension-root input[type="checkbox"] {
     width: 18px;
     height: 18px;
@@ -457,6 +492,7 @@
     padding: 12px 32px;
     font-size: 1rem;
 }
+/* 主按钮 */
 .novel-writer-extension-root .btn-primary {
     background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
     color: white;
@@ -469,6 +505,7 @@
 .novel-writer-extension-root .btn-primary:active {
     transform: translateY(0);
 }
+/* 次要按钮 */
 .novel-writer-extension-root .btn-secondary {
     background: linear-gradient(90deg, #0891b2 0%, var(--novel-secondary) 100%);
     color: var(--novel-bg-main);
@@ -478,6 +515,7 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(6, 182, 212, 0.5);
 }
+/* 描边按钮 */
 .novel-writer-extension-root .btn-outline {
     background: transparent;
     border: 1px solid var(--novel-border-light);
@@ -488,6 +526,7 @@
     color: var(--novel-primary);
     background: rgba(124, 58, 237, 0.1);
 }
+/* 危险按钮 */
 .novel-writer-extension-root .btn-danger {
     background: var(--novel-danger);
     color: white;
@@ -497,6 +536,7 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
 }
+/* 禁用状态 */
 .novel-writer-extension-root .btn:disabled,
 .novel-writer-extension-root .menu_button--disabled {
     opacity: 0.5;
@@ -504,6 +544,7 @@
     pointer-events: none;
     transform: none !important;
 }
+/* 按钮组 */
 .novel-writer-extension-root .btn-group-row {
     display: flex;
     align-items: center;
@@ -522,6 +563,7 @@
 .novel-writer-extension-root .btn-center {
     justify-content: center;
 }
+/* 文件选择组 */
 .novel-writer-extension-root .file-select-group {
     display: flex;
     align-items: center;
@@ -561,6 +603,7 @@
     transition: width var(--novel-transition-normal);
     box-shadow: 0 0 8px var(--novel-primary-glow);
 }
+/* 质量评分 */
 .novel-writer-extension-root .quality-score {
     color: var(--novel-text-primary);
     font-size: 0.9rem;
@@ -571,6 +614,7 @@
     color: var(--novel-primary);
     font-size: 1.1rem;
 }
+/* 状态文本 */
 .novel-writer-extension-root .status-text {
     font-weight: 600;
 }
@@ -583,6 +627,7 @@
 .novel-writer-extension-root .status-danger {
     color: var(--novel-danger);
 }
+/* 空状态提示 */
 .novel-writer-extension-root .empty-tip {
     text-align: center;
     color: var(--novel-text-muted);
@@ -986,7 +1031,7 @@
     .novel-writer-extension-root .float-ball {
         width: 60px;
         height: 60px;
-        left: calc(100vw - 75px);
+        right: 15px;
     }
     .novel-writer-extension-root .ball-icon {
         font-size: 1.3rem;
