@@ -137,7 +137,7 @@
 }
 
 /* ==============================================
-功能面板核心样式
+功能面板核心样式（PC显示优化：高度自适应）
 ============================================== */
 .writer-panel {
     position: fixed;
@@ -145,7 +145,8 @@
     left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     width: 900px;
-    height: 850px;
+    min-height: 600px;          /* 保证最小高度，内容撑开 */
+    height: auto;                /* 高度自适应 */
     max-width: 95vw;
     max-height: 95vh;
     background: linear-gradient(135deg, var(--bg-main) 0%, #101022 100%);
@@ -256,13 +257,13 @@
 }
 
 /* ==============================================
-选项卡内容容器
+选项卡内容容器（PC显示优化：略微减少上下内边距）
 ============================================== */
 .panel-tab-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 20px 24px;
+    padding: 16px 24px;        /* 原为20px 24px，减少上下留白 */
     background: var(--bg-main);
 }
 .panel-tab-panel {
@@ -950,7 +951,7 @@ input[type="checkbox"] {
     transition: width var(--transition-fast);
     box-shadow: 0 0 6px var(--primary-glow);
 }
-/* 翻章按钮样式微调 */
+/* 翻章按钮样式微调（PC端不换行） */
 .reader-footer .btn {
     white-space: nowrap;
     min-width: 80px;
@@ -1075,7 +1076,7 @@ input[type="checkbox"] {
 }
 
 /* ==============================================
-响应式适配
+响应式适配（移动端不变）
 ============================================== */
 @media (max-width: 768px) {
     .float-ball {
