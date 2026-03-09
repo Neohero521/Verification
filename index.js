@@ -2,7 +2,7 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
-const extensionName = "Always_remember_me";
+const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 预设章节拆分正则列表（覆盖全场景，含括号序号格式）
