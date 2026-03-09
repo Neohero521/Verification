@@ -39,7 +39,7 @@
         </div>
         <!-- 选项卡内容容器 -->
         <div class="panel-tab-content">
-            <!-- 选项卡1：章节导入与管理（原模块完整保留，新增功能兼容） -->
+            <!-- 选项卡1：章节导入与管理（原模块完整保留，新增预设配置） -->
             <div class="panel-tab-panel active" id="tab-chapter">
                 <!-- 核心配置卡片 -->
                 <div class="content-card card-main">
@@ -90,13 +90,44 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- 新增：预设正则说明 -->
+                        <!-- 新增：预设支持的章节格式说明 -->
                         <div class="form-group">
                             <label class="form-label">预设支持的章节格式（自动匹配最优）</label>
                             <p class="input-tip">标准章节、括号序号(01)、第X节、卷X第X章、Chapter X、第X话、数字序号、中英文序号等</p>
                         </div>
                     </div>
                 </div>
+
+                <!-- 新增：对话补全预设配置卡片 -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h4><span>⚙️</span>对话补全预设配置</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-row grid-2">
+                            <div class="form-group form-group-inline">
+                                <label for="auto-parent-preset-switch" class="form-label">自动使用父级对话预设</label>
+                                <input id="auto-parent-preset-switch" type="checkbox" checked />
+                                <span class="input-tip">优先使用当前对话的补全预设</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">自定义预设文件</label>
+                                <div class="file-select-group">
+                                    <input id="preset-file-upload" type="file" accept=".json" style="display: none;">
+                                    <button class="btn btn-outline" id="select-preset-btn">
+                                        <span>📂</span>上传预设JSON
+                                    </button>
+                                    <span id="preset-name-text" class="file-name">自动使用父级预设</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">当前预设参数预览</label>
+                            <textarea id="preset-preview" rows="4" class="form-textarea" readonly placeholder="预设参数将显示在这里..." wrap="soft"></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 章节列表卡片 -->
                 <div class="content-card">
                     <div class="card-header card-header-inline">
@@ -118,6 +149,7 @@
                         <p class="empty-tip">请上传小说文件并点击「解析章节」</p>
                     </div>
                 </div>
+
                 <!-- 示例配置卡片 -->
                 <div class="content-card card-mini">
                     <div class="form-group form-group-inline">
@@ -127,6 +159,7 @@
                     </div>
                 </div>
             </div>
+
             <!-- 选项卡2：知识图谱构建与合并（原模块完整保留，新增单章图谱导入导出） -->
             <div class="panel-tab-panel" id="tab-graph">
                 <!-- 图谱生成卡片 -->
@@ -186,6 +219,7 @@
                     <textarea id="graph-validate-content" rows="3" class="form-textarea" readonly placeholder="校验结果将显示在这里..." wrap="soft"></textarea>
                 </div>
             </div>
+
             <!-- 选项卡3：小说续写生成（原模块完整保留） -->
             <div class="panel-tab-panel" id="tab-write">
                 <!-- 基准章节选择卡片 -->
@@ -285,6 +319,7 @@
                     </div>
                 </div>
             </div>
+
             <!-- 选项卡4 小说阅读器（结构不变，BUG修复保留） -->
             <div class="panel-tab-panel" id="tab-reader">
                 <!-- 阅读器顶部控制栏 -->
