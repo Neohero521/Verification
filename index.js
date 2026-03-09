@@ -1,7 +1,7 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 【优化扩充】章节拆分正则预设库（覆盖主流+全量冷门格式，修复括号数字匹配问题）
@@ -886,17 +886,18 @@ function renderCommandTemplate(template, charName, chapterContent) {
         .replace(/{{pipe}}/g, escapedContent);
 }
 
+// 【修复】将 .setText 改为 .text
 function updateProgress(progressId, statusId, current, total, textPrefix = "进度") {
     const $progressEl = $(`#${progressId}`);
     const $statusEl = $(`#${statusId}`);
     if (total === 0) {
         $progressEl.css('width', '0%');
-        $statusEl.text('');
+        $statusEl.text(''); // 修复：.setText → .text
         return;
     }
     const percent = Math.floor((current / total) * 100);
     $progressEl.css('width', `${percent}%`);
-    $statusEl.setText(`${textPrefix}: ${current}/${total} (${percent}%)`);
+    $statusEl.text(`${textPrefix}: ${current}/${total} (${percent}%)`); // 修复：.setText → .text
 }
 
 // 修复：BOM头处理优化，兼容不同编码
