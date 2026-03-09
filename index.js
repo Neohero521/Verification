@@ -1,7 +1,7 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 默认配置（原有字段完全不变，100%兼容旧数据）
 const defaultSettings = {
@@ -1117,6 +1117,55 @@ const qualityEvaluateSchema = {
         }
     }
 };
+
+// ==============================================
+// 新增：章节图谱检验核心函数（不影响原有功能）
+// ==============================================
+function validateChapterGraph() {
+    // 边界校验：无解析章节时提示
+    if (currentParsedChapters.length === 0) {
+        toastr.warning('请先上传小说文件并解析章节', "章节图谱检验");
+        return;
+    }
+
+    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+    let hasGraphCount = 0;
+    let noGraphCount = 0;
+    const noGraphChapterTitles = [];
+
+    // 遍历所有章节，校验真实图谱存在性
+    currentParsedChapters.forEach(chapter => {
+        const hasGraph = !!graphMap[chapter.id];
+        chapter.hasGraph = hasGraph; // 强制更新章节图谱状态，修复显示异常
+        if (hasGraph) {
+            hasGraphCount++;
+        } else {
+            noGraphCount++;
+            noGraphChapterTitles.push(chapter.title);
+        }
+    });
+
+    // 重新渲染章节列表，同步最新的图谱状态显示
+    renderChapterList(currentParsedChapters);
+
+    // 生成提示信息
+    let message = `检验完成，共${currentParsedChapters.length}个章节：\n✅ 已生成图谱：${hasGraphCount}个\n❌ 未生成图谱：${noGraphCount}个`;
+    if (noGraphCount > 0) {
+        message += `\n未生成图谱的章节：\n${noGraphChapterTitles.join('、')}`;
+    }
+
+    // 弹出结果提示
+    if (noGraphCount === 0) {
+        toastr.success(message, "章节图谱检验");
+    } else {
+        toastr.warning(message, "章节图谱检验");
+    }
+
+    // 保存更新后的章节状态到本地存储
+    extension_settings[extensionName].chapterList = currentParsedChapters;
+    saveSettingsDebounced();
+}
+
 async function validateContinuePrecondition(baseChapterId, modifiedChapterContent = null) {
     const context = getContext();
     const { generateRaw } = context;
@@ -1143,17 +1192,8 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
         currentPrecheckResult = result;
         return result;
     }
-    const systemPrompt = `触发词：续写节点逆向分析、前置合规性校验强制约束（100%遵守）：
-1. 所有分析只能基于续写节点（章节号${baseId}）及之前的小说内容，绝对不能引入该节点之后的任何剧情、设定、人物变化，禁止剧透
-2. 若前文有设定冲突，以续写节点前最后一次出现的内容为准，同时标注冲突预警
-3. 优先以用户提供的魔改后基准章节内容为准，更新对应人设、设定、剧情状态
-4. 只能基于提供的章节知识图谱分析，绝对不能引入外部信息、主观新增设定
-5. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾
-必填字段：isPass、preMergedGraph、人设红线清单、设定禁区清单、可呼应伏笔清单、潜在矛盾预警、可推进剧情方向、合规性报告`;
-    const userPrompt = `续写基准章节ID：${baseId}
-基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList, null, 2)}
-用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"}
-请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
+    const systemPrompt = `触发词：续写节点逆向分析、前置合规性校验强制约束（100%遵守）：<br/>1. 所有分析只能基于续写节点（章节号${baseId}）及之前的小说内容，绝对不能引入该节点之后的任何剧情、设定、人物变化，禁止剧透<br/>2. 若前文有设定冲突，以续写节点前最后一次出现的内容为准，同时标注冲突预警<br/>3. 优先以用户提供的魔改后基准章节内容为准，更新对应人设、设定、剧情状态<br/>4. 只能基于提供的章节知识图谱分析，绝对不能引入外部信息、主观新增设定<br/>5. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾<br/>必填字段：isPass、preMergedGraph、人设红线清单、设定禁区清单、可呼应伏笔清单、潜在矛盾预警、可推进剧情方向、合规性报告`;
+    const userPrompt = `续写基准章节ID：${baseId}<br/>基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList, null, 2)}<br/>用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"}<br/>请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
     try {
         const result = await generateRaw({
             systemPrompt,
@@ -1180,13 +1220,7 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
         // 修复：JSON解析容错
         const precheckResult = JSON.parse(result.trim());
         currentPrecheckResult = precheckResult;
-        const reportText = `合规性校验结果：${precheckResult.isPass ? "通过": "不通过"}
-人设红线清单：${precheckResult["人设红线清单"]}
-设定禁区清单：${precheckResult["设定禁区清单"]}
-可呼应伏笔清单：${precheckResult["可呼应伏笔清单"]}
-潜在矛盾预警：${precheckResult["潜在矛盾预警"]}
-可推进剧情方向：${precheckResult["可推进剧情方向"]}
-详细报告：${precheckResult["合规性报告"]}`.trim();
+        const reportText = `合规性校验结果：${precheckResult.isPass ? "通过": "不通过"}<br/>人设红线清单：${precheckResult["人设红线清单"]}<br/>设定禁区清单：${precheckResult["设定禁区清单"]}<br/>可呼应伏笔清单：${precheckResult["可呼应伏笔清单"]}<br/>潜在矛盾预警：${precheckResult["潜在矛盾预警"]}<br/>可推进剧情方向：${precheckResult["可推进剧情方向"]}<br/>详细报告：${precheckResult["合规性报告"]}`.trim();
         const statusText = precheckResult.isPass ? "通过": "不通过";
         $("#precheck-status").text(statusText).removeClass("status-default status-success status-danger").addClass(precheckResult.isPass ? "status-success": "status-danger");
         $("#precheck-report").val(reportText);
@@ -1224,25 +1258,8 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
     const { generateRaw } = context;
     const actualWordCount = continueContent.length;
     const wordErrorRate = Math.abs(actualWordCount - targetWordCount) / targetWordCount;
-    const systemPrompt = `触发词：小说续写质量评估、多维度合规性校验强制约束（100%遵守）：
-1. 严格按照5个维度执行评估，单项得分0-100分，总分=5个维度得分的平均值，精确到整数
-2. 合格标准：单项得分不得低于80分，总分不得低于85分，不符合即为不合格
-3. 所有评估只能基于提供的前置校验结果、知识图谱、基准章节内容，不能引入外部主观标准
-4. 必须校验字数合规性：目标字数${targetWordCount}字，实际字数${actualWordCount}字，误差超过10%（当前误差率${(wordErrorRate*100).toFixed(2)}%），内容质量得分必须对应扣分
-5. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾
-评估维度说明：
-● 人设一致性：校验续写内容中人物的言行、性格、动机是否符合人设设定，有无OOC问题
-● 设定合规性：校验续写内容是否符合世界观设定，有无吃书、新增违规设定、违反原有规则的问题
-● 剧情衔接度：校验续写内容与前文的衔接是否自然，逻辑是否自洽，有无剧情断层、前后矛盾的问题
-● 文风匹配度：校验续写内容的叙事视角、语言风格、对话模式、节奏规律是否与原文一致，有无风格割裂
-● 内容质量：校验续写内容是否有完整的情节、生动的细节、符合逻辑的对话，有无无意义水内容、剧情拖沓、逻辑混乱的问题，字数是否符合要求`;
-    const userPrompt = `待评估续写内容：${continueContent}
-前置校验合规边界：${JSON.stringify(precheckResult)}
-小说核心设定知识图谱：${JSON.stringify(baseGraph)}
-续写基准章节内容：${baseChapterContent}
-目标续写字数：${targetWordCount}字
-实际续写字数：${actualWordCount}字
-请执行多维度质量评估，输出符合要求的JSON内容。`;
+    const systemPrompt = `触发词：小说续写质量评估、多维度合规性校验强制约束（100%遵守）：<br/>1. 严格按照5个维度执行评估，单项得分0-100分，总分=5个维度得分的平均值，精确到整数<br/>2. 合格标准：单项得分不得低于80分，总分不得低于85分，不符合即为不合格<br/>3. 所有评估只能基于提供的前置校验结果、知识图谱、基准章节内容，不能引入外部主观标准<br/>4. 必须校验字数合规性：目标字数${targetWordCount}字，实际字数${actualWordCount}字，误差超过10%（当前误差率${(wordErrorRate*100).toFixed(2)}%），内容质量得分必须对应扣分<br/>5. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾<br/>评估维度说明：<br/>● 人设一致性：校验续写内容中人物的言行、性格、动机是否符合人设设定，有无OOC问题<br/>● 设定合规性：校验续写内容是否符合世界观设定，有无吃书、新增违规设定、违反原有规则的问题<br/>● 剧情衔接度：校验续写内容与前文的衔接是否自然，逻辑是否自洽，有无剧情断层、前后矛盾的问题<br/>● 文风匹配度：校验续写内容的叙事视角、语言风格、对话模式、节奏规律是否与原文一致，有无风格割裂<br/>● 内容质量：校验续写内容是否有完整的情节、生动的细节、符合逻辑的对话，有无无意义水内容、剧情拖沓、逻辑混乱的问题，字数是否符合要求`;
+    const userPrompt = `待评估续写内容：${continueContent}<br/>前置校验合规边界：${JSON.stringify(precheckResult)}<br/>小说核心设定知识图谱：${JSON.stringify(baseGraph)}<br/>续写基准章节内容：${baseChapterContent}<br/>目标续写字数：${targetWordCount}字<br/>实际续写字数：${actualWordCount}字<br/>请执行多维度质量评估，输出符合要求的JSON内容。`;
     try {
         const result = await generateRaw({ systemPrompt, prompt: userPrompt, jsonSchema: qualityEvaluateSchema });
         // 修复：JSON解析容错
@@ -1274,16 +1291,7 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
         toastr.error('魔改后的章节内容不能为空', "小说续写器");
         return null;
     }
-    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说魔改章节解析强制约束（100%遵守）：
-1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
-2. 必须以{开头，以}结尾，无其他字符
-3. 仅基于提供的魔改后章节内容分析，不引入任何外部内容
-4. 严格包含所有要求的字段，不修改字段名
-5. 无对应内容设为"暂无"，数组设为[]，不得留空
-6. 必须实现全链路双向可追溯，所有信息必须关联对应原文位置
-7. 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目
-8. 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}
-必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
+    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说魔改章节解析强制约束（100%遵守）：<br/>1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown<br/>2. 必须以{开头，以}结尾，无其他字符<br/>3. 仅基于提供的魔改后章节内容分析，不引入任何外部内容<br/>4. 严格包含所有要求的字段，不修改字段名<br/>5. 无对应内容设为"暂无"，数组设为[]，不得留空<br/>6. 必须实现全链路双向可追溯，所有信息必须关联对应原文位置<br/>7. 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目<br/>8. 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}<br/>必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${targetChapter.title}\n魔改后章节内容：${modifiedContent}`;
     try {
         toastr.info('正在更新魔改章节图谱，请稍候...', "小说续写器");
@@ -1310,13 +1318,7 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
     const context = getContext();
     const { generateRaw } = context;
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说续写章节解析强制约束（100%遵守）：
-1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
-2. 必须以{开头，以}结尾，无其他字符
-3. 仅基于提供的续写章节内容分析，不引入任何外部内容
-4. 严格包含所有要求的字段，不修改字段名
-5. 无对应内容设为"暂无"，数组设为[]，不得留空
-必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
+    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说续写章节解析强制约束（100%遵守）：<br/>1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown<br/>2. 必须以{开头，以}结尾，无其他字符<br/>3. 仅基于提供的续写章节内容分析，不引入任何外部内容<br/>4. 严格包含所有要求的字段，不修改字段名<br/>5. 无对应内容设为"暂无"，数组设为[]，不得留空<br/>必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：续写章节${continueId}\n小说章节内容：${continueChapter.content}`;
     try {
         const result = await generateRaw({ systemPrompt, prompt: userPrompt, jsonSchema: graphJsonSchema });
@@ -1491,16 +1493,7 @@ function getSelectedChapters() {
 async function generateSingleChapterGraph(chapter) {
     const context = getContext();
     const { generateRaw } = context;
-    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说章节解析强制约束（100%遵守）：
-1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
-2. 必须以{开头，以}结尾，无其他字符
-3. 仅基于提供的小说文本分析，不引入任何外部内容
-4. 严格包含所有要求的字段，不修改字段名
-5. 无对应内容设为"暂无"，数组设为[]，不得留空
-6. 必须实现全链路双向可追溯，所有信息必须关联对应原文位置
-7. 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目
-8. 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}
-必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
+    const systemPrompt = `触发词：构建单章节知识图谱JSON、小说章节解析强制约束（100%遵守）：<br/>1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown<br/>2. 必须以{开头，以}结尾，无其他字符<br/>3. 仅基于提供的小说文本分析，不引入任何外部内容<br/>4. 严格包含所有要求的字段，不修改字段名<br/>5. 无对应内容设为"暂无"，数组设为[]，不得留空<br/>6. 必须实现全链路双向可追溯，所有信息必须关联对应原文位置<br/>7. 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目<br/>8. 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}<br/>必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${chapter.title}\n小说章节内容：${chapter.content}`;
     try {
         const result = await generateRaw({ systemPrompt, prompt: userPrompt, jsonSchema: graphJsonSchema });
@@ -1572,16 +1565,7 @@ async function mergeAllGraphs() {
         return;
     }
     setButtonDisabled('#graph-merge-btn', true);
-    const systemPrompt = `触发词：合并全量知识图谱JSON、小说全局图谱构建强制约束（100%遵守）：
-1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
-2. 必须以{开头，以}结尾，无其他字符
-3. 仅基于提供的多组图谱合并，不引入任何外部内容
-4. 严格去重，同一人物/设定/事件不能重复，不同别名合并为同一条目
-5. 同一设定以最新章节的生效内容为准，同时保留历史变更记录
-6. 严格包含所有要求的字段，不修改字段名
-7. 无对应内容设为"暂无"，数组设为[]，不得留空
-8. 必须构建完整的反向依赖图谱，支持任意章节续写的前置信息提取
-必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估`;
+    const systemPrompt = `触发词：合并全量知识图谱JSON、小说全局图谱构建强制约束（100%遵守）：<br/>1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown<br/>2. 必须以{开头，以}结尾，无其他字符<br/>3. 仅基于提供的多组图谱合并，不引入任何外部内容<br/>4. 严格去重，同一人物/设定/事件不能重复，不同别名合并为同一条目<br/>5. 同一设定以最新章节的生效内容为准，同时保留历史变更记录<br/>6. 严格包含所有要求的字段，不修改字段名<br/>7. 无对应内容设为"暂无"，数组设为[]，不得留空<br/>8. 必须构建完整的反向依赖图谱，支持任意章节续写的前置信息提取<br/>必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估`;
     const userPrompt = `待合并的多组知识图谱：\n${JSON.stringify(graphList, null, 2)}`;
     try {
         toastr.info('开始合并知识图谱，请稍候...', "小说续写器");
@@ -1741,21 +1725,8 @@ async function generateContinueWrite(targetChainId) {
     targetBeforeChapters.forEach((chapter, index) =>{
         fullContextContent += `续写章节 ${index + 1}\n${chapter.content}\n\n`;
     });
-    const systemPrompt = `小说续写规则（100%遵守）：
-1. 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}
-2. 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}
-3. 文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"
-续写必须从这段文字之后直接开始，不能重复这段内容。
-4. 剧情承接：续写内容必须承接前文所有剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新章节，且与上述文本衔接要求一致，不得重复前文已有的情节。
-5. 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂
-6. 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话
-7. 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线
-8. 字数要求：续写约${wordCount}字，误差不超过10%
-9. 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}
-10. 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
-    const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}
-完整前文上下文：${fullContextContent}
-请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
+    const systemPrompt = `小说续写规则（100%遵守）：<br/>1. 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}<br/>2. 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}<br/>3. 文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"<br/>续写必须从这段文字之后直接开始，不能重复这段内容。<br/>4. 剧情承接：续写内容必须承接前文所有剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新章节，且与上述文本衔接要求一致，不得重复前文已有的情节。<br/>5. 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂<br/>6. 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话<br/>7. 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线<br/>8. 字数要求：续写约${wordCount}字，误差不超过10%<br/>9. 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}<br/>10. 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
+    const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}<br/>完整前文上下文：${fullContextContent}<br/>请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
     isGeneratingWrite = true;
     stopGenerateFlag = false;
     setButtonDisabled('#write-generate-btn, .continue-write-btn', true);
@@ -1861,21 +1832,8 @@ async function generateNovelWrite() {
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
-        const systemPrompt = `小说续写规则（100%遵守）：
-1. 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}
-2. 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}
-3. 文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"
-续写必须从这段文字之后直接开始，不能重复这段内容。
-4. 剧情承接：续写内容必须承接前文剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新的章节内容，且与上述文本衔接要求一致。
-5. 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂
-6. 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话
-7. 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线
-8. 字数要求：续写约${wordCount}字，误差不超过10%
-9. 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}
-10. 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
-        const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}
-基准章节内容：${editedChapterContent}
-请基于以上内容，按照规则续写后续的章节正文。`;
+        const systemPrompt = `小说续写规则（100%遵守）：<br/>1. 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}<br/>2. 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}<br/>3. 文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"<br/>续写必须从这段文字之后直接开始，不能重复这段内容。<br/>4. 剧情承接：续写内容必须承接前文剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新的章节内容，且与上述文本衔接要求一致。<br/>5. 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂<br/>6. 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话<br/>7. 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线<br/>8. 字数要求：续写约${wordCount}字，误差不超过10%<br/>9. 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}<br/>10. 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
+        const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}<br/>基准章节内容：${editedChapterContent}<br/>请基于以上内容，按照规则续写后续的章节正文。`;
         $('#write-status').text('正在生成续写章节，请稍候...');
         let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt });
         if (stopGenerateFlag) {
@@ -2037,6 +1995,8 @@ jQuery(async () =>{
             toastr.info('已停止发送', "小说续写器");
         }
     });
+    // 新增：章节图谱检验按钮事件绑定
+    $("#validate-chapter-graph-btn").off("click").on("click", validateChapterGraph);
     // 原有知识图谱事件绑定
     $("#graph-single-btn").off("click").on("click", () =>{
         const selectedChapters = getSelectedChapters();
