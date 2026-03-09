@@ -54,27 +54,78 @@
                             </button>
                             <span id="file-name-text" class="file-name">未选择文件</span>
                         </div>
-                        <div class="grid-row grid-2">
-                            <div class="form-group">
-                                <label class="form-label">章节拆分正则</label>
-                                <input id="chapter-regex-input" class="form-input" type="text" value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$" placeholder="请输入章节匹配正则">
+
+                        <!-- 【新增】拆分模式选择 -->
+                        <div class="form-group">
+                            <label class="form-label">章节拆分模式</label>
+                            <div class="form-group-inline" style="gap: 20px; margin-bottom: 12px;">
+                                <label class="form-group-inline">
+                                    <input type="radio" name="split-mode" value="regex" checked />
+                                    <span>正则表达式拆分（默认）</span>
+                                </label>
+                                <label class="form-group-inline">
+                                    <input type="radio" name="split-mode" value="wordCount" />
+                                    <span>按固定字数拆分</span>
+                                </label>
                             </div>
+                        </div>
+
+                        <!-- 【新增】正则拆分配置组 -->
+                        <div id="regex-split-group">
+                            <div class="grid-row grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">章节拆分正则预设</label>
+                                    <select id="chapter-regex-preset" class="form-select">
+                                        <option value="">请选择预设正则</option>
+                                        <option value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$">标准章节（第X章）</option>
+                                        <option value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*卷.*$|^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$">卷+章节双匹配</option>
+                                        <option value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*回.*$">古典回体（第X回）</option>
+                                        <option value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*节.*$">节体格式（第X节）</option>
+                                        <option value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*话.*$">漫画/轻小说（第X话）</option>
+                                        <option value="^\s*\d+\.\s.*$">数字点开头（1. 标题）</option>
+                                        <option value="^\s*\d+\s*$">纯数字章节</option>
+                                        <option value="^\s*番外.*$|^\s*外传.*$|^\s*后记.*$|^\s*前言.*$">番外/外传匹配</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">自定义章节拆分正则（可编辑）</label>
+                                    <input id="chapter-regex-input" class="form-input" type="text" value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$" placeholder="请输入章节匹配正则">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 【新增】按字数拆分配置组 -->
+                        <div id="wordcount-split-group" style="display: none;">
+                            <div class="grid-row grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">单章字数（范围1000-10000）</label>
+                                    <div class="input-with-tip">
+                                        <input id="split-word-count-input" type="number" min="1000" max="10000" step="100" class="form-input" value="3000">
+                                        <span class="input-tip">建议3000-5000字，避免单章过长导致图谱生成失败</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">拆分说明</label>
+                                    <p class="input-tip" style="margin: 0; line-height: 1.5;">优先按完整段落拆分，超长段落按句子拆分，保证语义完整，不拆分句子/段落</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid-row grid-2">
                             <div class="form-group">
                                 <label class="form-label">发送命令模板</label>
                                 <input id="send-template-input" class="form-input" type="text" value="/sendas name={{char}} {{pipe}}" placeholder="请输入发送命令模板">
                             </div>
-                        </div>
-                        <div class="grid-row grid-2">
                             <div class="form-group">
                                 <label class="form-label">发送间隔(ms)</label>
                                 <input id="send-delay-input" class="form-input" type="number" min="100" max="5000" step="100" value="100">
                             </div>
-                            <div class="form-group btn-group-fixed">
-                                <input id="parse-chapter-btn" class="btn btn-primary" type="submit" value="解析章节">
-                                <div class="btn-group-row">
-                                    <input id="select-all-btn" class="btn btn-outline" type="submit" value="全选">
-                                    <input id="unselect-all-btn" class="btn btn-outline" type="submit" value="反选">
-                                </div>
+                        </div>
+                        <div class="form-group btn-group-fixed">
+                            <input id="parse-chapter-btn" class="btn btn-primary btn-lg" type="submit" value="解析章节">
+                            <div class="btn-group-row">
+                                <input id="select-all-btn" class="btn btn-outline" type="submit" value="全选">
+                                <input id="unselect-all-btn" class="btn btn-outline" type="submit" value="反选">
                             </div>
                         </div>
                     </div>
@@ -152,12 +203,12 @@
                         <input id="graph-file-upload" type="file" accept=".json" style="display: none;">
                     </div>
                 </div>
-                <!-- 校验结果卡片 -->
+                <!-- 校验结果卡片（修复：扩大显示区域） -->
                 <div class="content-card" id="graph-validate-result" style="display: none;">
                     <div class="card-header">
-                        <h4><span>🛡️</span>图谱合规性校验结果</h4>
+                        <h4><span>🛡️</span>图谱合规性深度校验报告</h4>
                     </div>
-                    <textarea id="graph-validate-content" rows="3" class="form-textarea" readonly placeholder="校验结果将显示在这里..." wrap="soft"></textarea>
+                    <textarea id="graph-validate-content" rows="12" class="form-textarea" readonly placeholder="校验结果将显示在这里..." wrap="soft" resize="vertical" style="font-family: monospace; line-height: 1.5;"></textarea>
                 </div>
             </div>
             <!-- 选项卡3：小说续写生成 -->
