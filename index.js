@@ -1,10 +1,10 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-const extensionName = "Verification";
+const extensionName = "Always_remember_me";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
-// 【扩展优化】章节拆分正则预设库（覆盖主流+冷门格式，新增用户需求格式）
+// 【扩充优化】章节拆分正则预设库（覆盖主流+冷门格式，新增括号数字等特殊格式）
 const chapterRegexPresets = [
     { label: "标准章节（第X章）", value: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$" },
     { label: "卷+章节双匹配", value: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*卷.*$|^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$" },
@@ -14,18 +14,17 @@ const chapterRegexPresets = [
     { label: "数字点开头（1. 标题）", value: "^\\s*\\d+\\.\\s.*$" },
     { label: "纯数字章节", value: "^\\s*\\d+\\s*$" },
     { label: "番外/外传匹配", value: "^\\s*番外.*$|^\\s*外传.*$|^\\s*后记.*$|^\\s*前言.*$" },
-    // 【新增】用户需求&冷门格式正则
-    { label: "括号数字结尾（xxx（01））", value: ".*\\（\\s*\\d+\\s*\\）\\s*$" },
-    { label: "括号数字开头（（01）xxx）", value: "^\\s*\\（\\s*\\d+\\s*\\）.*$" },
-    { label: "方括号数字开头（【01】xxx）", value: "^\\s*【\\s*\\d+\\s*】.*$" },
-    { label: "英文章节（Chapter 01）", value: "^\\s*Chapter\\s*\\d+.*$|^\\s*CH\\s*\\d+.*$" },
-    { label: "英文剧集（Episode 01）", value: "^\\s*Episode\\s*\\d+.*$|^\\s*EP\\s*\\d+.*$|^\\s*Act\\s*\\d+.*$" },
-    { label: "卷章双级带点（1.1 标题）", value: "^\\s*\\d+\\.\\d+\\s.*$" },
-    { label: "中文数字带括号（第（一）章）", value: "^\\s*第\\s*\\（[零一二三四五六七八九十百千]+\\）\\s*章.*$" },
-    { label: "无第字章节（一章/一回）", value: "^\\s*[零一二三四五六七八九十百千]+\\s*[章回节话].*$" },
-    { label: "序号横杠分隔（xxx - 01 -）", value: ".*-\\s*\\d+\\s*-.*$" },
-    { label: "纯中文数字顿号（一、标题）", value: "^\\s*[零一二三四五六七八九十百千]+\\、.*$" },
-    { label: "万字开头章节（xxx第X章）", value: "^\\s*.*第\\s*\\d+\\s*章.*$" }
+    // 【新增】用户需求特殊格式+冷门格式
+    { label: "括号数字章节（xxx(01)）", value: "^.*[（(]\\s*[0-9零一二三四五六七八九十百千]+\\s*[）)]\\s*$" },
+    { label: "中文括号章节（【一】xxx）", value: "^\\s*[（【]\\s*[0-9零一二三四五六七八九十百千]+\\s*[）】].*$" },
+    { label: "数字顿号开头（1、标题）", value: "^\\s*\\d+、\\s.*$" },
+    { label: "短横线数字章节（xxx-01）", value: "^.*[-\\s]\\d+\\s*$" },
+    { label: "英文Chapter格式", value: "^\\s*Chapter\\s*\\d+.*$" },
+    { label: "英文Episode格式", value: "^\\s*Episode\\s*\\d+.*$" },
+    { label: "英文Act/Scene格式", value: "^\\s*Act\\s*\\d+.*$|^\\s*Scene\\s*\\d+.*$" },
+    { label: "卷名嵌套格式（【第一卷】）", value: "^\\s*【第\\s*[0-9零一二三四五六七八九十百千]+\\s*卷】.*$|^\\s*卷\\s*[0-9零一二三四五六七八九十百千]+.*$" },
+    { label: "篇体格式（第X篇）", value: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*篇.*$" },
+    { label: "序章/楔子/终章匹配", value: "^\\s*序章.*$|^\\s*楔子.*$|^\\s*终章.*$|^\\s*尾声.*$" }
 ];
 
 // 默认配置（原有字段100%保留，新增字段仅追加，完全兼容旧数据）
@@ -67,12 +66,11 @@ const defaultSettings = {
     // 原有新增字段保留
     splitMode: "regex",
     splitWordCount: 3000,
-    // 【本次优化新增】配置项
-    minChapterGraphWordCount: 200, // 图谱有效最小章节字数，低于此值视为无效
-    currentRegexPresetIndex: -1 // 自动正则解析当前索引
+    // 【新增】图谱校验最小有效字数配置
+    minValidChapterWordCount: 200
 };
 
-// 全局状态缓存（原有字段完全不变，新增仅追加）
+// 全局状态缓存（原有字段完全不变，新增智能解析相关缓存）
 let currentParsedChapters = [];
 let isGeneratingGraph = false;
 let isGeneratingWrite = false;
@@ -84,11 +82,12 @@ let continueChapterIdCounter = 1;
 let currentPrecheckResult = null;
 let isInitialized = false;
 let chapterCheckedState = new Map();
-// 【本次优化新增】全局状态
-let sortedRegexPresets = []; // 自动排序后的正则预设缓存
-let currentUploadedNovelText = ""; // 当前上传的小说文本缓存
+// 【新增】智能循环解析全局缓存
+let regexMatchResultCache = [];
+let currentRegexParseIndex = 0;
+let lastUploadedFile = null;
 
-// 防抖工具函数（修复箭头函数语法错误）
+// 【修复】箭头函数语法错误
 function debounce(func, delay) {
     let timer = null;
     return function(...args) {
@@ -176,6 +175,7 @@ const FloatBall = {
 
         document.removeEventListener("click", this.outsideClose.bind(this));
         document.addEventListener("click", this.outsideClose.bind(this));
+
         window.removeEventListener("resize", this.resizeHandler.bind(this));
         window.addEventListener("resize", this.resizeHandler.bind(this));
     },
@@ -211,6 +211,7 @@ const FloatBall = {
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         const moveX = Math.abs(clientX - this.startPos.x);
         const moveY = Math.abs(clientY - this.startPos.y);
+        // 【修复】比较运算符丢失BUG
         if (moveX >= this.minMoveDistance || moveY >= this.minMoveDistance) {
             this.isClick = false;
             this.isDragging = true;
@@ -382,6 +383,7 @@ const NovelReader = {
             }
             this.toggleChapterDrawer();
         });
+
         contentEl.addEventListener("scroll", (e) => {
             if (this.isProgrammaticScroll) {
                 e.stopPropagation();
@@ -390,12 +392,14 @@ const NovelReader = {
             e.stopPropagation();
             this.updateProgressOnly();
         }, { passive: true });
+
         contentEl.addEventListener("wheel", (e) => {
             e.stopPropagation();
         }, { passive: true });
         contentEl.addEventListener("touchmove", (e) => {
             e.stopPropagation();
         }, { passive: true });
+
         drawerEl.addEventListener("click", (e) => {
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -837,7 +841,7 @@ function removeBOM(text) {
     return text;
 }
 
-// 拆分模式切换显示控制
+// 【原有】拆分模式切换显示控制
 function toggleSplitMode(mode) {
     if (mode === 'regex') {
         $('#regex-split-group').show();
@@ -848,7 +852,34 @@ function toggleSplitMode(mode) {
     }
 }
 
-// 按字数拆分章节核心函数（语义优先，不拆分句子/段落）
+// 【新增】智能正则匹配核心函数（自动匹配最多章节的正则）
+function autoMatchBestRegex(novelText) {
+    const matchResults = [];
+    const cleanText = removeBOM(novelText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    chapterRegexPresets.forEach(preset => {
+        try {
+            const regex = new RegExp(preset.value, 'gm');
+            const matches = [...cleanText.matchAll(regex)];
+            // 过滤掉仅匹配1条的无效正则（等于没拆分）
+            if (matches.length > 1) {
+                matchResults.push({
+                    label: preset.label,
+                    value: preset.value,
+                    chapterCount: matches.length
+                });
+            }
+        } catch (error) {
+            console.warn(`正则${preset.label}匹配失败:`, error);
+        }
+    });
+
+    // 按章节数从多到少排序
+    matchResults.sort((a, b) => b.chapterCount - a.chapterCount);
+    return matchResults;
+}
+
+// 【原有】按字数拆分章节核心函数
 function splitNovelByWordCount(novelText, targetWordCount) {
     try {
         const cleanText = removeBOM(novelText).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
@@ -943,293 +974,7 @@ function splitNovelByWordCount(novelText, targetWordCount) {
 }
 
 // ==============================================
-// 【本次优化新增】自动正则匹配排序函数
-// ==============================================
-function getSortedRegexPresets(novelText) {
-    const cleanText = removeBOM(novelText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const regexResultList = [];
-
-    chapterRegexPresets.forEach(preset => {
-        try {
-            const regex = new RegExp(preset.value, 'gm');
-            const matches = [...cleanText.matchAll(regex)];
-            if (matches.length >= 2) {
-                regexResultList.push({
-                    ...preset,
-                    chapterCount: matches.length
-                });
-            }
-        } catch (e) {
-            console.warn(`正则预设${preset.label}解析错误:`, e);
-        }
-    });
-
-    return regexResultList.sort((a, b) => b.chapterCount - a.chapterCount);
-}
-
-// ==============================================
-// 【本次优化重写】章节列表渲染函数（修复复选框状态+图谱状态显示）
-// ==============================================
-function renderChapterList(chapters) {
-    const $listContainer = $('#novel-chapter-list');
-    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    const settings = extension_settings[extensionName];
-    if (chapters.length === 0) {
-        $listContainer.html('<p class="empty-tip">请上传小说文件并点击「解析章节」</p>');
-        return;
-    }
-
-    chapters.forEach(chapter => {
-        const graph = graphMap[chapter.id];
-        const isWordCountValid = chapter.content.length >= settings.minChapterGraphWordCount;
-        chapter.hasGraph = !!graph && isWordCountValid;
-        chapter.graphInvalid = !!graph && !isWordCountValid;
-        if (!chapterCheckedState.has(chapter.id)) {
-            chapterCheckedState.set(chapter.id, true);
-        }
-    });
-
-    const listHtml = chapters.map((chapter) => `
-        <div class="chapter-item">
-            <label class="chapter-checkbox">
-                <input type="checkbox" class="chapter-select" data-index="${chapter.id}" ${chapterCheckedState.get(chapter.id) ? 'checked' : ''}>
-                <span class="chapter-title">${chapter.title}</span>
-                <span class="text-sm text-muted">（约${chapter.content.length}字）</span>
-            </label>
-            <span class="text-sm ${chapter.hasGraph ? 'text-success' : chapter.graphInvalid ? 'status-danger' : 'text-muted'}">
-                ${chapter.hasGraph ? '✅ 图谱正常' : chapter.graphInvalid ? '❌ 字数不足' : '⚠️ 无图谱'}
-            </span>
-        </div>
-    `).join('');
-    $listContainer.html(listHtml);
-
-    $listContainer.off('change', '.chapter-select').on('change', '.chapter-select', function(e) {
-        const chapterId = parseInt($(this).data('index'));
-        const isChecked = $(this).prop('checked');
-        chapterCheckedState.set(chapterId, isChecked);
-    });
-}
-
-// ==============================================
-// 【本次优化重写】图谱状态检验函数（新增字数校验+深度校验）
-// ==============================================
-async function validateChapterGraphStatus() {
-    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    const settings = extension_settings[extensionName];
-    const minWordCount = settings.minChapterGraphWordCount;
-    if (currentParsedChapters.length === 0) {
-        toastr.warning('请先上传小说文件并解析章节', "小说续写器");
-        return;
-    }
-    let validGraphCount = 0;
-    let noGraphList = [];
-    let wordCountInvalidList = [];
-    let graphInvalidList = [];
-
-    currentParsedChapters.forEach(chapter => {
-        const graph = graphMap[chapter.id];
-        const chapterWordCount = chapter.content.length;
-
-        if (chapterWordCount < minWordCount) {
-            chapter.hasGraph = false;
-            chapter.graphInvalid = true;
-            wordCountInvalidList.push(`${chapter.title}（仅${chapterWordCount}字，最低要求${minWordCount}字）`);
-            return;
-        }
-        if (!graph) {
-            chapter.hasGraph = false;
-            chapter.graphInvalid = false;
-            noGraphList.push(chapter.title);
-            return;
-        }
-        const requiredFields = graphJsonSchema.value.required;
-        const hasAllRequiredFields = requiredFields.every(field => Object.hasOwn(graph, field));
-        if (!hasAllRequiredFields) {
-            chapter.hasGraph = false;
-            chapter.graphInvalid = true;
-            graphInvalidList.push(`${chapter.title}（图谱缺少必填字段）`);
-            return;
-        }
-        chapter.hasGraph = true;
-        chapter.graphInvalid = false;
-        validGraphCount++;
-    });
-
-    renderChapterList(currentParsedChapters);
-
-    const totalCount = currentParsedChapters.length;
-    let reportMessage = `===== 章节图谱状态深度检验报告 =====
-检验时间：${new Date().toLocaleString()}
-总章节数：${totalCount}
-有效图谱章节：${validGraphCount}个
-无图谱章节：${noGraphList.length}个
-字数不足章节：${wordCountInvalidList.length}个
-图谱无效章节：${graphInvalidList.length}个
-最低有效章节字数：${minWordCount}字`;
-
-    if (noGraphList.length > 0) {
-        reportMessage += `\n\n【无图谱章节列表】\n${noGraphList.join('\n')}`;
-    }
-    if (wordCountInvalidList.length > 0) {
-        reportMessage += `\n\n【字数不足章节列表】\n${wordCountInvalidList.join('\n')}`;
-    }
-    if (graphInvalidList.length > 0) {
-        reportMessage += `\n\n【图谱无效章节列表】\n${graphInvalidList.join('\n')}`;
-    }
-
-    console.log(reportMessage);
-    $('#graph-status-report').val(reportMessage);
-
-    if (noGraphList.length === 0 && wordCountInvalidList.length === 0 && graphInvalidList.length === 0) {
-        toastr.success(`图谱状态检验完成！所有${totalCount}个章节均有有效图谱`, "小说续写器");
-    } else {
-        toastr.warning(`图谱状态检验完成！有效${validGraphCount}/${totalCount}个，详情见报告`, "小说续写器");
-    }
-
-    return {
-        validCount: validGraphCount,
-        totalCount: totalCount,
-        noGraphList,
-        wordCountInvalidList,
-        graphInvalidList
-    };
-}
-
-// ==============================================
-// 【本次优化新增】单章节图谱导入导出核心函数
-// ==============================================
-async function exportSingleChapterGraph() {
-    const selectedChapters = getSelectedChapters();
-    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    if (selectedChapters.length === 0) {
-        toastr.warning('请先选择要导出的章节', "小说续写器");
-        return;
-    }
-    if (selectedChapters.length > 1) {
-        toastr.warning('单次仅支持导出单个章节的图谱，请只选择一个章节', "小说续写器");
-        return;
-    }
-
-    const targetChapter = selectedChapters[0];
-    const graph = graphMap[targetChapter.id];
-    if (!graph) {
-        toastr.error('该章节暂无可用图谱，无法导出', "小说续写器");
-        return;
-    }
-
-    const exportData = {
-        chapterId: targetChapter.id,
-        chapterTitle: targetChapter.title,
-        chapterWordCount: targetChapter.content.length,
-        graphData: graph,
-        exportTime: new Date().toISOString()
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${targetChapter.title.replace(/[\\/:*?"<>|]/g, '_')}_图谱.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toastr.success('单章节图谱导出完成！', "小说续写器");
-}
-
-async function exportAllSingleChapterGraphs() {
-    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    if (Object.keys(graphMap).length === 0) {
-        toastr.warning('暂无可用的单章节图谱，无法导出', "小说续写器");
-        return;
-    }
-
-    const exportData = {
-        exportType: "全量单章节图谱",
-        exportTime: new Date().toISOString(),
-        totalChapters: currentParsedChapters.length,
-        graphCount: Object.keys(graphMap).length,
-        chapterGraphs: []
-    };
-
-    currentParsedChapters.forEach(chapter => {
-        const graph = graphMap[chapter.id];
-        if (graph) {
-            exportData.chapterGraphs.push({
-                chapterId: chapter.id,
-                chapterTitle: chapter.title,
-                chapterWordCount: chapter.content.length,
-                graphData: graph
-            });
-        }
-    });
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `小说全量单章节图谱_${new Date().getTime()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toastr.success(`全量单章节图谱导出完成！共导出${exportData.graphCount}个章节的图谱`, "小说续写器");
-}
-
-async function importSingleChapterGraphs(file) {
-    if (!file) {
-        toastr.warning('请先选择要导入的图谱JSON文件', "小说续写器");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const importData = JSON.parse(removeBOM(event.target.result.trim()));
-            const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-            let importCount = 0;
-            let failCount = 0;
-
-            if (importData.exportType === "全量单章节图谱" && Array.isArray(importData.chapterGraphs)) {
-                importData.chapterGraphs.forEach(item => {
-                    if (item.chapterId !== undefined && item.graphData) {
-                        graphMap[item.chapterId] = item.graphData;
-                        importCount++;
-                    } else {
-                        failCount++;
-                    }
-                });
-            }
-            else if (importData.chapterId !== undefined && importData.graphData) {
-                graphMap[importData.chapterId] = importData.graphData;
-                importCount++;
-            }
-            else {
-                throw new Error("图谱文件格式错误，不支持该文件");
-            }
-
-            extension_settings[extensionName].chapterGraphMap = graphMap;
-            saveSettingsDebounced();
-            renderChapterList(currentParsedChapters);
-            NovelReader.renderChapterList();
-
-            if (failCount === 0) {
-                toastr.success(`单章节图谱导入完成！成功导入${importCount}个图谱`, "小说续写器");
-            } else {
-                toastr.warning(`单章节图谱导入完成！成功${importCount}个，失败${failCount}个`, "小说续写器");
-            }
-        } catch (error) {
-            console.error('图谱导入失败:', error);
-            toastr.error(`导入失败：${error.message}，请检查JSON文件格式是否正确`, "小说续写器");
-        } finally {
-            $("#single-graph-file-upload").val('');
-        }
-    };
-    reader.onerror = () => {
-        toastr.error('文件读取失败，请检查文件', "小说续写器");
-        $("#single-graph-file-upload").val('');
-    };
-    reader.readAsText(file, 'UTF-8');
-}
-
-// ==============================================
-// 规则适配核心函数（100%完整保留，JSON容错优化）
+// 规则适配核心函数
 // ==============================================
 const graphJsonSchema = {
     name: 'NovelKnowledgeGraph',
@@ -1785,7 +1530,7 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
     }
 }
 
-// 图谱合规性校验函数（深度校验+详细报告）
+// 【核心重写优化】图谱合规性校验函数
 async function validateGraphCompliance() {
     const mergedGraph = extension_settings[extensionName].mergedGraph || {};
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -1930,7 +1675,185 @@ ${validateErrors.length === 0
     return isPass;
 }
 
-// 章节管理核心函数
+// 【重写优化】图谱状态检验函数（新增字数校验+有效性校验）
+async function validateChapterGraphStatus() {
+    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+    const minValidWordCount = extension_settings[extensionName].minValidChapterWordCount || 200;
+    
+    if (currentParsedChapters.length === 0) {
+        toastr.warning('请先上传小说文件并解析章节', "小说续写器");
+        return;
+    }
+
+    let validGraphCount = 0;
+    let noGraphList = [];
+    let invalidWordCountList = [];
+    let graphValidateFailList = [];
+
+    // 遍历所有章节，全维度校验
+    currentParsedChapters.forEach(chapter => {
+        const chapterWordCount = chapter.content.length;
+        // 1. 校验章节字数是否达标
+        if (chapterWordCount < minValidWordCount) {
+            chapter.hasGraph = false;
+            invalidWordCountList.push(`${chapter.title}（实际${chapterWordCount}字，最低要求${minValidWordCount}字）`);
+            return;
+        }
+
+        // 2. 校验是否有图谱
+        const chapterGraph = graphMap[chapter.id];
+        if (!chapterGraph) {
+            chapter.hasGraph = false;
+            noGraphList.push(chapter.title);
+            return;
+        }
+
+        // 3. 校验图谱Schema是否合规
+        const schemaErrors = validateSchemaDeep(chapterGraph, graphJsonSchema.value);
+        if (schemaErrors.length > 0) {
+            chapter.hasGraph = false;
+            graphValidateFailList.push(`${chapter.title}（${schemaErrors.length}个格式错误）`);
+            return;
+        }
+
+        // 全部校验通过
+        chapter.hasGraph = true;
+        validGraphCount++;
+    });
+
+    // 同步更新到配置
+    extension_settings[extensionName].chapterList = currentParsedChapters;
+    saveSettingsDebounced();
+    renderChapterList(currentParsedChapters);
+
+    // 生成详细报告
+    const totalCount = currentParsedChapters.length;
+    let message = `===== 章节图谱状态检验报告 =====
+检验时间：${new Date().toLocaleString()}
+总章节数：${totalCount}
+有效图谱章节：${validGraphCount}个
+字数不足无效章节：${invalidWordCountList.length}个
+无图谱章节：${noGraphList.length}个
+图谱校验失败章节：${graphValidateFailList.length}个`;
+
+    if (invalidWordCountList.length > 0) {
+        message += `\n\n⚠️ 字数不足无效章节（低于${minValidWordCount}字，无法生成有效图谱）：\n${invalidWordCountList.join('\n')}`;
+    }
+    if (noGraphList.length > 0) {
+        message += `\n\n❌ 未生成图谱章节：\n${noGraphList.join('\n')}`;
+    }
+    if (graphValidateFailList.length > 0) {
+        message += `\n\n⚠️ 图谱校验失败章节：\n${graphValidateFailList.join('\n')}`;
+    }
+
+    // 弹窗提示+控制台输出
+    console.log(message);
+    if (validGraphCount === totalCount) {
+        toastr.success('所有章节图谱校验全部通过！', "小说续写器");
+    } else {
+        toastr.warning(`图谱检验完成，${validGraphCount}/${totalCount}个章节有效`, "小说续写器");
+    }
+    toastr.info(message, "小说续写器", { timeOut: 10000, extendedTimeOut: 5000 });
+}
+
+// 【新增】单章图谱导出函数
+function exportSingleChapterGraphs() {
+    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+    const chapterList = currentParsedChapters;
+    
+    if (Object.keys(graphMap).length === 0) {
+        toastr.warning('没有可导出的单章节图谱', "小说续写器");
+        return;
+    }
+
+    // 打包导出数据
+    const exportData = {
+        exportTime: new Date().toLocaleString(),
+        chapterCount: chapterList.length,
+        chapterList: chapterList.map(chapter => ({
+            id: chapter.id,
+            title: chapter.title,
+            wordCount: chapter.content.length,
+            hasGraph: !!graphMap[chapter.id]
+        })),
+        chapterGraphMap: graphMap
+    };
+
+    // 导出为JSON文件
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `小说单章节图谱_${new Date().getTime()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toastr.success('单章节图谱已导出', "小说续写器");
+}
+
+// 【新增】单章图谱导入函数
+async function importSingleChapterGraphs(file) {
+    if (!file) {
+        toastr.error('请选择有效的JSON文件', "小说续写器");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const importData = JSON.parse(removeBOM(event.target.result.trim()));
+            const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+            let importCount = 0;
+            let failCount = 0;
+
+            // 校验导入数据格式
+            if (!importData.chapterGraphMap || typeof importData.chapterGraphMap !== 'object') {
+                throw new Error("导入文件格式错误，缺少chapterGraphMap字段");
+            }
+
+            // 遍历导入图谱，匹配当前章节ID
+            Object.keys(importData.chapterGraphMap).forEach(chapterKey => {
+                const chapterId = parseInt(chapterKey);
+                // 仅导入当前已解析章节的图谱
+                if (!isNaN(chapterId) && currentParsedChapters.find(chapter => chapter.id === chapterId)) {
+                    const graphData = importData.chapterGraphMap[chapterKey];
+                    // 校验图谱格式
+                    const schemaErrors = validateSchemaDeep(graphData, graphJsonSchema.value);
+                    if (schemaErrors.length === 0) {
+                        graphMap[chapterId] = graphData;
+                        importCount++;
+                    } else {
+                        failCount++;
+                        console.warn(`章节${chapterId}图谱校验失败:`, schemaErrors);
+                    }
+                }
+            });
+
+            // 同步更新配置和页面
+            extension_settings[extensionName].chapterGraphMap = graphMap;
+            saveSettingsDebounced();
+            validateChapterGraphStatus();
+            renderChapterList(currentParsedChapters);
+            NovelReader.renderChapterList();
+
+            toastr.success(`单章节图谱导入完成！成功导入${importCount}个，失败${failCount}个`, "小说续写器");
+        } catch (error) {
+            console.error('单章图谱导入失败:', error);
+            toastr.error(`导入失败：${error.message}，请检查JSON文件格式是否正确`, "小说续写器");
+        } finally {
+            $("#single-graph-file-upload").val('');
+        }
+    };
+    reader.onerror = () => {
+        toastr.error('文件读取失败，请检查文件', "小说续写器");
+        $("#single-graph-file-upload").val('');
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+// ==============================================
+// 章节管理核心函数（修复复选框BUG，新增智能解析）
+// ==============================================
 function splitNovelIntoChapters(novelText, regexSource) {
     try {
         const settings = extension_settings[extensionName];
@@ -1968,6 +1891,37 @@ function splitNovelIntoChapters(novelText, regexSource) {
     }
 }
 
+// 【修复】章节列表渲染，保留用户勾选状态
+function renderChapterList(chapters) {
+    const $listContainer = $('#novel-chapter-list');
+    const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+    if (chapters.length === 0) {
+        $listContainer.html('<p class="empty-tip">请上传小说文件并点击「解析章节」</p>');
+        return;
+    }
+    chapters.forEach(chapter => {
+        chapter.hasGraph = !!graphMap[chapter.id];
+        if (!chapterCheckedState.has(chapter.id)) {
+            chapterCheckedState.set(chapter.id, true);
+        }
+    });
+    const listHtml = chapters.map((chapter) => `
+        <div class="chapter-item">
+            <label class="chapter-checkbox">
+                <input type="checkbox" class="chapter-select" data-index="${chapter.id}" ${chapterCheckedState.get(chapter.id) ? 'checked' : ''}>
+                <span class="chapter-title">${chapter.title} <span class="text-sm text-muted">(${chapter.content.length}字)</span></span>
+            </label>
+            <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '无图谱'}</span>
+        </div>
+    `).join('');
+    $listContainer.html(listHtml);
+
+    $listContainer.off('change', '.chapter-select').on('change', '.chapter-select', function(e) {
+        const chapterId = parseInt($(this).data('index'));
+        const isChecked = $(this).prop('checked');
+        chapterCheckedState.set(chapterId, isChecked);
+    });
+}
 function renderChapterSelect(chapters) {
     const $select = $('#write-chapter-select');
     $('#write-chapter-content').val('').prop('readonly', true);
@@ -2031,10 +1985,20 @@ function getSelectedChapters() {
     return selectedIndexes.map(index => currentParsedChapters.find(item => item.id === index)).filter(Boolean);
 }
 
-// 知识图谱核心函数
+// ==============================================
+// 知识图谱核心函数（新增字数前置校验）
+// ==============================================
 async function generateSingleChapterGraph(chapter) {
     const context = getContext();
     const { generateRaw } = context;
+    const minValidWordCount = extension_settings[extensionName].minValidChapterWordCount || 200;
+
+    // 【新增】章节字数前置校验
+    if (chapter.content.length < minValidWordCount) {
+        toastr.warning(`章节《${chapter.title}》字数不足${minValidWordCount}字，无法生成有效图谱`, "小说续写器");
+        return null;
+    }
+
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说章节解析强制约束（100%遵守）：
 1. 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
 2. 必须以{开头，以}结尾，无其他字符
@@ -2143,7 +2107,9 @@ async function mergeAllGraphs() {
     }
 }
 
-// 无限续写核心函数
+// ==============================================
+// 无限续写核心函数（100%完整保留）
+// ==============================================
 function renderContinueWriteChain(chain) {
     const $chainContainer = $('#continue-write-chain');
     const scrollTop = $chainContainer.scrollTop();
@@ -2153,7 +2119,7 @@ function renderContinueWriteChain(chain) {
     }
     const chainHtml = chain.map((chapter, index) => `
         <div class="continue-chapter-item">
-            <div class="card-header-inline">
+            <div class="card-header-inline" style="margin-bottom: 12px;">
                 <div class="continue-chapter-title">${chapter.title}</div>
                 <div class="btn-group-row">
                     <button class="btn btn-sm btn-primary continue-write-btn" data-chain-id="${chapter.id}">继续续写</button>
@@ -2162,7 +2128,7 @@ function renderContinueWriteChain(chain) {
                     <button class="btn btn-sm btn-danger continue-delete-btn" data-chain-id="${chapter.id}">删除</button>
                 </div>
             </div>
-            <textarea class="continue-chapter-content" data-chain-id="${chapter.id}">${chapter.content}</textarea>
+            <textarea class="continue-chapter-content" data-chain-id="${chapter.id}" placeholder="续写内容">${chapter.content}</textarea>
         </div>
     `).join('');
     $chainContainer.html(chainHtml);
@@ -2360,7 +2326,9 @@ async function generateContinueWrite(targetChainId) {
     }
 }
 
-// 小说续写核心函数
+// ==============================================
+// 小说续写核心函数（100%完整保留）
+// ==============================================
 async function generateNovelWrite() {
     const context = getContext();
     const { generateRaw } = context;
@@ -2481,7 +2449,7 @@ async function generateNovelWrite() {
 // ==============================================
 // 扩展入口（新增事件绑定，原有逻辑100%保留）
 // ==============================================
-jQuery(async () =>{
+jQuery(async () => {
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
@@ -2508,6 +2476,10 @@ jQuery(async () =>{
             $("#chapter-regex-input").val(selectedValue);
             extension_settings[extensionName].chapterRegex = selectedValue;
             saveSettingsDebounced();
+            // 手动修改正则，清空智能解析缓存
+            regexMatchResultCache = [];
+            currentRegexParseIndex = 0;
+            $("#parse-chapter-btn").text("解析章节");
         }
     });
 
@@ -2517,6 +2489,10 @@ jQuery(async () =>{
         extension_settings[extensionName].splitMode = selectedMode;
         saveSettingsDebounced();
         toggleSplitMode(selectedMode);
+        // 切换模式，清空智能解析缓存
+        regexMatchResultCache = [];
+        currentRegexParseIndex = 0;
+        $("#parse-chapter-btn").text("解析章节");
     });
 
     // 字数拆分配置事件绑定
@@ -2528,12 +2504,12 @@ jQuery(async () =>{
         saveSettingsDebounced();
     });
 
-    // 【本次优化新增】最小字数配置事件绑定
-    $("#min-graph-wordcount-input").off("change").on("change", function(e) {
+    // 最小有效字数配置事件绑定
+    $("#min-word-count-input").off("change").on("change", function(e) {
         const minCount = parseInt($(this).val()) || 200;
         const safeMinCount = Math.max(50, Math.min(5000, minCount));
         $(this).val(safeMinCount);
-        extension_settings[extensionName].minChapterGraphWordCount = safeMinCount;
+        extension_settings[extensionName].minValidChapterWordCount = safeMinCount;
         saveSettingsDebounced();
     });
 
@@ -2543,62 +2519,108 @@ jQuery(async () =>{
         const file = e.target.files[0];
         if (file) {
             $("#file-name-text").text(file.name);
-            sortedRegexPresets = [];
-            extension_settings[extensionName].currentRegexPresetIndex = -1;
-            currentUploadedNovelText = "";
+            // 更换文件，清空智能解析缓存
+            lastUploadedFile = file;
+            regexMatchResultCache = [];
+            currentRegexParseIndex = 0;
             $("#parse-chapter-btn").text("解析章节");
-            saveSettingsDebounced();
         }
     });
 
-    // 【本次优化重写】解析章节按钮事件（自动正则排序循环切换）
+    // 【优化重写】解析章节按钮点击事件（智能循环解析逻辑）
     $("#parse-chapter-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
-        const manualRegex = $("#chapter-regex-input").val().trim();
-        const settings = extension_settings[extensionName];
+        const regexSource = $("#chapter-regex-input").val().trim();
+        const splitMode = extension_settings[extensionName].splitMode;
 
         if (!file) {
             toastr.warning('请先选择小说TXT文件', "小说续写器");
             return;
         }
 
-        chapterCheckedState.clear();
-        extension_settings[extensionName].chapterRegex = manualRegex;
-        saveSettingsDebounced();
+        // 按字数拆分模式，直接执行原有逻辑
+        if (splitMode === 'wordCount') {
+            chapterCheckedState.clear();
+            extension_settings[extensionName].chapterRegex = regexSource;
+            saveSettingsDebounced();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const novelText = e.target.result;
+                currentParsedChapters = splitNovelIntoChapters(novelText, regexSource);
+                extension_settings[extensionName].chapterList = currentParsedChapters;
+                extension_settings[extensionName].chapterGraphMap = {};
+                extension_settings[extensionName].mergedGraph = {};
+                extension_settings[extensionName].continueWriteChain = [];
+                extension_settings[extensionName].continueChapterIdCounter = 1;
+                extension_settings[extensionName].selectedBaseChapterId = "";
+                extension_settings[extensionName].writeContentPreview = "";
+                extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
+                $('#merged-graph-preview').val('');
+                $('#write-content-preview').val('');
+                continueWriteChain = [];
+                continueChapterIdCounter = 1;
+                saveSettingsDebounced();
+                renderChapterList(currentParsedChapters);
+                renderChapterSelect(currentParsedChapters);
+                renderContinueWriteChain(continueWriteChain);
+                NovelReader.renderChapterList();
+            };
+            reader.onerror = () => {
+                toastr.error('文件读取失败，请检查文件编码（仅支持UTF-8）', "小说续写器");
+            };
+            reader.readAsText(file, 'UTF-8');
+            return;
+        }
 
+        // 正则模式：智能循环解析逻辑
         const reader = new FileReader();
         reader.onload = async (e) => {
             const novelText = e.target.result;
-            currentUploadedNovelText = novelText;
-            let useRegex = manualRegex;
-            let usePresetLabel = "手动输入正则";
-            let finalChapters = [];
+            let useRegex = regexSource;
+            let useRegexLabel = "自定义正则";
 
-            if (manualRegex === defaultSettings.chapterRegex || sortedRegexPresets.length > 0) {
-                if (sortedRegexPresets.length === 0) {
-                    sortedRegexPresets = getSortedRegexPresets(novelText);
-                    if (sortedRegexPresets.length === 0) {
-                        toastr.warning('所有预设正则均无法拆分出有效章节，将使用默认正则', "小说续写器");
-                        sortedRegexPresets = [{ ...chapterRegexPresets[0], chapterCount: 1 }];
-                    }
-                    settings.currentRegexPresetIndex = 0;
+            // 无缓存：首次点击，自动匹配所有正则，生成排序缓存
+            if (regexMatchResultCache.length === 0) {
+                toastr.info('正在自动匹配最优正则，请稍候...', "小说续写器");
+                regexMatchResultCache = autoMatchBestRegex(novelText);
+                
+                if (regexMatchResultCache.length === 0) {
+                    toastr.warning('未找到有效拆分正则，将使用当前输入的正则解析', "小说续写器");
                 } else {
-                    settings.currentRegexPresetIndex = (settings.currentRegexPresetIndex + 1) % sortedRegexPresets.length;
+                    currentRegexParseIndex = 0;
+                    const bestMatch = regexMatchResultCache[0];
+                    useRegex = bestMatch.value;
+                    useRegexLabel = bestMatch.label;
+                    $("#chapter-regex-input").val(useRegex);
+                    extension_settings[extensionName].chapterRegex = useRegex;
+                    saveSettingsDebounced();
+                    toastr.success(`自动匹配最优正则：${useRegexLabel}，共${bestMatch.chapterCount}个章节`, "小说续写器");
+                    // 修改按钮文字
+                    $("#parse-chapter-btn").text(`再次解析（剩余${regexMatchResultCache.length-1}个正则）`);
                 }
-
-                const currentPreset = sortedRegexPresets[settings.currentRegexPresetIndex];
-                useRegex = currentPreset.value;
-                usePresetLabel = currentPreset.label;
+            } 
+            // 有缓存：再次点击，切换下一个正则
+            else {
+                currentRegexParseIndex = (currentRegexParseIndex + 1) % regexMatchResultCache.length;
+                const currentMatch = regexMatchResultCache[currentRegexParseIndex];
+                useRegex = currentMatch.value;
+                useRegexLabel = currentMatch.label;
                 $("#chapter-regex-input").val(useRegex);
                 extension_settings[extensionName].chapterRegex = useRegex;
-                $("#parse-chapter-btn").text("再次解析（切换正则）");
                 saveSettingsDebounced();
+                const remainingCount = regexMatchResultCache.length - currentRegexParseIndex - 1;
+                toastr.success(`切换正则：${useRegexLabel}，共${currentMatch.chapterCount}个章节`, "小说续写器");
+                // 更新按钮文字
+                if (remainingCount > 0) {
+                    $("#parse-chapter-btn").text(`再次解析（剩余${remainingCount}个正则）`);
+                } else {
+                    $("#parse-chapter-btn").text("再次解析（回到第一个正则）");
+                }
             }
 
-            finalChapters = splitNovelIntoChapters(novelText, useRegex);
-            toastr.success(`【${usePresetLabel}】解析完成，共找到 ${finalChapters.length} 个章节`, "小说续写器");
-
-            currentParsedChapters = finalChapters;
+            // 执行章节拆分
+            chapterCheckedState.clear();
+            currentParsedChapters = splitNovelIntoChapters(novelText, useRegex);
             extension_settings[extensionName].chapterList = currentParsedChapters;
             extension_settings[extensionName].chapterGraphMap = {};
             extension_settings[extensionName].mergedGraph = {};
@@ -2623,7 +2645,7 @@ jQuery(async () =>{
         reader.readAsText(file, 'UTF-8');
     });
 
-    // 全选/反选事件
+    // 全选/反选按钮
     $("#select-all-btn").off("click").on("click", () => {
         $(".chapter-select").prop("checked", true);
         currentParsedChapters.forEach(chapter => {
@@ -2637,7 +2659,7 @@ jQuery(async () =>{
         });
     });
 
-    // 基础配置事件
+    // 原有配置事件绑定
     $("#send-template-input").off("change").on("change", (e) => {
         extension_settings[extensionName].sendTemplate = $(e.target).val().trim();
         saveSettingsDebounced();
@@ -2651,7 +2673,7 @@ jQuery(async () =>{
         saveSettingsDebounced();
     });
 
-    // 章节导入事件
+    // 导入发送事件
     $("#import-selected-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         sendChaptersBatch(selectedChapters);
@@ -2666,19 +2688,10 @@ jQuery(async () =>{
         }
     });
 
-    // 【本次优化新增】图谱状态检验事件
+    // 图谱状态检验按钮
     $("#validate-chapter-graph-btn").off("click").on("click", validateChapterGraphStatus);
-    $("#graph-status-clear-btn").off("click").on("click", () => {
-        $("#graph-status-report").val('');
-    });
 
-    // 【本次优化新增】单章节图谱导入导出事件
-    $("#single-graph-export-btn").off("click").on("click", exportSingleChapterGraph);
-    $("#single-graph-batch-export-btn").off("click").on("click", exportAllSingleChapterGraphs);
-    $("#single-graph-import-btn").off("click").on("click", () => $("#single-graph-file-upload").click());
-    $("#single-graph-file-upload").off("change").on("change", (e) => importSingleChapterGraphs(e.target.files[0]));
-
-    // 原有图谱事件
+    // 原有图谱事件绑定
     $("#graph-single-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         generateChapterGraphBatch(selectedChapters);
@@ -2688,6 +2701,16 @@ jQuery(async () =>{
     });
     $("#graph-merge-btn").off("click").on("click", mergeAllGraphs);
     $("#graph-validate-btn").off("click").on("click", validateGraphCompliance);
+
+    // 【新增】单章图谱导入导出事件绑定
+    $("#single-graph-export-btn").off("click").on("click", exportSingleChapterGraphs);
+    $("#single-graph-import-btn").off("click").on("click", () => {$("#single-graph-file-upload").click();});
+    $("#single-graph-file-upload").off("change").on("change", (e) => {
+        const file = e.target.files[0];
+        if (file) importSingleChapterGraphs(file);
+    });
+
+    // 原有合并图谱导入导出事件
     $("#graph-import-btn").off("click").on("click", () => {$("#graph-file-upload").click();});
     $("#graph-file-upload").off("change").on("change", (e) => {
         const file = e.target.files[0];
@@ -2757,7 +2780,7 @@ jQuery(async () =>{
         toastr.success('已清空合并图谱', "小说续写器");
     });
 
-    // 续写模块事件
+    // 续写模块事件绑定
     $("#write-chapter-select").off("change").on("change", function(e) {
         const selectedChapterId = $(e.target).val();
         currentPrecheckResult = null;
