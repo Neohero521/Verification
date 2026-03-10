@@ -99,7 +99,6 @@ export async function loadSettings() {
     continueWriteChain.push(...(extension_settings[extensionName].continueWriteChain || []));
     continueChapterIdCounter = extension_settings[extensionName].continueChapterIdCounter || 1;
     currentPrecheckResult = extension_settings[extensionName].precheckReport || null;
-
     const settings = extension_settings[extensionName];
 
     // 初始化表单元素
