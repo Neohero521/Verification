@@ -1,4 +1,4 @@
-// 【Verification插件入口】优化初始化时序，确保悬浮球优先加载
+// 【Verification插件入口】基于SillyTavern官方规范优化
 console.log('[Verification] 插件入口开始执行');
 
 // 优先加载悬浮球核心，不受其他模块影响
