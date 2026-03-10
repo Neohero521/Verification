@@ -6,6 +6,7 @@ import {
 import { getActivePresetParams, updateProgress, setButtonDisabled, removeBOM } from "./utils.js";
 import { renderChapterList } from "./chapterManager.js";
 import { NovelReader } from "./novelReader.js";
+import { getContext } from "../../../extensions.js";
 
 // 生成单章节图谱
 export async function generateSingleChapterGraph(chapter) {
@@ -104,6 +105,7 @@ export async function mergeAllGraphs() {
         return;
     }
     setButtonDisabled('#graph-merge-btn', true);
+
     const systemPrompt = `触发词：合并全量知识图谱JSON、小说全局图谱构建
 强制约束（100%遵守）：
 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
@@ -205,6 +207,7 @@ export async function validateChapterGraphStatus() {
         }
     });
     renderChapterList(currentParsedChapters);
+
     const totalCount = currentParsedChapters.length;
     let message = `图谱状态检验完成\n总章节数：${totalCount}\n已生成图谱：${hasGraphCount}个\n未生成图谱：${totalCount - hasGraphCount}个`;
     if (noGraphList.length > 0) {
@@ -328,7 +331,7 @@ export async function updateModifiedChapterGraph(chapterId, modifiedContent) {
     }
 }
 
-// 更新续写章节图谱（补全原拆分代码缺失的函数）
+// 更新续写章节图谱
 export async function updateGraphWithContinueContent(continueChapter, continueId) {
     const context = getContext();
     const { generateRaw } = context;
