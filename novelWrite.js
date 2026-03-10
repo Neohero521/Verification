@@ -23,7 +23,6 @@ export async function validateContinuePrecondition(baseChapterId, modifiedChapte
         const tempGraph = await generateSingleChapterGraph(tempChapter);
         if (tempGraph) preGraphList.push(tempGraph);
     }
-
     // 无图谱时返回默认结果
     if (preGraphList.length === 0) {
         const result = {
@@ -77,7 +76,6 @@ export async function validateContinuePrecondition(baseChapterId, modifiedChapte
         });
         const precheckResult = JSON.parse(result.trim());
         currentPrecheckResult = precheckResult;
-
         // 渲染校验结果
         const reportText = `合规性校验结果：${precheckResult.isPass ? "通过" : "不通过"}
 人设红线清单：${precheckResult["人设红线清单"]}
@@ -185,7 +183,6 @@ export function initContinueChainEvents() {
         const chainId = parseInt($(e.target).data('chain-id'));
         generateContinueWrite(chainId);
     });
-
     // 复制续写内容
     $root.off('click', '.continue-copy-btn').on('click', '.continue-copy-btn', async function (e) {
         e.stopPropagation();
@@ -202,7 +199,6 @@ export function initContinueChainEvents() {
             toastr.error('复制失败', "小说续写器");
         }
     });
-
     // 发送续写内容到对话框
     $root.off('click', '.continue-send-btn').on('click', '.continue-send-btn', function (e) {
         e.stopPropagation();
@@ -225,7 +221,6 @@ export function initContinueChainEvents() {
             toastr.error(`发送失败: ${error.message}`, "小说续写器");
         });
     });
-
     // 删除续写章节
     $root.off('click', '.continue-delete-btn').on('click', '.continue-delete-btn', function (e) {
         e.stopPropagation();
@@ -265,11 +260,9 @@ export async function generateNovelWrite() {
         toastr.error('基准章节内容不能为空', "小说续写器");
         return;
     }
-
     // 提取基准章节最后一段
     const baseParagraphs = editedChapterContent.split('\n').filter(p => p.trim() !== '');
     const baseLastParagraph = baseParagraphs.length > 0 ? baseParagraphs[baseParagraphs.length - 1].trim() : '';
-
     // 初始化生成状态
     isGeneratingWrite = true;
     stopGenerateFlag = false;
@@ -281,18 +274,17 @@ export async function generateNovelWrite() {
         // 前置校验
         const precheckResult = await validateContinuePrecondition(selectedChapterId, editedChapterContent);
         const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
-
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
-
         // 续写Prompt
         const systemPrompt = `小说续写规则（100%遵守）：
 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}
 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}
-文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。
+文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"
+续写必须从这段文字之后直接开始，不能重复这段内容。
 剧情承接：续写内容必须承接前文剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新的章节内容，且与上述文本衔接要求一致。
 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂
 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话
@@ -307,7 +299,6 @@ export async function generateNovelWrite() {
         // 生成续写内容
         $('#write-status').text('正在生成续写章节，请稍候...');
         let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams() });
-
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
@@ -401,7 +392,6 @@ export async function generateContinueWrite(targetChainId) {
         toastr.error('初始基准章节内容不能为空', "小说续写器");
         return;
     }
-
     // 获取目标续写章节
     const targetChapter = continueWriteChain.find(item => item.id === targetChainId);
     if (!targetChapter) {
@@ -412,7 +402,6 @@ export async function generateContinueWrite(targetChainId) {
     const targetContent = targetChapter.content;
     const targetParagraphs = targetContent.split('\n').filter(p => p.trim() !== '');
     const targetLastParagraph = targetParagraphs.length > 0 ? targetParagraphs[targetParagraphs.length - 1].trim() : '';
-
     // 初始化生成状态
     isGeneratingWrite = true;
     stopGenerateFlag = false;
@@ -424,13 +413,11 @@ export async function generateContinueWrite(targetChainId) {
         // 前置校验
         const precheckResult = await validateContinuePrecondition(selectedBaseChapterId, editedBaseChapterContent);
         const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
-
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成，丢弃本次生成结果');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
-
         // 拼接完整上下文
         let fullContextContent = '';
         const baseChapterId = parseInt(selectedBaseChapterId);
@@ -449,7 +436,8 @@ export async function generateContinueWrite(targetChainId) {
         const systemPrompt = `小说续写规则（100%遵守）：
 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}
 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}
-文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。
+文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"
+续写必须从这段文字之后直接开始，不能重复这段内容。
 剧情承接：续写内容必须承接前文所有剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新章节，且与上述文本衔接要求一致，不得重复前文已有的情节。
 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂
 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话
@@ -463,7 +451,6 @@ export async function generateContinueWrite(targetChainId) {
 
         // 生成续写内容
         let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams() });
-
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成，丢弃本次生成结果');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
