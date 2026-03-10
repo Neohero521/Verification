@@ -9,7 +9,7 @@
 
 /* 悬浮球hover效果，补充行内样式 */
 .Verification-extension-root .Verification-float-ball:hover {
-  transform: translateY(-50%) scale(1.1) !important;
+  transform: scale(1.1) !important;
   box-shadow: 0 0 30px rgba(124, 58, 237, 0.9), 0 6px 20px rgba(0, 0, 0, 0.6) !important;
 }
 
