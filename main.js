@@ -20,15 +20,16 @@ import {
 import { validateContinuePrecondition, generateNovelWrite, generateContinueWrite, initContinueChainEvents } from "./novelWrite.js";
 import { NovelReader } from "./novelReader.js";
 import { loadSettings, initDrawerToggle, initVisibilityListener, onExampleInput, onButtonClick } from "./settings.js";
-import { FloatBall } from "./floatBall.js";
+import { FloatBall } from "./floatBall.js"; // 正确导入模块化的FloatBall
 import { getContext } from "../../../extensions.js";
 
+// 完全对齐源文件初始化时序，确保DOM完全加载后执行
 jQuery(async () => {
-    // 第一步：加载HTML模板，确保DOM先渲染
     try {
+        // 第一步：加载HTML模板，对齐源文件逻辑
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
-        // 延长等待时间，确保DOM完全挂载到文档中
+        // 核心修复：延长等待时间，确保DOM完全渲染到文档中，对齐源文件逻辑
         await new Promise(resolve => setTimeout(resolve, 300));
         console.log("[小说续写插件] HTML模板已加载并挂载到DOM");
     } catch (error) {
@@ -37,21 +38,23 @@ jQuery(async () => {
         return;
     }
 
-    // 第二步：初始化基础模块
+    // 第二步：初始化基础模块，对齐源文件逻辑
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
     await loadSettings();
 
-    // 第三步：核心！初始化悬浮球（确保DOM完全加载后再执行）
+    // 第三步：核心修复！初始化悬浮球和阅读器，确保DOM完全加载后执行
+    console.log("[小说续写插件] 开始初始化悬浮球");
     FloatBall.init();
     NovelReader.init();
     console.log("[小说续写插件] 所有核心模块初始化完成");
 
-    // 第四步：绑定其余页面事件
+    // 第四步：绑定所有页面事件，完全对齐源文件逻辑
     $("#my_button").off("click").on("click", onButtonClick);
     $("#example_setting").off("input").on("input", onExampleInput);
 
+    // 文件选择事件
     $("#select-file-btn").off("click").on("click", () => {
         $("#novel-file-upload").click();
     });
@@ -65,6 +68,7 @@ jQuery(async () => {
         }
     });
 
+    // 解析章节按钮事件，对齐源文件逻辑
     $("#parse-chapter-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
         const customRegex = $("#chapter-regex-input").val().trim();
@@ -125,6 +129,7 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
 
+    // 按字数拆分按钮事件
     $("#split-by-word-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
         const wordCount = parseInt($("#split-word-count").val()) || 3000;
@@ -139,8 +144,7 @@ jQuery(async () => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const novelText = e.target.result;
-            currentParsedChapters.length = 0;
-            currentParsedChapters.push(...splitNovelByWordCount(novelText, wordCount));
+            currentParsedChapters = splitNovelByWordCount(novelText, wordCount);
             extension_settings[extensionName].chapterList = currentParsedChapters;
             extension_settings[extensionName].chapterGraphMap = {};
             extension_settings[extensionName].mergedGraph = {};
@@ -168,12 +172,14 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
 
+    // 父级预设开关事件
     $("#auto-parent-preset-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
     });
 
+    // 章节全选/取消全选
     $("#select-all-btn").off("click").on("click", () => {
         $(".chapter-select").prop("checked", true);
     });
@@ -181,6 +187,7 @@ jQuery(async () => {
         $(".chapter-select").prop("checked", false);
     });
 
+    // 发送模板/间隔设置
     $("#send-template-input").off("change").on("change", (e) => {
         extension_settings[extensionName].sendTemplate = $(e.target).val().trim();
         saveSettingsDebounced();
@@ -194,6 +201,7 @@ jQuery(async () => {
         saveSettingsDebounced();
     });
 
+    // 章节导入事件
     $("#import-selected-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         sendChaptersBatch(selectedChapters);
@@ -208,6 +216,7 @@ jQuery(async () => {
         }
     });
 
+    // 单章节图谱导入导出
     $("#chapter-graph-export-btn").off("click").on("click", exportChapterGraphs);
     $("#chapter-graph-import-btn").off("click").on("click", () => {
         $("#chapter-graph-file-upload").click();
@@ -217,6 +226,7 @@ jQuery(async () => {
         if (file) importChapterGraphs(file);
     });
 
+    // 图谱相关事件
     $("#validate-chapter-graph-btn").off("click").on("click", validateChapterGraphStatus);
     $("#graph-single-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
@@ -228,6 +238,7 @@ jQuery(async () => {
     $("#graph-merge-btn").off("click").on("click", mergeAllGraphs);
     $("#graph-validate-btn").off("click").on("click", validateGraphCompliance);
 
+    // 全量图谱导入导出
     $("#graph-import-btn").off("click").on("click", () => {
         $("#graph-file-upload").click();
     });
@@ -262,7 +273,6 @@ jQuery(async () => {
         };
         reader.readAsText(file, 'UTF-8');
     });
-
     $("#graph-copy-btn").off("click").on("click", async () => {
         const graphText = $('#merged-graph-preview').val();
         if (!graphText) {
@@ -300,6 +310,7 @@ jQuery(async () => {
         toastr.success('已清空合并图谱', "小说续写器");
     });
 
+    // 续写模块事件
     $("#write-chapter-select").off("change").on("change", function (e) {
         const selectedChapterId = $(e.target).val();
         currentPrecheckResult = null;
@@ -323,7 +334,6 @@ jQuery(async () => {
             $('#write-chapter-content').val(targetChapter.content).prop('readonly', false);
         }
     });
-
     $("#graph-update-modified-btn").off("click").on("click", () => {
         const selectedChapterId = $('#write-chapter-select').val();
         const modifiedContent = $('#write-chapter-content').val().trim();
@@ -337,7 +347,6 @@ jQuery(async () => {
         }
         updateModifiedChapterGraph(selectedChapterId, modifiedContent);
     });
-
     $("#precheck-run-btn").off("click").on("click", () => {
         const selectedChapterId = $('#write-chapter-select').val();
         const modifiedContent = $('#write-chapter-content').val().trim();
@@ -347,13 +356,11 @@ jQuery(async () => {
         }
         validateContinuePrecondition(selectedChapterId, modifiedContent);
     });
-
     $("#quality-check-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableQualityCheck = isChecked;
         saveSettingsDebounced();
     });
-
     $("#write-generate-btn").off("click").on("click", generateNovelWrite);
     $("#write-stop-btn").off("click").on("click", () => {
         if (isGeneratingWrite) {
@@ -364,7 +371,6 @@ jQuery(async () => {
             toastr.info('已停止生成续写内容', "小说续写器");
         }
     });
-
     $("#write-copy-btn").off("click").on("click", async () => {
         const writeText = $('#write-content-preview').val();
         if (!writeText) {
@@ -406,9 +412,8 @@ jQuery(async () => {
         saveSettingsDebounced();
         toastr.success('已清空续写内容', "小说续写器");
     });
-
     $("#clear-chain-btn").off("click").on("click", () => {
-        continueWriteChain.length = 0;
+        continueWriteChain = [];
         continueChapterIdCounter = 1;
         extension_settings[extensionName].continueWriteChain = continueWriteChain;
         extension_settings[extensionName].continueChapterIdCounter = continueChapterIdCounter;
