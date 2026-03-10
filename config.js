@@ -1,13 +1,13 @@
 // 严格遵循ST官方导入规范，所有ST核心API统一在此导入
-import { extension_settings, getContext, loadExtensionSettings } from "../../extensions.js";
-import { saveSettingsDebounced } from "../../../script.js";
+import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+import { saveSettingsDebounced } from "../../../../script.js";
 // 插件基础信息
 export const extensionName = "Verification";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 全局状态管理
 export const state = {
-    extensionName: extensionName,
     isInitialized: false,
+    extensionName: extensionName, // 新增：补全extensionName字段
     currentParsedChapters: [],
     continueWriteChain: [],
     continueChapterIdCounter: 1,
