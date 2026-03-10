@@ -1,7 +1,7 @@
 import {
     extension_settings, extensionName, saveSettingsDebounced,
     presetChapterRegexList, currentRegexIndex, sortedRegexList, lastParsedText,
-    currentParsedChapters, isSending, stopSending
+    currentParsedChapters, isSending, stopSending, continueWriteChain
 } from "./constants.js";
 import { removeBOM, renderCommandTemplate, updateProgress, setButtonDisabled } from "./utils.js";
 import { NovelReader } from "./novelReader.js";
@@ -15,8 +15,10 @@ export function splitNovelByWordCount(novelText, wordCount) {
         const totalLength = cleanText.length;
         let currentIndex = 0;
         let chapterId = 0;
+
         while (currentIndex < totalLength) {
             let endIndex = currentIndex + wordCount;
+            // 非末尾章节自动找最近换行符，避免拆分句子
             if (endIndex < totalLength) {
                 const nextLineIndex = cleanText.indexOf('\n', endIndex);
                 if (nextLineIndex !== -1 && nextLineIndex - endIndex < 200) {
@@ -51,9 +53,11 @@ export function splitNovelIntoChapters(novelText, regexSource) {
         const chapterRegex = new RegExp(regexSource, 'gm');
         const matches = [...cleanText.matchAll(chapterRegex)];
         const chapters = [];
+
         if (matches.length === 0) {
             return [{ id: 0, title: '全文', content: cleanText, hasGraph: false }];
         }
+
         for (let i = 0; i < matches.length; i++) {
             const start = matches[i].index + matches[i][0].length;
             const end = i < matches.length - 1 ? matches[i + 1].index : cleanText.length;
@@ -89,6 +93,7 @@ export function getSortedRegexList(novelText) {
             return { ...item, count: 0 };
         }
     });
+    // 按章节数降序排序，0章节的排最后
     return regexWithCount.sort((a, b) => b.count - a.count);
 }
 
@@ -147,11 +152,13 @@ export async function sendChaptersBatch(chapters) {
         toastr.error('请先选择一个聊天角色', "小说续写器");
         return;
     }
+
     isSending = true;
     stopSending = false;
     let successCount = 0;
     setButtonDisabled('#import-selected-btn, #import-all-btn', true);
     setButtonDisabled('#stop-send-btn', false);
+
     try {
         for (let i = 0; i < chapters.length; i++) {
             if (stopSending) break;
