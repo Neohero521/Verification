@@ -1,13 +1,12 @@
 // 严格遵循ST官方导入规范，所有ST核心API统一在此导入
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
-
+import { extension_settings, getContext, loadExtensionSettings } from "../../extensions.js";
+import { saveSettingsDebounced } from "../../../script.js";
 // 插件基础信息
 export const extensionName = "Verification";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-
 // 全局状态管理
 export const state = {
+    extensionName: extensionName,
     isInitialized: false,
     currentParsedChapters: [],
     continueWriteChain: [],
@@ -22,7 +21,6 @@ export const state = {
     sortedRegexList: [],
     lastParsedText: ""
 };
-
 // 预设章节拆分正则列表
 export const presetChapterRegexList = [
     { name: "标准章节", regex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$" },
@@ -37,7 +35,6 @@ export const presetChapterRegexList = [
     { name: "圆点序号", regex: "^\\s*[0-9]+\\.\\s*.*$" },
     { name: "中文序号空格", regex: "^\\s*[零一二三四五六七八九十百千]+\\s+.*$" }
 ];
-
 // 默认配置
 export const defaultSettings = {
     chapterRegex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$",
@@ -77,7 +74,6 @@ export const defaultSettings = {
     },
     enableAutoParentPreset: true
 };
-
 // 知识图谱JSON Schema
 export const graphJsonSchema = {
     name: 'NovelKnowledgeGraph',
@@ -197,7 +193,6 @@ export const graphJsonSchema = {
         }
     }
 };
-
 // 全量合并图谱Schema
 export const mergeGraphJsonSchema = {
     name: 'MergedNovelKnowledgeGraph',
@@ -355,7 +350,6 @@ export const mergeGraphJsonSchema = {
         }
     }
 };
-
 // 续写质量评估Schema
 export const qualityEvaluateSchema = {
     name: 'NovelContinueQualityEvaluate',
@@ -376,6 +370,5 @@ export const qualityEvaluateSchema = {
         }
     }
 };
-
 // 统一导出ST核心API
 export { extension_settings, getContext, saveSettingsDebounced, loadExtensionSettings };
