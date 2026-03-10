@@ -7,7 +7,7 @@ import { updateGraphWithContinueContent, updateModifiedChapterGraph } from './kn
 export async function validateContinuePrecondition(baseChapterId, modifiedContent = null) {
     const context = getContext();
     const { generateRaw } = context;
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
     const baseId = parseInt(baseChapterId);
     const preChapters = state.currentParsedChapters.filter(chapter => chapter.id <= baseId);
     const preGraphList = preChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
@@ -92,9 +92,9 @@ export async function validateContinuePrecondition(baseChapterId, modifiedConten
         $("#precheck-status").text(statusText).removeClass("status-default status-success status-danger").addClass(precheckResult.isPass ? "status-success" : "status-danger");
         $("#precheck-report").val(reportText);
 
-        extension_settings.Always_remember_me.precheckReport = precheckResult;
-        extension_settings.Always_remember_me.precheckStatus = statusText;
-        extension_settings.Always_remember_me.precheckReportText = reportText;
+        extension_settings.Verification.precheckReport = precheckResult;
+        extension_settings.Verification.precheckStatus = statusText;
+        extension_settings.Verification.precheckReportText = reportText;
         saveSettingsDebounced();
 
         return {
@@ -183,7 +183,7 @@ export async function evaluateContinueQuality(continueContent, precheckResult, b
 export async function generateNovelWrite() {
     const context = getContext();
     const { generateRaw } = context;
-    const settings = extension_settings.Always_remember_me;
+    const settings = extension_settings.Verification;
     const selectedChapterId = $("#write-chapter-select").val();
     const editedContent = $("#write-chapter-content").val().trim();
     const targetWordCount = settings.writeWordCount || 2000;
@@ -335,7 +335,7 @@ export async function generateNovelWrite() {
 export async function generateContinueWrite(targetChainId) {
     const context = getContext();
     const { generateRaw } = context;
-    const settings = extension_settings.Always_remember_me;
+    const settings = extension_settings.Verification;
     const selectedBaseChapterId = settings.selectedBaseChapterId;
     const editedBaseContent = $("#write-chapter-content").val().trim();
     const targetWordCount = settings.writeWordCount || 2000;
@@ -491,7 +491,7 @@ export function initContinueChainEvents() {
         const chapterIndex = state.continueWriteChain.findIndex(item => item.id === chainId);
         if (chapterIndex !== -1) {
             state.continueWriteChain[chapterIndex].content = newContent;
-            extension_settings.Always_remember_me.continueWriteChain = state.continueWriteChain;
+            extension_settings.Verification.continueWriteChain = state.continueWriteChain;
             saveSettingsDebounced();
         }
     });
@@ -533,7 +533,7 @@ export function initContinueChainEvents() {
             return;
         }
 
-        const command = renderCommandTemplate(extension_settings.Always_remember_me.sendTemplate, currentCharName, chapter.content);
+        const command = renderCommandTemplate(extension_settings.Verification.sendTemplate, currentCharName, chapter.content);
         context.executeSlashCommandsWithOptions(command).then(() => {
             toastr.success('续写内容已发送到对话框', "小说续写器");
         }).catch((error) => {
@@ -551,7 +551,7 @@ export function initContinueChainEvents() {
             return;
         }
         state.continueWriteChain.splice(chapterIndex, 1);
-        extension_settings.Always_remember_me.continueWriteChain = state.continueWriteChain;
+        extension_settings.Verification.continueWriteChain = state.continueWriteChain;
         saveSettingsDebounced();
         renderContinueWriteChain(state.continueWriteChain);
         NovelReader.renderChapterList();
