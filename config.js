@@ -1,6 +1,7 @@
-// 【Verification配置文件】严格对齐Cola仓库实现
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
+// 【Verification配置文件】修复路径错误，正确导入ST核心API
+// 正确路径：严格匹配ST第三方插件目录结构
+import { extension_settings, getContext, loadExtensionSettings } from "../../extensions.js";
+import { saveSettingsDebounced } from "../../../script.js";
 
 // 【强制命名】必须全量为Verification，和文件夹名、manifest.json完全一致
 export const extensionName = "Verification";
