@@ -6,6 +6,7 @@ import {
 import { getActivePresetParams, setButtonDisabled, renderCommandTemplate, copyToClipboard } from "./utils.js";
 import { updateGraphWithContinueContent, generateSingleChapterGraph } from "./knowledgeGraph.js";
 import { renderContinueWriteChain } from "./chapterManager.js";
+import { getContext } from "../../../extensions.js";
 
 // 续写前置合规性校验
 export async function validateContinuePrecondition(baseChapterId, modifiedChapterContent = null) {
@@ -76,6 +77,7 @@ export async function validateContinuePrecondition(baseChapterId, modifiedChapte
         });
         const precheckResult = JSON.parse(result.trim());
         currentPrecheckResult = precheckResult;
+
         // 渲染校验结果
         const reportText = `合规性校验结果：${precheckResult.isPass ? "通过" : "不通过"}
 人设红线清单：${precheckResult["人设红线清单"]}
@@ -183,6 +185,7 @@ export function initContinueChainEvents() {
         const chainId = parseInt($(e.target).data('chain-id'));
         generateContinueWrite(chainId);
     });
+
     // 复制续写内容
     $root.off('click', '.continue-copy-btn').on('click', '.continue-copy-btn', async function (e) {
         e.stopPropagation();
@@ -199,6 +202,7 @@ export function initContinueChainEvents() {
             toastr.error('复制失败', "小说续写器");
         }
     });
+
     // 发送续写内容到对话框
     $root.off('click', '.continue-send-btn').on('click', '.continue-send-btn', function (e) {
         e.stopPropagation();
@@ -221,6 +225,7 @@ export function initContinueChainEvents() {
             toastr.error(`发送失败: ${error.message}`, "小说续写器");
         });
     });
+
     // 删除续写章节
     $root.off('click', '.continue-delete-btn').on('click', '.continue-delete-btn', function (e) {
         e.stopPropagation();
@@ -263,6 +268,7 @@ export async function generateNovelWrite() {
     // 提取基准章节最后一段
     const baseParagraphs = editedChapterContent.split('\n').filter(p => p.trim() !== '');
     const baseLastParagraph = baseParagraphs.length > 0 ? baseParagraphs[baseParagraphs.length - 1].trim() : '';
+
     // 初始化生成状态
     isGeneratingWrite = true;
     stopGenerateFlag = false;
@@ -279,6 +285,7 @@ export async function generateNovelWrite() {
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
+
         // 续写Prompt
         const systemPrompt = `小说续写规则（100%遵守）：
 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}
@@ -402,6 +409,7 @@ export async function generateContinueWrite(targetChainId) {
     const targetContent = targetChapter.content;
     const targetParagraphs = targetContent.split('\n').filter(p => p.trim() !== '');
     const targetLastParagraph = targetParagraphs.length > 0 ? targetParagraphs[targetParagraphs.length - 1].trim() : '';
+
     // 初始化生成状态
     isGeneratingWrite = true;
     stopGenerateFlag = false;
@@ -418,6 +426,7 @@ export async function generateContinueWrite(targetChainId) {
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
+
         // 拼接完整上下文
         let fullContextContent = '';
         const baseChapterId = parseInt(selectedBaseChapterId);
