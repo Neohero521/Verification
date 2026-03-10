@@ -57,7 +57,6 @@ export function splitNovelIntoChapters(novelText, regexSource) {
         if (matches.length === 0) {
             return [{ id: 0, title: '全文', content: cleanText, hasGraph: false }];
         }
-
         for (let i = 0; i < matches.length; i++) {
             const start = matches[i].index + matches[i][0].length;
             const end = i < matches.length - 1 ? matches[i + 1].index : cleanText.length;
