@@ -1,7 +1,7 @@
 import { extension_settings, extensionName, defaultSettings, saveSettingsDebounced, currentParsedChapters, continueWriteChain } from "./constants.js";
 import { debounce } from "./utils.js";
 
-// 小说阅读器核心模块（原有逻辑100%保留）
+// 小说阅读器核心模块（原有逻辑100%保留，修复模板字符串错误）
 export const NovelReader = {
     currentChapterId: null,
     currentChapterType: "original",
@@ -25,19 +25,16 @@ export const NovelReader = {
             }, delay);
         };
     },
-
     setGlobalCooldown() {
         this.globalPageCooldown = true;
         setTimeout(() => {
             this.globalPageCooldown = false;
         }, this.cooldownTime);
     },
-
     init() {
         this.bindEvents();
         this.restoreState();
     },
-
     bindEvents() {
         const fontMinus = document.getElementById("reader-font-minus");
         const fontPlus = document.getElementById("reader-font-plus");
@@ -118,13 +115,11 @@ export const NovelReader = {
             e.stopPropagation();
         });
     },
-
     updateProgressOnly() {
         if (this.isPageTurning || this.isProgrammaticScroll) return;
         const contentEl = document.getElementById("reader-content");
         const progressEl = document.getElementById("reader-progress-fill");
         const progressTextEl = document.getElementById("reader-progress-text");
-
         const scrollTop = contentEl.scrollTop;
         const scrollHeight = contentEl.scrollHeight;
         const clientHeight = contentEl.clientHeight;
@@ -135,7 +130,6 @@ export const NovelReader = {
             progressTextEl.textContent = '100%';
             return;
         }
-
         const validScrollTop = Math.max(0, Math.min(scrollTop, maxScrollTop));
         const progress = Math.floor((validScrollTop / maxScrollTop) * 100);
         progressEl.style.width = `${progress}%`;
@@ -145,7 +139,6 @@ export const NovelReader = {
         extension_settings[extensionName].readerState.readProgress[progressKey] = validScrollTop;
         saveSettingsDebounced();
     },
-
     renderChapterList() {
         const listContainer = document.getElementById("reader-chapter-list");
         const chapterCountEl = document.getElementById("reader-chapter-count");
@@ -161,22 +154,17 @@ export const NovelReader = {
         currentParsedChapters.forEach(chapter => {
             const continueChapters = continueWriteChain.filter(item => item.baseChapterId === chapter.id);
             const isActive = this.currentChapterType === 'original' && this.currentChapterId === chapter.id;
-            listHtml += `<div class="reader-chapter-item ${isActive ? 'active' : ''}"
-                data-chapter-id="${chapter.id}"
-                data-chapter-type="original">${chapter.title}</div>`;
+            listHtml += `<div class="reader-chapter-item ${isActive ? 'active' : ''}" data-chapter-id="${chapter.id}" data-chapter-type="original">${chapter.title}</div>`;
 
             if (continueChapters.length > 0) {
                 listHtml += `<div class="reader-chapter-branch">`;
                 continueChapters.forEach((continueChapter, index) => {
                     const isContinueActive = this.currentChapterType === 'continue' && this.currentChapterId === continueChapter.id;
-                    listHtml += `<div class="reader-continue-chapter-item ${isContinueActive ? 'active' : ''}"
-                        data-chapter-id="${continueChapter.id}"
-                        data-chapter-type="continue"><span>✒️</span>续写章节 ${index + 1}</div>`;
+                    listHtml += `<div class="reader-continue-chapter-item ${isContinueActive ? 'active' : ''}" data-chapter-id="${continueChapter.id}" data-chapter-type="continue"><span>✒️</span>续写章节 ${index + 1}</div>`;
                 });
                 listHtml += `</div>`;
             }
         });
-
         listContainer.innerHTML = listHtml;
 
         // 绑定章节点击事件
@@ -185,7 +173,6 @@ export const NovelReader = {
             item.addEventListener("click", this.chapterClickHandler.bind(this));
         });
     },
-
     chapterClickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -195,17 +182,14 @@ export const NovelReader = {
         this.loadChapter(chapterId, chapterType);
         this.hideChapterDrawer();
     },
-
     loadChapter(chapterId, chapterType = "original") {
         this.isPageTurning = true;
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
-
         const contentEl = document.getElementById("reader-content");
         const titleEl = document.getElementById("reader-current-chapter-title");
         const chapterCountEl = document.getElementById("reader-chapter-count");
         const totalChapterCount = currentParsedChapters.length + continueWriteChain.length;
-
         let chapterData = null;
         let chapterTitle = "";
         let chapterIndex = 0;
@@ -234,7 +218,6 @@ export const NovelReader = {
         this.currentChapterType = chapterType;
         extension_settings[extensionName].readerState.currentChapterId = chapterId;
         extension_settings[extensionName].readerState.currentChapterType = chapterType;
-
         titleEl.textContent = chapterTitle;
         contentEl.textContent = chapterData.content;
         chapterCountEl.textContent = `${chapterIndex}/${totalChapterCount}`;
@@ -261,7 +244,6 @@ export const NovelReader = {
         this.renderChapterList();
         saveSettingsDebounced();
     },
-
     resetAllLocks() {
         this.isPageTurning = false;
         this.isProgrammaticScroll = false;
@@ -269,7 +251,6 @@ export const NovelReader = {
             this.globalPageCooldown = false;
         }, 200);
     },
-
     loadNextChapter() {
         if (this.isPageTurning || this.globalPageCooldown || this.isProgrammaticScroll) {
             return;
@@ -277,7 +258,6 @@ export const NovelReader = {
         this.isPageTurning = true;
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
-
         let nextChapterId = null;
         let nextChapterType = "original";
 
@@ -297,7 +277,6 @@ export const NovelReader = {
             }
             const sameBaseChapters = continueWriteChain.filter(item => item.baseChapterId === currentChapter.baseChapterId);
             const sameBaseIndex = sameBaseChapters.findIndex(item => item.id === this.currentChapterId);
-
             if (sameBaseIndex >= 0 && sameBaseIndex < sameBaseChapters.length - 1) {
                 nextChapterId = sameBaseChapters[sameBaseIndex + 1].id;
                 nextChapterType = "continue";
@@ -316,9 +295,7 @@ export const NovelReader = {
             this.resetAllLocks();
             return;
         }
-
         this.loadChapter(nextChapterId, nextChapterType);
-
         setTimeout(() => {
             const contentEl = document.getElementById("reader-content");
             this.isProgrammaticScroll = true;
@@ -328,10 +305,8 @@ export const NovelReader = {
                 this.isProgrammaticScroll = false;
             });
         }, 300);
-
         this.setGlobalCooldown();
     },
-
     loadPrevChapter() {
         if (this.isPageTurning || this.globalPageCooldown || this.isProgrammaticScroll) {
             return;
@@ -339,7 +314,6 @@ export const NovelReader = {
         this.isPageTurning = true;
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
-
         let prevChapterId = null;
         let prevChapterType = "original";
 
@@ -359,7 +333,6 @@ export const NovelReader = {
             }
             const sameBaseChapters = continueWriteChain.filter(item => item.baseChapterId === currentChapter.baseChapterId);
             const sameBaseIndex = sameBaseChapters.findIndex(item => item.id === this.currentChapterId);
-
             if (sameBaseIndex > 0) {
                 prevChapterId = sameBaseChapters[sameBaseIndex - 1].id;
                 prevChapterType = "continue";
@@ -373,9 +346,7 @@ export const NovelReader = {
             this.resetAllLocks();
             return;
         }
-
         this.loadChapter(prevChapterId, prevChapterType);
-
         setTimeout(() => {
             const contentEl = document.getElementById("reader-content");
             const maxScrollTop = contentEl.scrollHeight - contentEl.clientHeight;
@@ -387,20 +358,16 @@ export const NovelReader = {
                 this.isProgrammaticScroll = false;
             });
         }, 300);
-
         this.setGlobalCooldown();
     },
-
     setFontSize(size) {
         if (size < this.minFontSize || size > this.maxFontSize) return;
         this.isPageTurning = true;
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
-
         this.fontSize = size;
         const contentEl = document.getElementById("reader-content");
         contentEl.style.setProperty("--novel-reader-font-size", `${size}px`);
-
         setTimeout(() => {
             this.isProgrammaticScroll = false;
             this.isPageTurning = false;
@@ -408,24 +375,19 @@ export const NovelReader = {
                 this.globalPageCooldown = false;
             }, 300);
         }, 300);
-
         extension_settings[extensionName].readerState.fontSize = size;
         saveSettingsDebounced();
     },
-
     toggleChapterDrawer() {
         const drawer = document.getElementById("reader-chapter-drawer");
         drawer.classList.toggle("show");
     },
-
     showChapterDrawer() {
         document.getElementById("reader-chapter-drawer").classList.add("show");
     },
-
     hideChapterDrawer() {
         document.getElementById("reader-chapter-drawer").classList.remove("show");
     },
-
     restoreState() {
         const state = extension_settings[extensionName].readerState || defaultSettings.readerState;
         this.setFontSize(state.fontSize);
