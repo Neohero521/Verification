@@ -104,7 +104,6 @@ export async function mergeAllGraphs() {
         return;
     }
     setButtonDisabled('#graph-merge-btn', true);
-
     const systemPrompt = `触发词：合并全量知识图谱JSON、小说全局图谱构建
 强制约束（100%遵守）：
 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
@@ -153,7 +152,6 @@ export async function validateGraphCompliance() {
         isFullGraph = false;
         missingFields = singleRequiredFields.filter(field => !Object.hasOwn(mergedGraph, field));
     }
-
     const graphJsonString = JSON.stringify(mergedGraph, null, 2);
     const graphWordCount = graphJsonString.length;
     const minWordCount = 1200;
@@ -179,7 +177,6 @@ export async function validateGraphCompliance() {
     $("#graph-validate-result").show();
     extension_settings[extensionName].graphValidateResultShow = true;
     saveSettingsDebounced();
-
     if (isPass) {
         toastr.success('图谱合规性校验通过', "小说续写器");
     } else {
@@ -207,14 +204,12 @@ export async function validateChapterGraphStatus() {
             noGraphList.push(chapter.title);
         }
     });
-
     renderChapterList(currentParsedChapters);
     const totalCount = currentParsedChapters.length;
     let message = `图谱状态检验完成\n总章节数：${totalCount}\n已生成图谱：${hasGraphCount}个\n未生成图谱：${totalCount - hasGraphCount}个`;
     if (noGraphList.length > 0) {
         message += `\n\n未生成图谱的章节：\n${noGraphList.join('\n')}`;
     }
-
     if (noGraphList.length === 0) {
         toastr.success(message, "小说续写器");
     } else {
@@ -333,7 +328,7 @@ export async function updateModifiedChapterGraph(chapterId, modifiedContent) {
     }
 }
 
-// 更新续写章节图谱
+// 更新续写章节图谱（补全原拆分代码缺失的函数）
 export async function updateGraphWithContinueContent(continueChapter, continueId) {
     const context = getContext();
     const { generateRaw } = context;
