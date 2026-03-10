@@ -1,5 +1,5 @@
-// 【Verification悬浮球核心】彻底修复拖拽、点击问题，严格对齐Cola仓库floating-ball.js
-import { extension_settings, saveSettingsDebounced, defaultSettings, extensionName } from './config.js';
+// 【Verification悬浮球核心】基于SillyTavern官方规范优化
+import { extensionSettings, saveSettingsDebounced, defaultSettings, extensionName } from './config.js';
 import { debounce } from './utils.js';
 
 // 单例模式，防止重复初始化
@@ -338,8 +338,8 @@ export const FloatBall = {
 
         // 保存位置
         try {
-            if (extension_settings?.[extensionName]?.floatBallState) {
-                extension_settings[extensionName].floatBallState.position = { x, y };
+            if (extensionSettings[extensionName]?.floatBallState) {
+                extensionSettings[extensionName].floatBallState.position = { x, y };
                 saveSettingsDebounced();
             }
         } catch (error) {
@@ -378,14 +378,15 @@ export const FloatBall = {
         // 吸附到左右边缘
         let targetX = rect.left < centerX ? 10 : windowWidth - this.ball.offsetWidth - 10;
         this.ball.style.setProperty('left', `${targetX}px`, 'important');
+        this.ball.style.setProperty('top', '50%', 'important');
+        this.ball.style.setProperty('transform', 'translateY(-50%)', 'important');
         this.ball.style.setProperty('right', 'auto', 'important');
-        this.ball.style.setProperty('transform', 'none', 'important');
 
         // 保存位置
         try {
             const newRect = this.ball.getBoundingClientRect();
-            if (extension_settings?.[extensionName]?.floatBallState) {
-                extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
+            if (extensionSettings[extensionName]?.floatBallState) {
+                extensionSettings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
                 saveSettingsDebounced();
             }
         } catch (error) {
@@ -407,8 +408,8 @@ export const FloatBall = {
         this.panel.style.setProperty('transform', 'translate(-50%, -50%) scale(1)', 'important');
         // 保存状态
         try {
-            if (extension_settings?.[extensionName]?.floatBallState) {
-                extension_settings[extensionName].floatBallState.isPanelOpen = true;
+            if (extensionSettings[extensionName]?.floatBallState) {
+                extensionSettings[extensionName].floatBallState.isPanelOpen = true;
                 saveSettingsDebounced();
             }
         } catch (error) {
@@ -424,8 +425,8 @@ export const FloatBall = {
         this.panel.style.setProperty('transform', 'translate(-50%, -50%) scale(0.8)', 'important');
         // 保存状态
         try {
-            if (extension_settings?.[extensionName]?.floatBallState) {
-                extension_settings[extensionName].floatBallState.isPanelOpen = false;
+            if (extensionSettings[extensionName]?.floatBallState) {
+                extensionSettings[extensionName].floatBallState.isPanelOpen = false;
                 saveSettingsDebounced();
             }
         } catch (error) {
@@ -453,8 +454,8 @@ export const FloatBall = {
 
         // 保存状态
         try {
-            if (extension_settings?.[extensionName]?.floatBallState) {
-                extension_settings[extensionName].floatBallState.activeTab = tabId;
+            if (extensionSettings[extensionName]?.floatBallState) {
+                extensionSettings[extensionName].floatBallState.activeTab = tabId;
                 saveSettingsDebounced();
             }
         } catch (error) {
@@ -465,8 +466,8 @@ export const FloatBall = {
     // 恢复状态，加容错
     restoreState() {
         try {
-            if (!extension_settings?.[extensionName]) return;
-            const settings = extension_settings[extensionName];
+            if (!extensionSettings[extensionName]) return;
+            const settings = extensionSettings[extensionName];
             const floatState = settings.floatBallState || defaultSettings.floatBallState;
             const ballWidth = this.ball.offsetWidth || this.ballSize;
             const ballHeight = this.ball.offsetHeight || this.ballSize;
