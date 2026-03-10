@@ -5,6 +5,7 @@ import {
 } from "./constants.js";
 import { removeBOM, renderCommandTemplate, updateProgress, setButtonDisabled } from "./utils.js";
 import { NovelReader } from "./novelReader.js";
+import { getContext } from "../../../extensions.js";
 
 // 按字数拆分章节
 export function splitNovelByWordCount(novelText, wordCount) {
