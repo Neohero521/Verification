@@ -1,4 +1,4 @@
-// 插件总入口，按顺序加载所有模块
+// 插件总入口，按依赖顺序加载所有模块化文件，无需修改
 import "./constants.js";
 import "./utils.js";
 import "./floatBall.js";
