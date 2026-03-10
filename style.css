@@ -37,7 +37,6 @@
   --novel-reader-text: #e2e8f0;
   --novel-reader-font-size: 16px;
   --novel-reader-line-height: 1.8;
-
   /* 核心：不占用任何页面空间，不影响原生布局 */
   position: fixed;
   top: 0;
@@ -51,7 +50,6 @@
   z-index: 999998;
   background: transparent;
 }
-
 /* 插件内部元素全局重置，不影响外部原生元素 */
 .novel-writer-extension-root * {
   margin: 0;
@@ -59,7 +57,6 @@
   box-sizing: border-box;
   font-family: inherit;
 }
-
 /* 插件内部滚动条美化，加!important防止被主题覆盖 */
 .novel-writer-extension-root ::-webkit-scrollbar {
   width: 6px !important;
@@ -77,18 +74,14 @@
 .novel-writer-extension-root ::-webkit-scrollbar-thumb:hover {
   background: var(--novel-primary) !important;
 }
-
 /* ==============================================可移动悬浮球核心样式（图标适配+显示修复）============================================== */
 .novel-writer-extension-root .float-ball {
   position: fixed;
-  /* 核心修复：初始固定在右侧20px，不会溢出屏幕 */
   right: 20px;
   top: 50%;
-  transform: translateY(-50%);
   width: 70px;
   height: 70px;
   border-radius: var(--novel-radius-full);
-  /* 核心修复：兜底背景色，防止CSS变量失效导致透明 */
   background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%);
   background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
   box-shadow: var(--novel-shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
@@ -97,7 +90,6 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  /* 核心修复：提高z-index，确保在最上层 */
   z-index: 999999;
   transition: all var(--novel-transition-normal);
   user-select: none;
@@ -105,11 +97,9 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  /* 核心修复：强制显示，防止被原生样式隐藏 */
   visibility: visible !important;
   opacity: 1 !important;
   display: flex !important;
-  /* 核心修复：防止拖动时触发页面滚动 */
   touch-action: none !important;
 }
 /* 悬浮球拖动状态 */
@@ -121,8 +111,11 @@
 }
 /* 悬浮球hover效果 */
 .novel-writer-extension-root .float-ball:hover {
-  transform: translateY(-50%) scale(1.1);
+  transform: scale(1.1);
   box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+.novel-writer-extension-root .float-ball.dragging:hover {
+  transform: scale(1.05);
 }
 /* 悬浮球图标（适配Unicode） */
 .novel-writer-extension-root .ball-icon {
@@ -140,7 +133,6 @@
   text-align: center;
   line-height: 1;
 }
-
 /* ==============================================功能面板核心样式============================================== */
 .novel-writer-extension-root .writer-panel {
   position: fixed;
@@ -168,7 +160,6 @@
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
-
 /* ==============================================面板头部样式============================================== */
 .novel-writer-extension-root .panel-header {
   display: flex;
@@ -215,7 +206,6 @@
   transform: scale(1.05);
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
-
 /* ==============================================选项卡导航样式============================================== */
 .novel-writer-extension-root .panel-tab-nav {
   display: flex;
@@ -252,7 +242,6 @@
   background: linear-gradient(180deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
   box-shadow: 0 -2px 12px var(--novel-primary-glow);
 }
-
 /* ==============================================选项卡内容容器============================================== */
 .novel-writer-extension-root .panel-tab-content {
   flex: 1;
@@ -279,7 +268,6 @@
     transform: translateY(0);
   }
 }
-
 /* ==============================================内容卡片样式（核心布局单元）============================================== */
 .novel-writer-extension-root .content-card {
   background: var(--novel-bg-card);
@@ -347,7 +335,6 @@
   background: linear-gradient(90deg, transparent 0%, var(--novel-border-color) 50%, transparent 100%);
   margin: 20px 0;
 }
-
 /* ==============================================表单元素美化============================================== */
 .novel-writer-extension-root .form-group {
   width: 100%;
@@ -457,7 +444,6 @@
   accent-color: var(--novel-primary);
   cursor: pointer;
 }
-
 /* ==============================================按钮组件美化============================================== */
 .novel-writer-extension-root .btn {
   border: none;
@@ -565,7 +551,6 @@
   font-size: 0.95rem;
   word-break: break-all;
 }
-
 /* ==============================================进度条美化============================================== */
 .novel-writer-extension-root .progress-wrap {
   padding: 0 20px 12px;
@@ -621,7 +606,6 @@
   padding: 40px 20px;
   font-size: 0.95rem;
 }
-
 /* ==============================================章节列表美化============================================== */
 .novel-writer-extension-root .chapter-list {
   max-height: 320px;
@@ -665,7 +649,6 @@
 .novel-writer-extension-root .chapter-item .text-muted {
   color: var(--novel-text-muted);
 }
-
 /* ==============================================抽屉组件美化============================================== */
 .novel-writer-extension-root .inline-drawer {
   background: var(--novel-bg-card);
@@ -736,7 +719,6 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-
 /* ==============================================续写链条美化============================================== */
 .novel-writer-extension-root .chain-container {
   max-height: 650px;
@@ -780,7 +762,6 @@
 .novel-writer-extension-root .continue-chapter-content:focus {
   border-color: var(--novel-primary);
 }
-
 /* ==============================================小说阅读器完整样式============================================== */
 .novel-writer-extension-root #tab-reader {
   display: none;
@@ -1004,7 +985,6 @@
   color: var(--novel-secondary);
   flex-shrink: 0;
 }
-
 /* ==============================================响应式适配============================================== */
 @media (max-width: 768px) {
   .novel-writer-extension-root .float-ball {
