@@ -1,5 +1,5 @@
-// 【Verification主业务逻辑】修复模块加载异常，加全量容错
-import { extension_settings, loadExtensionSettings, getContext, extensionName, state, defaultSettings } from './config.js';
+// 【Verification主业务逻辑】基于SillyTavern官方规范优化
+import { extensionSettings, loadExtensionSettings, getContext, extensionName, state, defaultSettings } from './config.js';
 import { saveSettingsDebounced } from './config.js';
 import { deepMerge, copyToClipboard, renderCommandTemplate, setButtonDisabled } from './utils.js';
 
@@ -33,23 +33,23 @@ function initVisibilityListener() {
 // 加载配置
 async function loadSettings() {
     console.log('[Verification Main] 开始加载配置');
-    extension_settings[extensionName] = extension_settings[extensionName] || {};
-    extension_settings[extensionName] = deepMerge(defaultSettings, extension_settings[extensionName]);
+    extensionSettings[extensionName] = extensionSettings[extensionName] || {};
+    extensionSettings[extensionName] = deepMerge(defaultSettings, extensionSettings[extensionName]);
 
     // 补全缺失配置
     for (const key of Object.keys(defaultSettings)) {
-        if (!Object.hasOwn(extension_settings[extensionName], key)) {
-            extension_settings[extensionName][key] = structuredClone(defaultSettings[key]);
+        if (!Object.hasOwn(extensionSettings[extensionName], key)) {
+            extensionSettings[extensionName][key] = structuredClone(defaultSettings[key]);
         }
     }
 
     // 恢复全局状态
-    state.currentParsedChapters = extension_settings[extensionName].chapterList || [];
-    state.continueWriteChain = extension_settings[extensionName].continueWriteChain || [];
-    state.continueChapterIdCounter = extension_settings[extensionName].continueChapterIdCounter || 1;
+    state.currentParsedChapters = extensionSettings[extensionName].chapterList || [];
+    state.continueWriteChain = extensionSettings[extensionName].continueWriteChain || [];
+    state.continueChapterIdCounter = extensionSettings[extensionName].continueChapterIdCounter || 1;
 
     // 初始化UI
-    const settings = extension_settings[extensionName];
+    const settings = extensionSettings[extensionName];
     $("#example_setting").prop("checked", settings.example_setting).trigger("input");
     $("#chapter-regex-input").val(settings.chapterRegex);
     $("#send-template-input").val(settings.sendTemplate);
@@ -67,11 +67,11 @@ function bindBaseEvents() {
     // 示例配置事件
     $("#example_setting").off("input").on("input", (e) => {
         const value = Boolean($(e.target).prop("checked"));
-        extension_settings[extensionName].example_setting = value;
+        extensionSettings[extensionName].example_setting = value;
         saveSettingsDebounced();
     });
     $("#my_button").off("click").on("click", () => {
-        toastr.info(`复选框状态：${extension_settings[extensionName].example_setting ? "已勾选" : "未勾选"}`, "Verification插件");
+        toastr.info(`复选框状态：${extensionSettings[extensionName].example_setting ? "已勾选" : "未勾选"}`, "Verification插件");
     });
 
     // 文件选择事件
@@ -86,15 +86,15 @@ function bindBaseEvents() {
 
     // 配置保存事件
     $("#chapter-regex-input").off("change").on("change", (e) => {
-        extension_settings[extensionName].chapterRegex = $(e.target).val().trim();
+        extensionSettings[extensionName].chapterRegex = $(e.target).val().trim();
         saveSettingsDebounced();
     });
     $("#send-template-input").off("change").on("change", (e) => {
-        extension_settings[extensionName].sendTemplate = $(e.target).val().trim();
+        extensionSettings[extensionName].sendTemplate = $(e.target).val().trim();
         saveSettingsDebounced();
     });
     $("#send-delay-input").off("change").on("change", (e) => {
-        extension_settings[extensionName].sendDelay = parseInt($(e.target).val()) || 100;
+        extensionSettings[extensionName].sendDelay = parseInt($(e.target).val()) || 100;
         saveSettingsDebounced();
     });
 
