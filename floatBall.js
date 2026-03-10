@@ -1,7 +1,7 @@
 import { debounce } from "./utils.js";
 import { extension_settings, extensionName, defaultSettings, saveSettingsDebounced } from "./constants.js";
 
-// 可移动悬浮球核心模块（原有逻辑100%保留，修复模板字符串错误）
+// 可移动悬浮球核心模块（原有逻辑100%保留，修复所有语法错误）
 export const FloatBall = {
     ball: null,
     panel: null,
