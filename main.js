@@ -22,13 +22,11 @@ import { NovelReader } from "./novelReader.js";
 import { loadSettings, initDrawerToggle, initVisibilityListener, onExampleInput, onButtonClick } from "./settings.js";
 import { getContext } from "../../../extensions.js";
 
-// 插件主入口，完全对齐原代码初始化与事件绑定逻辑
 jQuery(async () => {
-    // 加载HTML模板
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         console.log("[小说续写插件] HTML加载完成");
     } catch (error) {
         console.error('[小说续写插件] 扩展HTML加载失败:', error);
@@ -36,17 +34,14 @@ jQuery(async () => {
         return;
     }
 
-    // 初始化核心模块
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
     await loadSettings();
 
-    // 基础配置事件绑定
     $("#my_button").off("click").on("click", onButtonClick);
     $("#example_setting").off("input").on("input", onExampleInput);
 
-    // 小说文件选择事件
     $("#select-file-btn").off("click").on("click", () => {
         $("#novel-file-upload").click();
     });
@@ -54,14 +49,12 @@ jQuery(async () => {
         const file = e.target.files[0];
         if (file) {
             $("#file-name-text").text(file.name);
-            // 重置解析状态
             lastParsedText = "";
             currentRegexIndex = 0;
             $("#parse-chapter-btn").val("解析章节");
         }
     });
 
-    // 正则解析章节按钮事件
     $("#parse-chapter-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
         const customRegex = $("#chapter-regex-input").val().trim();
@@ -69,7 +62,6 @@ jQuery(async () => {
             toastr.warning('请先选择小说TXT文件', "小说续写器");
             return;
         }
-        // 保存自定义正则
         if (customRegex) {
             extension_settings[extensionName].chapterRegex = customRegex;
             saveSettingsDebounced();
@@ -79,12 +71,10 @@ jQuery(async () => {
             const novelText = e.target.result;
             let useRegex = "";
             let regexName = "";
-            // 自定义正则优先
             if (customRegex) {
                 useRegex = customRegex;
                 regexName = "自定义正则";
             } else {
-                // 首次解析：自动匹配最优正则
                 if (lastParsedText !== novelText) {
                     lastParsedText = novelText;
                     sortedRegexList.length = 0;
@@ -92,19 +82,15 @@ jQuery(async () => {
                     currentRegexIndex = 0;
                     $("#parse-chapter-btn").val("再次解析");
                 } else {
-                    // 再次解析：切换下一个正则
                     currentRegexIndex = (currentRegexIndex + 1) % sortedRegexList.length;
                 }
-                // 循环切换正则
                 const currentRegexItem = sortedRegexList[currentRegexIndex];
                 useRegex = currentRegexItem.regex;
                 regexName = currentRegexItem.name;
                 toastr.info(`正在使用【${regexName}】解析，匹配到${currentRegexItem.count}个章节`, "小说续写器");
             }
-            // 执行章节拆分
             currentParsedChapters.length = 0;
             currentParsedChapters.push(...splitNovelIntoChapters(novelText, useRegex));
-            // 重置所有相关状态
             extension_settings[extensionName].chapterList = currentParsedChapters;
             extension_settings[extensionName].chapterGraphMap = {};
             extension_settings[extensionName].mergedGraph = {};
@@ -118,7 +104,6 @@ jQuery(async () => {
             continueWriteChain.length = 0;
             continueChapterIdCounter = 1;
             saveSettingsDebounced();
-            // 刷新界面
             renderChapterList(currentParsedChapters);
             renderChapterSelect(currentParsedChapters);
             renderContinueWriteChain(continueWriteChain);
@@ -130,7 +115,6 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
 
-    // 按字数拆分按钮事件
     $("#split-by-word-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
         const wordCount = parseInt($("#split-word-count").val()) || 3000;
@@ -147,7 +131,6 @@ jQuery(async () => {
             const novelText = e.target.result;
             currentParsedChapters.length = 0;
             currentParsedChapters.push(...splitNovelByWordCount(novelText, wordCount));
-            // 重置所有相关状态
             extension_settings[extensionName].chapterList = currentParsedChapters;
             extension_settings[extensionName].chapterGraphMap = {};
             extension_settings[extensionName].mergedGraph = {};
@@ -160,12 +143,10 @@ jQuery(async () => {
             $('#write-content-preview').val('');
             continueWriteChain.length = 0;
             continueChapterIdCounter = 1;
-            // 重置解析按钮状态
             lastParsedText = "";
             currentRegexIndex = 0;
             $("#parse-chapter-btn").val("解析章节");
             saveSettingsDebounced();
-            // 刷新界面
             renderChapterList(currentParsedChapters);
             renderChapterSelect(currentParsedChapters);
             renderContinueWriteChain(continueWriteChain);
@@ -177,14 +158,12 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
 
-    // 父级对话预设开关事件
     $("#auto-parent-preset-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
     });
 
-    // 章节全选/取消全选
     $("#select-all-btn").off("click").on("click", () => {
         $(".chapter-select").prop("checked", true);
     });
@@ -192,7 +171,6 @@ jQuery(async () => {
         $(".chapter-select").prop("checked", false);
     });
 
-    // 发送配置输入事件
     $("#send-template-input").off("change").on("change", (e) => {
         extension_settings[extensionName].sendTemplate = $(e.target).val().trim();
         saveSettingsDebounced();
@@ -206,7 +184,6 @@ jQuery(async () => {
         saveSettingsDebounced();
     });
 
-    // 章节导入事件
     $("#import-selected-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         sendChaptersBatch(selectedChapters);
@@ -221,7 +198,6 @@ jQuery(async () => {
         }
     });
 
-    // 单章节图谱导入导出事件
     $("#chapter-graph-export-btn").off("click").on("click", exportChapterGraphs);
     $("#chapter-graph-import-btn").off("click").on("click", () => {
         $("#chapter-graph-file-upload").click();
@@ -231,7 +207,6 @@ jQuery(async () => {
         if (file) importChapterGraphs(file);
     });
 
-    // 知识图谱核心事件
     $("#validate-chapter-graph-btn").off("click").on("click", validateChapterGraphStatus);
     $("#graph-single-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
@@ -243,7 +218,6 @@ jQuery(async () => {
     $("#graph-merge-btn").off("click").on("click", mergeAllGraphs);
     $("#graph-validate-btn").off("click").on("click", validateGraphCompliance);
 
-    // 全量图谱导入事件
     $("#graph-import-btn").off("click").on("click", () => {
         $("#graph-file-upload").click();
     });
@@ -279,7 +253,6 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
 
-    // 图谱复制、导出、清空事件
     $("#graph-copy-btn").off("click").on("click", async () => {
         const graphText = $('#merged-graph-preview').val();
         if (!graphText) {
@@ -317,7 +290,6 @@ jQuery(async () => {
         toastr.success('已清空合并图谱', "小说续写器");
     });
 
-    // 续写基准章节选择事件
     $("#write-chapter-select").off("change").on("change", function (e) {
         const selectedChapterId = $(e.target).val();
         currentPrecheckResult = null;
@@ -342,7 +314,6 @@ jQuery(async () => {
         }
     });
 
-    // 魔改章节图谱更新事件
     $("#graph-update-modified-btn").off("click").on("click", () => {
         const selectedChapterId = $('#write-chapter-select').val();
         const modifiedContent = $('#write-chapter-content').val().trim();
@@ -357,7 +328,6 @@ jQuery(async () => {
         updateModifiedChapterGraph(selectedChapterId, modifiedContent);
     });
 
-    // 前置校验执行事件
     $("#precheck-run-btn").off("click").on("click", () => {
         const selectedChapterId = $('#write-chapter-select').val();
         const modifiedContent = $('#write-chapter-content').val().trim();
@@ -368,14 +338,12 @@ jQuery(async () => {
         validateContinuePrecondition(selectedChapterId, modifiedContent);
     });
 
-    // 质量校验开关事件
     $("#quality-check-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableQualityCheck = isChecked;
         saveSettingsDebounced();
     });
 
-    // 续写生成与停止事件
     $("#write-generate-btn").off("click").on("click", generateNovelWrite);
     $("#write-stop-btn").off("click").on("click", () => {
         if (isGeneratingWrite) {
@@ -387,7 +355,6 @@ jQuery(async () => {
         }
     });
 
-    // 续写内容复制、发送、清空事件
     $("#write-copy-btn").off("click").on("click", async () => {
         const writeText = $('#write-content-preview').val();
         if (!writeText) {
@@ -430,7 +397,6 @@ jQuery(async () => {
         toastr.success('已清空续写内容', "小说续写器");
     });
 
-    // 清空续写链条事件
     $("#clear-chain-btn").off("click").on("click", () => {
         continueWriteChain.length = 0;
         continueChapterIdCounter = 1;
