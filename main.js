@@ -20,25 +20,35 @@ import {
 import { validateContinuePrecondition, generateNovelWrite, generateContinueWrite, initContinueChainEvents } from "./novelWrite.js";
 import { NovelReader } from "./novelReader.js";
 import { loadSettings, initDrawerToggle, initVisibilityListener, onExampleInput, onButtonClick } from "./settings.js";
+import { FloatBall } from "./floatBall.js";
 import { getContext } from "../../../extensions.js";
 
 jQuery(async () => {
+    // 第一步：加载HTML模板，确保DOM先渲染
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
-        await new Promise(resolve => setTimeout(resolve, 200));
-        console.log("[小说续写插件] HTML加载完成");
+        // 延长等待时间，确保DOM完全挂载到文档中
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log("[小说续写插件] HTML模板已加载并挂载到DOM");
     } catch (error) {
         console.error('[小说续写插件] 扩展HTML加载失败:', error);
         toastr.error('小说续写插件加载失败：HTML文件加载异常，请检查文件路径', "插件错误");
         return;
     }
 
+    // 第二步：初始化基础模块
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
     await loadSettings();
 
+    // 第三步：核心！初始化悬浮球（确保DOM完全加载后再执行）
+    FloatBall.init();
+    NovelReader.init();
+    console.log("[小说续写插件] 所有核心模块初始化完成");
+
+    // 第四步：绑定其余页面事件
     $("#my_button").off("click").on("click", onButtonClick);
     $("#example_setting").off("input").on("input", onExampleInput);
 
