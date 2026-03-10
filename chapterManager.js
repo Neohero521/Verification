@@ -132,7 +132,7 @@ export function splitNovelByWordCount(novelText, wordCount) {
 // 渲染章节列表
 export function renderChapterList(chapters) {
     const listDom = document.getElementById("novel-chapter-list");
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
 
     if (!chapters || chapters.length === 0) {
         listDom.innerHTML = '<p class="empty-tip">请上传小说文件并点击「解析章节」</p>';
@@ -222,7 +222,7 @@ export function getSelectedChapters() {
 // 批量发送章节
 export async function sendChaptersBatch(chapters) {
     const context = getContext();
-    const settings = extension_settings.Always_remember_me;
+    const settings = extension_settings.Verification;
     const currentCharName = context.characters[context.characterId]?.name;
 
     if (state.isSending) {
@@ -300,13 +300,13 @@ export function saveDrawerState() {
             drawerState[drawerId] = $(this).hasClass('open');
         }
     });
-    extension_settings.Always_remember_me.drawerState = drawerState;
+    extension_settings.Verification.drawerState = drawerState;
     saveSettingsDebounced();
 }
 
 // 恢复抽屉状态
 export function restoreDrawerState() {
-    const savedState = extension_settings.Always_remember_me.drawerState || defaultSettings.drawerState;
+    const savedState = extension_settings.Verification.drawerState || defaultSettings.drawerState;
     $('.inline-drawer').each(function() {
         const drawerId = $(this).attr('id');
         if (drawerId && savedState[drawerId] !== undefined) {
@@ -317,7 +317,7 @@ export function restoreDrawerState() {
 
 // 导出章节图谱
 export function exportChapterGraphs() {
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
     if (Object.keys(graphMap).length === 0) {
         toastr.warning('没有可导出的单章节图谱', "小说续写器");
         return;
@@ -351,9 +351,9 @@ export async function importChapterGraphs(file) {
                 throw new Error("图谱格式错误，缺少chapterGraphMap字段");
             }
 
-            const existingMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+            const existingMap = extension_settings.Verification.chapterGraphMap || {};
             const newMap = { ...existingMap, ...importData.chapterGraphMap };
-            extension_settings.Always_remember_me.chapterGraphMap = newMap;
+            extension_settings.Verification.chapterGraphMap = newMap;
             saveSettingsDebounced();
 
             // 更新章节状态
