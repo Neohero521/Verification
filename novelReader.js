@@ -73,7 +73,7 @@ export const NovelReader = {
         }
 
         let html = '';
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const currentId = settings.readerState.currentChapterId;
         const currentType = settings.readerState.currentChapterType;
 
@@ -104,7 +104,7 @@ export const NovelReader = {
     },
 
     switchChapter(chapterId, chapterType = "original") {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         let targetChapter = null;
 
         if (chapterType === "original") {
@@ -143,14 +143,14 @@ export const NovelReader = {
         document.getElementById("reader-progress-fill").style.width = `${progress}%`;
         document.getElementById("reader-progress-text").innerText = `${Math.round(progress)}%`;
 
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const progressKey = `${settings.readerState.currentChapterType}_${settings.readerState.currentChapterId}`;
         settings.readerState.readProgress[progressKey] = scrollTop;
         saveSettingsDebounced();
     },
 
     handleFontIncrease() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         let fontSize = settings.readerState.fontSize || 16;
         if (fontSize >= 24) {
             toastr.warning('字体已达最大尺寸', "小说续写器");
@@ -163,7 +163,7 @@ export const NovelReader = {
     },
 
     handleFontDecrease() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         let fontSize = settings.readerState.fontSize || 16;
         if (fontSize <= 12) {
             toastr.warning('字体已达最小尺寸', "小说续写器");
@@ -194,7 +194,7 @@ export const NovelReader = {
     },
 
     handlePrevChapter() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const currentId = settings.readerState.currentChapterId;
         const currentType = settings.readerState.currentChapterType;
 
@@ -229,7 +229,7 @@ export const NovelReader = {
     },
 
     handleNextChapter() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const currentId = settings.readerState.currentChapterId;
         const currentType = settings.readerState.currentChapterType;
 
@@ -277,7 +277,7 @@ export const NovelReader = {
     },
 
     updateReaderFooter() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const currentId = settings.readerState.currentChapterId;
         const currentType = settings.readerState.currentChapterType;
 
@@ -310,7 +310,7 @@ export const NovelReader = {
     },
 
     restoreReaderState() {
-        const settings = extension_settings.Always_remember_me;
+        const settings = extension_settings.Verification;
         const readerState = settings.readerState || defaultSettings.readerState;
 
         this.contentDom.style.setProperty('--novel-reader-font-size', `${readerState.fontSize}px`);
