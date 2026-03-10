@@ -1,11 +1,15 @@
 {
     "name": "Verification",
     "display_name": "小说智能续写插件",
-    "version": "1.0.0",
-    "author": "Cola-Echo适配",
-    "description": "对齐Cola仓库实现的小说续写插件，带悬浮球快捷操作",
-    "load": "index.js",
+    "loading_order": 9,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
     "css": "style.css",
-    "deprecated": false,
-    "defaultEnabled": true
+    "author": "Cola-Echo适配",
+    "version": "1.0.0",
+    "description": "基于SillyTavern开发的小说智能续写插件，带悬浮球快捷操作、章节管理、知识图谱生成功能",
+    "homePage": "https://github.com/Neohero521/Verification",
+    "auto_update": true,
+    "minimum_client_version": "1.10.0"
 }
