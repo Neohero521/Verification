@@ -6,8 +6,8 @@ export const extensionName = "Verification";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 全局状态管理
 export const state = {
+    extensionName: extensionName, // 新增：修复缺失的extensionName属性，解决JS报错
     isInitialized: false,
-    extensionName: extensionName, // 新增：补全extensionName字段
     currentParsedChapters: [],
     continueWriteChain: [],
     continueChapterIdCounter: 1,
@@ -62,7 +62,7 @@ export const defaultSettings = {
     precheckStatus: "未执行",
     precheckReportText: "",
     floatBallState: {
-        position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
+        position: { x: 0, y: 0 }, // 修复：移除模块加载时的window调用，改为动态兜底
         isPanelOpen: false,
         activeTab: "tab-chapter"
     },
