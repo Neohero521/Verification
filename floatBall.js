@@ -8,33 +8,27 @@ export const FloatBall = {
     startPos: { x: 0, y: 0 },
     offset: { x: 0, y: 0 },
     minMoveDistance: 3,
-    initRetryCount: 0,
-    maxRetryCount: 5,
     init() {
-        // 优化：用jQuery选择器确保能获取刚插入的DOM元素
-        this.ball = $("#novel-writer-float-ball")[0];
-        this.panel = $("#novel-writer-panel")[0];
+        this.ball = document.getElementById("novel-writer-float-ball");
+        this.panel = document.getElementById("novel-writer-panel");
         
-        // 新增：DOM未找到时延迟重试，解决渲染延迟问题
+        // 核心修复：DOM元素不存在时直接抛出明确错误，避免静默失败
         if (!this.ball || !this.panel) {
-            if (this.initRetryCount < this.maxRetryCount) {
-                this.initRetryCount++;
-                console.error(`[${extension_settings.Verification.extensionName}] 悬浮球/面板元素未找到，第${this.initRetryCount}次重试...`);
-                setTimeout(() => this.init(), 200);
-                return;
-            }
-            console.error(`[${extension_settings.Verification.extensionName}] 悬浮球/面板元素缺失，重试失败`);
-            toastr.error("小说续写插件加载失败：UI元素缺失，请检查文件完整性", "插件错误");
+            const errorMsg = "[小说续写插件] 悬浮球/面板DOM元素未找到，请检查example.html是否正确加载";
+            console.error(errorMsg);
+            toastr.error(errorMsg, "插件错误");
             return;
         }
-        this.initRetryCount = 0;
+
+        // 先绑定事件，再恢复状态，最后设置可见性
         this.bindEvents();
         this.restoreState();
-        // 强制显示悬浮球，兜底CSS的!important
+        // 强制显示悬浮球，兜底样式覆盖
         this.ball.style.visibility = "visible !important";
         this.ball.style.opacity = "1 !important";
         this.ball.style.display = "flex !important";
-        console.log(`[${extension_settings.Verification.extensionName}] 悬浮球初始化完成`);
+        
+        console.log("[小说续写插件] 悬浮球初始化完成");
     },
     bindEvents() {
         // 拖动事件
@@ -45,19 +39,25 @@ export const FloatBall = {
         document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
         document.addEventListener("touchend", this.stopDrag.bind(this));
         // 面板关闭事件
-        $("#panel-close-btn").off("click").on("click", (e) => {
+        document.getElementById("panel-close-btn").addEventListener("click", (e) => {
             e.stopPropagation();
             this.hidePanel();
         });
         // 选项卡切换
-        $(".panel-tab-item").off("click").on("click", (e) => {
-            e.stopPropagation();
-            this.switchTab(e.currentTarget.dataset.tab);
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+            tab.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.switchTab(e.currentTarget.dataset.tab);
+            });
         });
         // 点击外部关闭面板
         document.addEventListener("click", this.outsideClose.bind(this));
-        // 窗口大小变化适配
+        // 窗口大小变化适配，防抖避免频繁触发
         window.addEventListener("resize", debounce(this.autoAdsorbEdge.bind(this), 200));
+        // 新增：窗口加载完成后再次校正位置，确保初始位置正确
+        window.addEventListener("load", () => {
+            this.restoreState();
+        });
     },
     outsideClose(e) {
         const isInPanel = e.target.closest("#novel-writer-panel");
@@ -95,6 +95,7 @@ export const FloatBall = {
         let y = clientY - this.offset.y;
         const maxX = window.innerWidth - this.ball.offsetWidth;
         const maxY = window.innerHeight - this.ball.offsetHeight;
+        // 限制拖动范围，确保不会拖出屏幕
         x = Math.max(0, Math.min(x, maxX));
         y = Math.max(0, Math.min(y, maxY));
         this.ball.style.left = `${x}px`;
@@ -120,6 +121,7 @@ export const FloatBall = {
         const rect = this.ball.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const centerX = windowWidth / 2;
+        // 自动吸附到左右边缘
         if (rect.left < centerX) {
             this.ball.style.left = "10px";
         } else {
@@ -127,6 +129,7 @@ export const FloatBall = {
         }
         this.ball.style.right = "auto";
         this.ball.style.transform = "none";
+        // 保存吸附后的位置
         const newRect = this.ball.getBoundingClientRect();
         extension_settings.Verification.floatBallState.position = { x: newRect.left, y: newRect.top };
         saveSettingsDebounced();
@@ -145,10 +148,10 @@ export const FloatBall = {
         saveSettingsDebounced();
     },
     switchTab(tabId) {
-        $(".panel-tab-item").each((_, tab) => {
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
             tab.classList.toggle("active", tab.dataset.tab === tabId);
         });
-        $(".panel-tab-panel").each((_, panel) => {
+        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
             panel.classList.toggle("active", panel.id === tabId);
         });
         extension_settings.Verification.floatBallState.activeTab = tabId;
@@ -157,15 +160,36 @@ export const FloatBall = {
     restoreState() {
         const settings = extension_settings.Verification;
         const floatState = settings.floatBallState || defaultSettings.floatBallState;
-        const maxX = window.innerWidth - this.ball.offsetWidth;
-        const maxY = window.innerHeight - this.ball.offsetHeight;
-        const safeX = Math.max(0, Math.min(floatState.position.x, maxX));
-        const safeY = Math.max(0, Math.min(floatState.position.y, maxY));
+        const ballWidth = this.ball.offsetWidth || 70; // 兜底宽度，避免offsetWidth获取异常
+        const ballHeight = this.ball.offsetHeight || 70; // 兜底高度
+        const maxX = window.innerWidth - ballWidth;
+        const maxY = window.innerHeight - ballHeight;
+
+        // 核心修复：无效位置兜底，确保悬浮球一定在可视区域内
+        let safeX = floatState.position.x;
+        let safeY = floatState.position.y;
+        // 位置无效时，默认放到屏幕右侧垂直居中
+        if (isNaN(safeX) || isNaN(safeY) || safeX <= 0 || safeY <= 0 || safeX > maxX || safeY > maxY) {
+            safeX = window.innerWidth - ballWidth - 20;
+            safeY = window.innerHeight / 2 - ballHeight / 2;
+        }
+
+        // 安全范围限制
+        safeX = Math.max(0, Math.min(safeX, maxX));
+        safeY = Math.max(0, Math.min(safeY, maxY));
+
+        // 应用位置
         this.ball.style.left = `${safeX}px`;
         this.ball.style.top = `${safeY}px`;
         this.ball.style.right = "auto";
         this.ball.style.transform = "none";
+
+        // 恢复其他状态
         this.switchTab(floatState.activeTab);
         if (floatState.isPanelOpen) this.showPanel();
+
+        // 保存修正后的位置
+        extension_settings.Verification.floatBallState.position = { x: safeX, y: safeY };
+        saveSettingsDebounced();
     }
 };
