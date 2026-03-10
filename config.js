@@ -3,7 +3,7 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced } from "../../../../script.js";
 
 // 插件基础信息
-export const extensionName = "Always_remember_me";
+export const extensionName = "Verification";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 全局状态管理
