@@ -3,7 +3,7 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced } from "../../../../script.js";
 
 // 扩展基础信息
-export const extensionName = "Always_remember_me";
+export const extensionName = "Verification";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // 预设章节拆分正则列表（覆盖全场景，含括号序号格式，修复正则转义问题）
