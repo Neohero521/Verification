@@ -1,47 +1,50 @@
-import { extension_settings, extensionName, saveSettingsDebounced } from "./constants.js";
+// 所有依赖从index.js导入，严格遵循ST官方规范，不直接导入ST内部文件
+import { state, extension_settings, saveSettingsDebounced, getContext } from './index.js';
 
-// 防抖工具函数
+// 防抖函数
 export function debounce(func, delay) {
     let timer = null;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timer);
         timer = setTimeout(() => func.apply(this, args), delay);
     };
 }
 
-// 递归深拷贝合并配置（修复深层默认值丢失BUG）
+// 深度合并对象
 export function deepMerge(target, source) {
-    const merged = { ...target };
+    if (!source || typeof source !== 'object') return target;
+    const merged = structuredClone(target || {});
     for (const key in source) {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
             if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                merged[key] = deepMerge(merged[key] || {}, source[key]);
+                merged[key] = deepMerge(merged[key], source[key]);
             } else if (Array.isArray(source[key])) {
                 merged[key] = Array.isArray(merged[key]) ? [...merged[key]] : [...source[key]];
             } else {
-                merged[key] = merged[key] !== undefined ? merged[key] : source[key];
+                merged[key] = source[key];
             }
         }
     }
     return merged;
 }
 
-// 移除BOM头
+// 移除文本BOM头
 export function removeBOM(text) {
-    if (!text) return text;
+    if (!text || typeof text !== 'string') return text;
     if (text.charCodeAt(0) === 0xFEFF || text.charCodeAt(0) === 0xFFFE) {
         return text.slice(1);
     }
     return text;
 }
 
-// 复制到剪贴板
+// 复制文本到剪贴板
 export async function copyToClipboard(text) {
     try {
         if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
             return true;
         }
+        // 兼容非安全上下文
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
@@ -57,9 +60,18 @@ export async function copyToClipboard(text) {
         document.body.removeChild(textArea);
         return result;
     } catch (error) {
-        console.error('复制失败:', error);
+        console.error(`[${state.extensionName}] 复制失败:`, error);
         return false;
     }
+}
+
+// 渲染发送命令模板
+export function renderCommandTemplate(template, charName, chapterContent) {
+    if (!template) return chapterContent;
+    const escapedContent = chapterContent.replace(/"/g, '\\"').replace(/\|/g, '\\|');
+    return template
+        .replace(/{{char}}/g, charName || '角色')
+        .replace(/{{pipe}}/g, escapedContent);
 }
 
 // 设置按钮禁用状态
@@ -67,42 +79,26 @@ export function setButtonDisabled(selector, disabled) {
     $(selector).prop('disabled', disabled).toggleClass('menu_button--disabled', disabled);
 }
 
-// 更新进度条
-export function updateProgress(progressId, statusId, current, total, textPrefix = "进度") {
-    const $progressEl = $(`#${progressId}`);
-    const $statusEl = $(`#${statusId}`);
-    if (total === 0) {
-        $progressEl.css('width', '0%');
-        $statusEl.text('');
-        return;
-    }
-    const percent = Math.floor((current / total) * 100);
-    $progressEl.css('width', `${percent}%`);
-    $statusEl.text(`${textPrefix}: ${current}/${total} (${percent}%)`);
-}
-
-// 渲染sendas命令模板
-export function renderCommandTemplate(template, charName, chapterContent) {
-    // 转义特殊字符，确保命令执行正常，无注入风险
-    const escapedContent = chapterContent.replace(/"/g, '\\"').replace(/\|/g, '\\|');
-    // 直接替换模板变量，而非生成模板代码
-    return template.replace(/{{char}}/g, charName || '角色').replace(/{{pipe}}/g, escapedContent);
-}
-
-// 获取当前生效的预设参数
+// 获取当前生效的生成预设参数
 export function getActivePresetParams() {
-    const settings = extension_settings[extensionName];
+    const settings = extension_settings[state.extensionName];
+    const context = getContext();
     let presetParams = {};
-    // 优先级：父级对话预设（对齐ST全局生效的生成参数）
-    if (settings.enableAutoParentPreset && window.generation_params) {
-        presetParams = { ...window.generation_params };
+
+    // 自动继承父级预设
+    if (settings.enableAutoParentPreset && context.generation_params) {
+        presetParams = { ...context.generation_params };
     }
-    // 过滤无效参数，只保留generateRaw支持的字段
-    const validParams = ['temperature', 'top_p', 'top_k', 'min_p', 'top_a',
+
+    // 过滤有效参数，避免无效参数传给API
+    const validParams = [
+        'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
         'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
         'repetition_penalty_range', 'typical_p', 'tfs',
         'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample'];
+        'negative_prompt', 'stop_sequence', 'seed', 'do_sample'
+    ];
+
     const filteredParams = {};
     for (const key of validParams) {
         if (presetParams[key] !== undefined) {
@@ -110,4 +106,22 @@ export function getActivePresetParams() {
         }
     }
     return filteredParams;
+}
+
+// 正则表达式转义
+export function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 字数统计（中文+英文单词）
+export function countWords(text) {
+    if (!text) return 0;
+    const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+    return chineseChars + englishWords;
+}
+
+// 延迟函数
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
