@@ -1,5 +1,5 @@
 // 严格遵循SillyTavern官方扩展规范，所有核心API从getContext获取，不直接导入内部文件
-const MODULE_NAME = "Always_remember_me";
+const MODULE_NAME = "Verification";
 const EXTENSION_PATH = `/scripts/extensions/third-party/${MODULE_NAME}`;
 
 // 从ST全局上下文获取所有稳定API（官方推荐唯一方式）
