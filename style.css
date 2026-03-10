@@ -1,4 +1,3 @@
-/* ==============================================插件根容器============================================== */
 .novel-writer-extension-root {
   --novel-bg-main: #0c0c18;
   --novel-bg-card: #151528;
@@ -45,7 +44,7 @@
   margin: 0;
   border: none;
   overflow: visible;
-  z-index: 999998;
+  z-index: 1000000;
   background: transparent;
 }
 .novel-writer-extension-root * {
@@ -71,7 +70,7 @@
   background: var(--novel-primary) !important;
 }
 
-/* ==============================================悬浮球核心样式（核心修复hover冲突）============================================== */
+/* 悬浮球核心样式 - 层级拉满，避免被ST覆盖 */
 .novel-writer-extension-root .float-ball {
   position: fixed;
   right: 20px;
@@ -81,14 +80,13 @@
   height: 70px;
   border-radius: var(--novel-radius-full);
   background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%);
-  background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
   box-shadow: var(--novel-shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 999999 !important;
+  z-index: 1000001 !important;
   transition: all var(--novel-transition-normal);
   user-select: none;
   border: 2px solid rgba(255, 255, 255, 0.1);
@@ -101,14 +99,13 @@
   touch-action: none !important;
   pointer-events: all !important;
 }
-/* 悬浮球拖动状态 */
 .novel-writer-extension-root .float-ball.dragging {
   opacity: 0.85;
   transform: scale(1.05);
   transition: none;
-  z-index: 1000000 !important;
+  z-index: 1000002 !important;
 }
-/* 核心修复：hover样式移除translateY，避免拖拽后位置错乱，完全对齐源文件逻辑 */
+/* 核心修复：hover移除translateY，避免拖拽后位置错乱 */
 .novel-writer-extension-root .float-ball:hover {
   transform: scale(1.1);
   box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
@@ -116,7 +113,6 @@
 .novel-writer-extension-root .float-ball.dragging:hover {
   transform: scale(1.05);
 }
-/* 悬浮球图标 */
 .novel-writer-extension-root .ball-icon {
   font-size: 1.5rem;
   color: white;
@@ -124,7 +120,6 @@
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   line-height: 1;
 }
-/* 悬浮球文字 */
 .novel-writer-extension-root .ball-tip {
   font-size: 0.7rem;
   color: white;
@@ -133,7 +128,7 @@
   line-height: 1;
 }
 
-/* ==============================================功能面板核心样式============================================== */
+/* 功能面板 - 层级拉满 */
 .novel-writer-extension-root .writer-panel {
   position: fixed;
   top: 50%;
@@ -150,17 +145,19 @@
   display: none;
   flex-direction: column;
   overflow: hidden;
-  z-index: 999998 !important;
+  z-index: 1000000 !important;
   opacity: 0;
   transition: opacity var(--novel-transition-normal), transform var(--novel-transition-normal);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .novel-writer-extension-root .writer-panel.show {
+  display: flex;
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
 
-/* ==============================================面板头部样式============================================== */
+/* 其余样式和之前完全一致，仅需把所有z-index都提升到1000000以上，避免被ST原生UI覆盖 */
+/* 面板头部 */
 .novel-writer-extension-root .panel-header {
   display: flex;
   justify-content: space-between;
@@ -184,7 +181,6 @@
   font-size: 1.3rem;
   text-shadow: 0 0 10px var(--novel-primary-glow);
 }
-/* 关闭按钮 */
 .novel-writer-extension-root .panel-close-btn {
   width: 38px;
   height: 38px;
@@ -207,7 +203,7 @@
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 
-/* ==============================================选项卡导航样式============================================== */
+/* 选项卡导航 */
 .novel-writer-extension-root .panel-tab-nav {
   display: flex;
   background: var(--novel-bg-card);
@@ -244,7 +240,7 @@
   box-shadow: 0 -2px 12px var(--novel-primary-glow);
 }
 
-/* ==============================================选项卡内容容器============================================== */
+/* 选项卡内容 */
 .novel-writer-extension-root .panel-tab-content {
   flex: 1;
   overflow-y: auto;
@@ -271,7 +267,7 @@
   }
 }
 
-/* ==============================================内容卡片样式============================================== */
+/* 内容卡片 */
 .novel-writer-extension-root .content-card {
   background: var(--novel-bg-card);
   border: 1px solid var(--novel-border-color);
@@ -335,7 +331,7 @@
   margin: 20px 0;
 }
 
-/* ==============================================表单元素美化============================================== */
+/* 表单元素 */
 .novel-writer-extension-root .form-group {
   width: 100%;
 }
@@ -440,7 +436,7 @@
   cursor: pointer;
 }
 
-/* ==============================================按钮组件美化============================================== */
+/* 按钮组件 */
 .novel-writer-extension-root .btn {
   border: none;
   border-radius: var(--novel-radius-sm);
@@ -541,7 +537,7 @@
   word-break: break-all;
 }
 
-/* ==============================================进度条美化============================================== */
+/* 进度条 */
 .novel-writer-extension-root .progress-wrap {
   padding: 0 20px 12px;
 }
@@ -594,7 +590,7 @@
   font-size: 0.95rem;
 }
 
-/* ==============================================章节列表美化============================================== */
+/* 章节列表 */
 .novel-writer-extension-root .chapter-list {
   max-height: 320px;
   overflow-y: auto;
@@ -638,7 +634,7 @@
   color: var(--novel-text-muted);
 }
 
-/* ==============================================抽屉组件美化============================================== */
+/* 抽屉组件 */
 .novel-writer-extension-root .inline-drawer {
   background: var(--novel-bg-card);
   border: 1px solid var(--novel-border-color);
@@ -709,7 +705,7 @@
   gap: 12px;
 }
 
-/* ==============================================续写链条美化============================================== */
+/* 续写链条 */
 .novel-writer-extension-root .chain-container {
   max-height: 650px;
   overflow-y: auto;
@@ -753,7 +749,7 @@
   border-color: var(--novel-primary);
 }
 
-/* ==============================================小说阅读器完整样式============================================== */
+/* 小说阅读器 */
 .novel-writer-extension-root #tab-reader {
   display: none;
   flex-direction: column;
@@ -977,7 +973,7 @@
   flex-shrink: 0;
 }
 
-/* ==============================================响应式适配============================================== */
+/* 响应式适配 */
 @media (max-width: 768px) {
   .novel-writer-extension-root .float-ball {
     width: 60px;
