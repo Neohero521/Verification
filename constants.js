@@ -6,24 +6,24 @@ import { saveSettingsDebounced } from "../../../../script.js";
 export const extensionName = "Always_remember_me";
 export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
-// 预设章节拆分正则列表（覆盖全场景，含括号序号格式）
+// 预设章节拆分正则列表（覆盖全场景，含括号序号格式，修复正则转义问题）
 export const presetChapterRegexList = [
-    { name: "标准章节", regex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$" },
+    { name: "标准章节", regex: "^\\s第\\s[0-9零一二三四五六七八九十百千]+\\s章.*$" },
     { name: "括号序号", regex: "^\\s*.*\\（[0-9零一二三四五六七八九十百千]+\\）.*$" },
     { name: "英文括号序号", regex: "^\\s*.*\\([0-9零一二三四五六七八九十百千]+\\).*$" },
-    { name: "标准节", regex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*节.*$" },
-    { name: "卷+章", regex: "^\\s*卷\\s*[0-9零一二三四五六七八九十百千]+\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$" },
-    { name: "英文Chapter", regex: "^\\s*Chapter\\s*[0-9]+\\s*.*$" },
-    { name: "标准话", regex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*话.*$" },
+    { name: "标准节", regex: "^\\s第\\s[0-9零一二三四五六七八九十百千]+\\s节.*$" },
+    { name: "卷+章", regex: "^\\s卷\\s[0-9零一二三四五六七八九十百千]+\\s第\\s[0-9零一二三四五六七八九十百千]+\\s章.*$" },
+    { name: "英文Chapter", regex: "^\\sChapter\\s[0-9]+\\s*.*$" },
+    { name: "标准话", regex: "^\\s第\\s*[0-9零一二三四五六七八九十百千]+\\s话.*$" },
     { name: "顿号序号", regex: "^\\s*[0-9零一二三四五六七八九十百千]+、.*$" },
-    { name: "方括号序号", regex: "^\\s*【\\s*[0-9零一二三四五六七八九十百千]+\\s*】.*$" },
-    { name: "圆点序号", regex: "^\\s*[0-9]+\\.\\s*.*$" },
-    { name: "中文序号空格", regex: "^\\s*[零一二三四五六七八九十百千]+\\s+.*$" }
+    { name: "方括号序号", regex: "^\\s【\\s*[0-9零一二三四五六七八九十百千]+\\s*】.*$" },
+    { name: "圆点序号", regex: "^\\s[0-9]+\\.\\s*.*$" },
+    { name: "中文序号空格", regex: "^\\s[零一二三四五六七八九十百千]+\\s+.*$" }
 ];
 
 // 默认配置（原有字段完全不变，100%兼容旧数据）
 export const defaultSettings = {
-    chapterRegex: "^\\s*第\\s*[0-9零一二三四五六七八九十百千]+\\s*章.*$",
+    chapterRegex: "^\\s第\\s*[0-9零一二三四五六七八九十百千]+\\s章.*$",
     sendTemplate: "/sendas name={{char}} {{pipe}}",
     sendDelay: 100,
     example_setting: false,
@@ -60,7 +60,7 @@ export const defaultSettings = {
     enableAutoParentPreset: true
 };
 
-// 全局状态缓存（原有字段完全不变）
+// 全局状态缓存（原有字段完全不变，ES模块活绑定）
 export let currentRegexIndex = 0;
 export let sortedRegexList = [...presetChapterRegexList];
 export let lastParsedText = "";
