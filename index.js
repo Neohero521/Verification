@@ -93,8 +93,7 @@ async function loadSettings() {
         $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
     state.isInitialized = true;
-    // 优化：确保DOM完全渲染后再初始化核心模块
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 100));
     // 初始化核心模块
     FloatBall.init();
     NovelReader.init();
@@ -103,11 +102,10 @@ async function loadSettings() {
 export async function init() {
     console.log(`[${extensionName}] 小说续写插件开始加载`);
     try {
-        // 加载HTML模板
+        // 加载HTML模板，增加错误捕获
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(settingsHtml);
-        // 优化：延长DOM渲染等待时间，确保元素完全解析
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 100));
         console.log(`[${extensionName}] HTML模板加载完成`);
     } catch (error) {
         console.error(`[${extensionName}] HTML模板加载失败:`, error);
