@@ -1,7 +1,6 @@
-// 【Verification配置文件】修复路径错误，正确导入ST核心API
-// 正确路径：严格匹配ST第三方插件目录结构
-import { extension_settings, getContext, loadExtensionSettings } from "../../extensions.js";
-import { saveSettingsDebounced } from "../../../script.js";
+// 【Verification配置文件】严格遵循SillyTavern官方规范
+// 使用getContext()获取核心对象，避免直接导入
+const { extensionSettings, saveSettingsDebounced } = SillyTavern.getContext();
 
 // 【强制命名】必须全量为Verification，和文件夹名、manifest.json完全一致
 export const extensionName = "Verification";
@@ -379,5 +378,5 @@ export const qualityEvaluateSchema = {
     }
 };
 
-// 统一导出ST核心API
-export { extension_settings, getContext, saveSettingsDebounced, loadExtensionSettings };
+// 导出所有配置
+export { extensionSettings, saveSettingsDebounced, defaultSettings };
