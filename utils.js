@@ -1,74 +1,47 @@
-import { extension_settings, getContext, state } from './config.js';
+// 【Verification工具函数】严格对齐Cola仓库实现
+import { extension_settings, extensionName } from './config.js';
+import { saveSettingsDebounced } from './config.js';
 
-// 防抖函数
-export function debounce(func, delay) {
-    let timer = null;
-    return function(...args) {
-        clearTimeout(timer);
-        timer = setTimeout(() => func.apply(this, args), delay);
-    };
-}
-
-// 深度合并对象
+// 深合并，对齐Cola的实现
 export function deepMerge(target, source) {
-    if (!source || typeof source !== 'object') return target;
-    const merged = structuredClone(target || {});
+    const merged = structuredClone(target);
     for (const key in source) {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
-            if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+            if (source[key] instanceof Object && key in merged && merged[key] instanceof Object) {
                 merged[key] = deepMerge(merged[key], source[key]);
-            } else if (Array.isArray(source[key])) {
-                merged[key] = Array.isArray(merged[key]) ? [...merged[key]] : [...source[key]];
             } else {
-                merged[key] = source[key];
+                merged[key] = structuredClone(source[key]);
             }
         }
     }
     return merged;
 }
 
-// 移除文本BOM头
-export function removeBOM(text) {
-    if (!text || typeof text !== 'string') return text;
-    if (text.charCodeAt(0) === 0xFEFF || text.charCodeAt(0) === 0xFFFE) {
-        return text.slice(1);
-    }
-    return text;
-}
-
-// 复制文本到剪贴板
+// 复制到剪贴板
 export async function copyToClipboard(text) {
     try {
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            return true;
-        }
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        textArea.style.opacity = '0';
-        textArea.readOnly = true;
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        textArea.setSelectionRange(0, textArea.value.length);
-        const result = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return result;
+        await navigator.clipboard.writeText(text);
+        return true;
     } catch (error) {
-        console.error(`[${state.extensionName}] 复制失败:`, error);
-        return false;
+        // 降级方案
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed !important';
+        textarea.style.left = '-9999px !important';
+        textarea.style.top = '-9999px !important';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return success;
     }
 }
 
-// 渲染发送命令模板
-export function renderCommandTemplate(template, charName, chapterContent) {
-    const escapedContent = chapterContent.replace(/"/g, '\\"').replace(/\|/g, '\\|');
+// 渲染命令模板
+export function renderCommandTemplate(template, charName, content) {
     return template
-        .replace(/{{char}}/g, charName || '角色')
-        .replace(/{{pipe}}/g, escapedContent);
+        .replace(/{{char}}/g, charName)
+        .replace(/{{pipe}}/g, content);
 }
 
 // 设置按钮禁用状态
@@ -76,47 +49,54 @@ export function setButtonDisabled(selector, disabled) {
     $(selector).prop('disabled', disabled).toggleClass('menu_button--disabled', disabled);
 }
 
-// 获取当前生效的生成预设参数
-export function getActivePresetParams() {
-    const settings = extension_settings[state.extensionName];
-    const context = getContext();
-    let presetParams = {};
+// 防抖函数，对齐Cola的实现
+export function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-    if (settings.enableAutoParentPreset && context.generation_params) {
-        presetParams = { ...context.generation_params };
-    }
-
-    const validParams = [
-        'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
-        'repetition_penalty_range', 'typical_p', 'tfs',
-        'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample'
-    ];
-
-    const filteredParams = {};
-    for (const key of validParams) {
-        if (presetParams[key] !== undefined) {
-            filteredParams[key] = presetParams[key];
+// 节流函数
+export function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
         }
-    }
-    return filteredParams;
+    };
 }
 
-// 正则表达式转义
-export function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// 字数统计（中文+英文单词）
+// 字数统计
 export function countWords(text) {
     if (!text) return 0;
-    const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
-    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
-    return chineseChars + englishWords;
+    return text.replace(/\s+/g, '').length;
 }
 
-// 延迟函数
-export function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+// 安全JSON解析
+export function safeJsonParse(str, defaultValue = null) {
+    try {
+        return JSON.parse(str);
+    } catch (error) {
+        console.warn('[Verification] JSON解析失败', error);
+        return defaultValue;
+    }
+}
+
+// 保存抽屉状态
+export function saveDrawerState(drawerId, isOpen) {
+    if (!extension_settings[extensionName].drawerState) {
+        extension_settings[extensionName].drawerState = {};
+    }
+    extension_settings[extensionName].drawerState[drawerId] = isOpen;
+    saveSettingsDebounced();
 }
