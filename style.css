@@ -1,1052 +1,327 @@
-/* ==============================================插件根容器============================================== */
-.novel-writer-extension-root {
-  --novel-bg-main: #0c0c18;
-  --novel-bg-card: #151528;
-  --novel-bg-card-hover: #1e1e3a;
-  --novel-bg-input: #121224;
-  --novel-bg-drawer: #101020;
-  --novel-bg-overlay: rgba(0, 0, 0, 0.7);
-  --novel-primary: #7c3aed;
-  --novel-primary-light: #a78bfa;
-  --novel-primary-dark: #6d28d9;
-  --novel-primary-glow: rgba(124, 58, 237, 0.6);
-  --novel-secondary: #06b6d4;
-  --novel-success: #10b981;
-  --novel-danger: #ef4444;
-  --novel-warning: #f59e0b;
-  --novel-text-white: #f8fafc;
-  --novel-text-primary: #e2e8f0;
-  --novel-text-secondary: #cbd5e1;
-  --novel-text-muted: #94a3b8;
-  --novel-border-color: #334155;
-  --novel-border-light: #475569;
-  --novel-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --novel-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --novel-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --novel-shadow-glow: 0 0 20px var(--novel-primary-glow);
-  --novel-shadow-ball: 0 0 25px rgba(124, 58, 237, 0.7);
-  --novel-radius-sm: 6px;
-  --novel-radius-md: 10px;
-  --novel-radius-lg: 16px;
-  --novel-radius-full: 999px;
-  --novel-transition-fast: 0.2s ease;
-  --novel-transition-normal: 0.3s ease;
-  --novel-transition-slow: 0.5s ease;
-  --novel-reader-bg: #0f0f1a;
-  --novel-reader-text: #e2e8f0;
-  --novel-reader-font-size: 16px;
-  --novel-reader-line-height: 1.8;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  padding: 0;
-  margin: 0;
-  border: none;
-  overflow: visible;
-  z-index: 999998;
-  background: transparent;
-}
-.novel-writer-extension-root * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: inherit;
-}
-.novel-writer-extension-root ::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
-}
-.novel-writer-extension-root ::-webkit-scrollbar-track {
-  background: var(--novel-bg-input) !important;
-  border-radius: var(--novel-radius-full) !important;
-}
-.novel-writer-extension-root ::-webkit-scrollbar-thumb {
-  background: var(--novel-border-color) !important;
-  border-radius: var(--novel-radius-full) !important;
-  transition: background var(--novel-transition-fast) !important;
-}
-.novel-writer-extension-root ::-webkit-scrollbar-thumb:hover {
-  background: var(--novel-primary) !important;
-}
+import { debounce } from "./utils.js";
+import { extension_settings, extensionName, defaultSettings, saveSettingsDebounced } from "./constants.js";
 
-/* ==============================================悬浮球核心样式（核心修复hover冲突）============================================== */
-.novel-writer-extension-root .float-ball {
-  position: fixed;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 70px;
-  height: 70px;
-  border-radius: var(--novel-radius-full);
-  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%);
-  background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
-  box-shadow: var(--novel-shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 999999 !important;
-  transition: all var(--novel-transition-normal);
-  user-select: none;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  visibility: visible !important;
-  opacity: 1 !important;
-  display: flex !important;
-  touch-action: none !important;
-  pointer-events: all !important;
-}
-/* 悬浮球拖动状态 */
-.novel-writer-extension-root .float-ball.dragging {
-  opacity: 0.85;
-  transform: scale(1.05);
-  transition: none;
-  z-index: 1000000 !important;
-}
-/* 核心修复：hover样式移除translateY，避免拖拽后位置错乱，完全对齐源文件逻辑 */
-.novel-writer-extension-root .float-ball:hover {
-  transform: scale(1.1);
-  box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
-}
-.novel-writer-extension-root .float-ball.dragging:hover {
-  transform: scale(1.05);
-}
-/* 悬浮球图标 */
-.novel-writer-extension-root .ball-icon {
-  font-size: 1.5rem;
-  color: white;
-  margin-bottom: 2px;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-  line-height: 1;
-}
-/* 悬浮球文字 */
-.novel-writer-extension-root .ball-tip {
-  font-size: 0.7rem;
-  color: white;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1;
-}
+// 完全对齐源文件可用逻辑，仅做模块化拆分，无破坏性修改
+export const FloatBall = {
+    ball: null,
+    panel: null,
+    isDragging: false,
+    isClick: false,
+    startPos: { x: 0, y: 0 },
+    offset: { x: 0, y: 0 },
+    minMoveDistance: 5, // 对齐源文件阈值，避免点击误判为拖拽
+    boundHandlers: {},
 
-/* ==============================================功能面板核心样式============================================== */
-.novel-writer-extension-root .writer-panel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
-  width: 900px;
-  height: 850px;
-  max-width: 95vw;
-  max-height: 95vh;
-  background: linear-gradient(135deg, var(--novel-bg-main) 0%, #101022 100%);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-lg);
-  box-shadow: var(--novel-shadow-lg), 0 0 60px rgba(0, 0, 0, 0.8);
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 999998 !important;
-  opacity: 0;
-  transition: opacity var(--novel-transition-normal), transform var(--novel-transition-normal);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-.novel-writer-extension-root .writer-panel.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
+    init() {
+        // 强校验DOM，对齐源文件逻辑
+        this.ball = document.getElementById("novel-writer-float-ball");
+        this.panel = document.getElementById("novel-writer-panel");
+        
+        if (!this.ball) {
+            console.error("[小说续写插件] 悬浮球元素未找到，HTML加载失败");
+            toastr.error("小说续写插件加载失败：悬浮球元素未找到", "插件错误");
+            return;
+        }
+        if (!this.panel) {
+            console.error("[小说续写插件] 面板元素未找到，HTML加载失败");
+            toastr.error("小说续写插件加载失败：面板元素未找到", "插件错误");
+            return;
+        }
 
-/* ==============================================面板头部样式============================================== */
-.novel-writer-extension-root .panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: linear-gradient(90deg, var(--novel-bg-card) 0%, var(--novel-bg-main) 100%);
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
-}
-.novel-writer-extension-root .panel-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--novel-text-white);
-  letter-spacing: 0.5px;
-}
-.novel-writer-extension-root .panel-title span:first-child {
-  color: var(--novel-primary);
-  font-size: 1.3rem;
-  text-shadow: 0 0 10px var(--novel-primary-glow);
-}
-/* 关闭按钮 */
-.novel-writer-extension-root .panel-close-btn {
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: var(--novel-radius-sm);
-  background: var(--novel-bg-input);
-  color: var(--novel-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--novel-transition-fast);
-  font-size: 1rem;
-  font-weight: bold;
-}
-.novel-writer-extension-root .panel-close-btn:hover {
-  background: var(--novel-danger);
-  color: white;
-  transform: scale(1.05);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
-}
+        // 预绑定事件，确保可正确移除，对齐源文件事件处理逻辑
+        this.boundHandlers = {
+            startDrag: this.startDrag.bind(this),
+            onDrag: this.onDrag.bind(this),
+            stopDrag: this.stopDrag.bind(this),
+            onBallClick: this.onBallClick.bind(this),
+            onPanelClose: this.onPanelClose.bind(this),
+            onTabSwitch: this.onTabSwitch.bind(this),
+            onOutsideClose: this.onOutsideClose.bind(this),
+            resizeHandler: debounce(this.autoAdsorbEdge.bind(this), 200)
+        };
 
-/* ==============================================选项卡导航样式============================================== */
-.novel-writer-extension-root .panel-tab-nav {
-  display: flex;
-  background: var(--novel-bg-card);
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
-  padding: 0 16px;
-  gap: 4px;
-}
-.novel-writer-extension-root .panel-tab-item {
-  padding: 14px 20px;
-  border: none;
-  background: transparent;
-  color: var(--novel-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: var(--novel-radius-sm) var(--novel-radius-sm) 0 0;
-  transition: all var(--novel-transition-fast);
-  font-weight: 600;
-  font-size: 0.9rem;
-  position: relative;
-}
-.novel-writer-extension-root .panel-tab-item span:first-child {
-  font-size: 1rem;
-}
-.novel-writer-extension-root .panel-tab-item:hover {
-  color: var(--novel-text-primary);
-  background: var(--novel-bg-input);
-}
-.novel-writer-extension-root .panel-tab-item.active {
-  color: var(--novel-text-white);
-  background: linear-gradient(180deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  box-shadow: 0 -2px 12px var(--novel-primary-glow);
-}
+        console.log("[小说续写插件] 悬浮球初始化成功，DOM元素已确认");
+        this.clearEvents(); // 先彻底清除旧事件，避免重复绑定
+        this.bindEvents();
+        this.restoreState();
+        this.autoAdsorbEdge();
 
-/* ==============================================选项卡内容容器============================================== */
-.novel-writer-extension-root .panel-tab-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px 24px;
-  background: var(--novel-bg-main);
-}
-.novel-writer-extension-root .panel-tab-panel {
-  display: none;
-  animation: fadeInUp var(--novel-transition-normal);
-  height: 100%;
-}
-.novel-writer-extension-root .panel-tab-panel.active {
-  display: block;
-}
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+        // 强制显示悬浮球，对齐源文件初始逻辑，避免CSS隐藏
+        this.ball.style.cssText += `
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: flex !important;
+            pointer-events: all !important;
+            z-index: 999999 !important;
+            touch-action: none !important;
+        `;
+    },
 
-/* ==============================================内容卡片样式============================================== */
-.novel-writer-extension-root .content-card {
-  background: var(--novel-bg-card);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  box-shadow: var(--novel-shadow-sm);
-  margin-bottom: 16px;
-  overflow: hidden;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .content-card:hover {
-  border-color: var(--novel-border-light);
-  box-shadow: var(--novel-shadow-md);
-}
-.novel-writer-extension-root .card-main {
-  border-left: 3px solid var(--novel-primary);
-}
-.novel-writer-extension-root .card-mini {
-  padding: 16px 20px;
-}
-.novel-writer-extension-root .card-header {
-  padding: 14px 20px;
-  background: linear-gradient(90deg, var(--novel-bg-input) 0%, transparent 100%);
-  border-bottom: 1px solid var(--novel-border-color);
-}
-.novel-writer-extension-root .card-header-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.novel-writer-extension-root .card-header h4 {
-  color: var(--novel-text-white);
-  font-size: 1.05rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-.novel-writer-extension-root .card-header h4 span:first-child {
-  color: var(--novel-primary);
-}
-.novel-writer-extension-root .card-body {
-  padding: 20px;
-}
-.novel-writer-extension-root .grid-row {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.novel-writer-extension-root .grid-row:last-child {
-  margin-bottom: 0;
-}
-.novel-writer-extension-root .grid-2 {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-.novel-writer-extension-root .divider-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--novel-border-color) 50%, transparent 100%);
-  margin: 20px 0;
-}
+    // 彻底清除所有事件，避免重复绑定导致的冲突
+    clearEvents() {
+        this.ball?.removeEventListener("mousedown", this.boundHandlers.startDrag);
+        document.removeEventListener("mousemove", this.boundHandlers.onDrag);
+        document.removeEventListener("mouseup", this.boundHandlers.stopDrag);
+        this.ball?.removeEventListener("click", this.boundHandlers.onBallClick);
 
-/* ==============================================表单元素美化============================================== */
-.novel-writer-extension-root .form-group {
-  width: 100%;
-}
-.novel-writer-extension-root .form-group-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .form-label-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.novel-writer-extension-root .form-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-}
-.novel-writer-extension-root .form-input {
-  width: 100%;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.95rem;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-}
-.novel-writer-extension-root .form-input:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.novel-writer-extension-root .form-input::placeholder {
-  color: var(--novel-text-muted);
-}
-.novel-writer-extension-root .form-select {
-  width: 100%;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.95rem;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-  cursor: pointer;
-}
-.novel-writer-extension-root .form-select:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.novel-writer-extension-root .form-textarea {
-  width: 100%;
-  min-height: 60px;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-  resize: vertical;
-}
-.novel-writer-extension-root .form-textarea:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.novel-writer-extension-root .form-textarea::placeholder {
-  color: var(--novel-text-muted);
-}
-.novel-writer-extension-root .form-textarea[readonly] {
-  background: var(--novel-bg-main);
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-.novel-writer-extension-root .input-with-tip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.novel-writer-extension-root .input-with-tip .form-input {
-  flex: 1;
-}
-.novel-writer-extension-root .input-tip {
-  color: var(--novel-text-muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-.novel-writer-extension-root input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--novel-primary);
-  cursor: pointer;
-}
+        this.ball?.removeEventListener("touchstart", this.boundHandlers.startDrag);
+        document.removeEventListener("touchmove", this.boundHandlers.onDrag);
+        document.removeEventListener("touchend", this.boundHandlers.stopDrag);
 
-/* ==============================================按钮组件美化============================================== */
-.novel-writer-extension-root .btn {
-  border: none;
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 18px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all var(--novel-transition-fast);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.novel-writer-extension-root .btn-sm {
-  padding: 7px 14px;
-  font-size: 0.85rem;
-}
-.novel-writer-extension-root .btn-lg {
-  padding: 12px 32px;
-  font-size: 1rem;
-}
-.novel-writer-extension-root .btn-primary {
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-}
-.novel-writer-extension-root .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--novel-primary-glow);
-}
-.novel-writer-extension-root .btn-primary:active {
-  transform: translateY(0);
-}
-.novel-writer-extension-root .btn-secondary {
-  background: linear-gradient(90deg, #0891b2 0%, var(--novel-secondary) 100%);
-  color: var(--novel-bg-main);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
-}
-.novel-writer-extension-root .btn-secondary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.5);
-}
-.novel-writer-extension-root .btn-outline {
-  background: transparent;
-  border: 1px solid var(--novel-border-light);
-  color: var(--novel-text-secondary);
-}
-.novel-writer-extension-root .btn-outline:hover {
-  border-color: var(--novel-primary);
-  color: var(--novel-primary);
-  background: rgba(124, 58, 237, 0.1);
-}
-.novel-writer-extension-root .btn-danger {
-  background: var(--novel-danger);
-  color: white;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-}
-.novel-writer-extension-root .btn-danger:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
-}
-.novel-writer-extension-root .btn:disabled,
-.novel-writer-extension-root .menu_button--disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-  pointer-events: none !important;
-  transform: none !important;
-}
-.novel-writer-extension-root .btn-group-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .btn-group-wrap {
-  margin-top: 12px;
-}
-.novel-writer-extension-root .btn-group-fixed {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.novel-writer-extension-root .btn-center {
-  justify-content: center;
-}
-.novel-writer-extension-root .file-select-group {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .file-name {
-  color: var(--novel-text-secondary);
-  font-size: 0.95rem;
-  word-break: break-all;
-}
+        const closeBtn = document.getElementById("panel-close-btn");
+        closeBtn?.removeEventListener("click", this.boundHandlers.onPanelClose);
 
-/* ==============================================进度条美化============================================== */
-.novel-writer-extension-root .progress-wrap {
-  padding: 0 20px 12px;
-}
-.novel-writer-extension-root .progress-text {
-  color: var(--novel-text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 6px;
-}
-.novel-writer-extension-root .progress-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--novel-bg-input);
-  border-radius: var(--novel-radius-full);
-  overflow: hidden;
-}
-.novel-writer-extension-root .progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  border-radius: var(--novel-radius-full);
-  transition: width var(--novel-transition-normal);
-  box-shadow: 0 0 8px var(--novel-primary-glow);
-}
-.novel-writer-extension-root .quality-score {
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.novel-writer-extension-root .quality-score span {
-  color: var(--novel-primary);
-  font-size: 1.1rem;
-}
-.novel-writer-extension-root .status-text {
-  font-weight: 600;
-}
-.novel-writer-extension-root .status-default {
-  color: var(--novel-text-muted);
-}
-.novel-writer-extension-root .status-success {
-  color: var(--novel-success);
-}
-.novel-writer-extension-root .status-danger {
-  color: var(--novel-danger);
-}
-.novel-writer-extension-root .empty-tip {
-  text-align: center;
-  color: var(--novel-text-muted);
-  padding: 40px 20px;
-  font-size: 0.95rem;
-}
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+            tab.removeEventListener("click", this.boundHandlers.onTabSwitch);
+        });
 
-/* ==============================================章节列表美化============================================== */
-.novel-writer-extension-root .chapter-list {
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.novel-writer-extension-root .chapter-item {
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .chapter-item:hover {
-  border-color: var(--novel-primary);
-  background: var(--novel-bg-card-hover);
-}
-.novel-writer-extension-root .chapter-checkbox {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--novel-text-primary);
-  font-weight: 500;
-}
-.novel-writer-extension-root .chapter-title {
-  font-size: 0.95rem;
-}
-.novel-writer-extension-root .chapter-item .text-sm {
-  font-size: 0.8rem;
-}
-.novel-writer-extension-root .chapter-item .text-success {
-  color: var(--novel-success);
-}
-.novel-writer-extension-root .chapter-item .text-muted {
-  color: var(--novel-text-muted);
-}
+        document.removeEventListener("click", this.boundHandlers.onOutsideClose);
+        window.removeEventListener("resize", this.boundHandlers.resizeHandler);
+    },
 
-/* ==============================================抽屉组件美化============================================== */
-.novel-writer-extension-root .inline-drawer {
-  background: var(--novel-bg-card);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  overflow: hidden;
-  margin-bottom: 16px;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .inline-drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-  background: linear-gradient(90deg, var(--novel-bg-input) 0%, transparent 100%);
-  cursor: pointer;
-  user-select: none;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .inline-drawer-header:hover {
-  background: var(--novel-bg-card-hover);
-}
-.novel-writer-extension-root .inline-drawer-header b {
-  color: var(--novel-text-white);
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.novel-writer-extension-root .inline-drawer-header b span:first-child {
-  color: var(--novel-secondary);
-}
-.novel-writer-extension-root .inline-drawer-icon {
-  color: var(--novel-text-secondary);
-  transition: transform var(--novel-transition-fast);
-  font-size: 1rem;
-  font-weight: bold;
-}
-.novel-writer-extension-root .inline-drawer-content {
-  padding: 20px;
-  border-top: 1px solid var(--novel-border-color);
-  background: var(--novel-bg-main);
-  display: none;
-  animation: slideDown var(--novel-transition-normal);
-}
-.novel-writer-extension-root .inline-drawer.open .inline-drawer-content {
-  display: block;
-}
-.novel-writer-extension-root .inline-drawer.open .inline-drawer-icon.down {
-  transform: rotate(180deg);
-  color: var(--novel-primary);
-}
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 1000px;
-  }
-}
-.novel-writer-extension-root .drawer-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
+    // 绑定事件，完全对齐源文件逻辑
+    bindEvents() {
+        // 鼠标拖拽事件
+        this.ball.addEventListener("mousedown", this.boundHandlers.startDrag);
+        document.addEventListener("mousemove", this.boundHandlers.onDrag);
+        document.addEventListener("mouseup", this.boundHandlers.stopDrag);
+        // 核心修复：单独绑定click事件，彻底阻断冒泡
+        this.ball.addEventListener("click", this.boundHandlers.onBallClick);
 
-/* ==============================================续写链条美化============================================== */
-.novel-writer-extension-root .chain-container {
-  max-height: 650px;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.novel-writer-extension-root .continue-chapter-item {
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  padding: 16px;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .continue-chapter-item:hover {
-  border-color: var(--novel-primary);
-  box-shadow: var(--novel-shadow-sm);
-}
-.novel-writer-extension-root .continue-chapter-title {
-  color: var(--novel-text-white);
-  font-size: 1rem;
-  font-weight: 600;
-}
-.novel-writer-extension-root .continue-chapter-content {
-  margin-top: 12px;
-  min-height: 100px;
-  background: var(--novel-bg-main);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  resize: vertical;
-  width: 100%;
-  outline: none;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .continue-chapter-content:focus {
-  border-color: var(--novel-primary);
-}
+        // 触屏拖拽事件（适配移动端）
+        this.ball.addEventListener("touchstart", this.boundHandlers.startDrag, { passive: false });
+        document.addEventListener("touchmove", this.boundHandlers.onDrag, { passive: false });
+        document.addEventListener("touchend", this.boundHandlers.stopDrag);
 
-/* ==============================================小说阅读器完整样式============================================== */
-.novel-writer-extension-root #tab-reader {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-.novel-writer-extension-root #tab-reader.active {
-  display: flex;
-}
-.novel-writer-extension-root .reader-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.novel-writer-extension-root .reader-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--novel-text-white);
-}
-.novel-writer-extension-root .reader-title span:first-child {
-  color: var(--novel-primary);
-}
-.novel-writer-extension-root .reader-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.novel-writer-extension-root .reader-font-btn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  gap: 2px;
-}
-.novel-writer-extension-root .reader-content-wrap {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--novel-radius-md);
-  background: var(--novel-reader-bg);
-  border: 1px solid var(--novel-border-color);
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
-.novel-writer-extension-root .reader-content {
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  padding: 30px 40px;
-  font-size: var(--novel-reader-font-size);
-  line-height: var(--novel-reader-line-height);
-  color: var(--novel-reader-text);
-  word-break: break-word;
-  white-space: pre-wrap;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: auto;
-  overflow-anchor: none;
-}
-.novel-writer-extension-root .reader-empty-tip {
-  text-align: center;
-  color: var(--novel-text-muted);
-  padding: 60px 20px;
-  font-size: 1rem;
-}
-.novel-writer-extension-root .reader-click-mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  z-index: 1;
-  pointer-events: none;
-}
-.novel-writer-extension-root .reader-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  margin-top: 12px;
-  flex-shrink: 0;
-}
-.novel-writer-extension-root .reader-footer span {
-  color: var(--novel-text-secondary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-width: 35px;
-}
-.novel-writer-extension-root .reader-progress-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--novel-bg-input);
-  border-radius: var(--novel-radius-full);
-  overflow: hidden;
-}
-.novel-writer-extension-root .reader-progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  border-radius: var(--novel-radius-full);
-  transition: width var(--novel-transition-fast);
-  box-shadow: 0 0 6px var(--novel-primary-glow);
-}
-.novel-writer-extension-root .reader-footer .btn {
-  white-space: nowrap;
-  min-width: 80px;
-}
-.novel-writer-extension-root .reader-chapter-drawer {
-  position: absolute;
-  top: 0;
-  left: -320px;
-  width: 320px;
-  height: 100%;
-  background: var(--novel-bg-card);
-  border-right: 1px solid var(--novel-border-color);
-  box-shadow: var(--novel-shadow-lg);
-  transition: left var(--novel-transition-normal);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
-.novel-writer-extension-root .reader-chapter-drawer.show {
-  left: 0;
-}
-.novel-writer-extension-root .reader-drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
-}
-.novel-writer-extension-root .reader-drawer-header h3 {
-  color: var(--novel-text-white);
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-.novel-writer-extension-root .reader-drawer-header h3 span:first-child {
-  color: var(--novel-primary);
-}
-.novel-writer-extension-root .reader-chapter-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 0;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-}
-.novel-writer-extension-root .reader-chapter-item {
-  padding: 12px 20px;
-  color: var(--novel-text-secondary);
-  cursor: pointer;
-  transition: all var(--novel-transition-fast);
-  border-left: 3px solid transparent;
-  user-select: none;
-}
-.novel-writer-extension-root .reader-chapter-item:hover {
-  background: var(--novel-bg-input);
-  color: var(--novel-text-white);
-  border-left-color: var(--novel-primary-light);
-}
-.novel-writer-extension-root .reader-chapter-item.active {
-  background: rgba(124, 58, 237, 0.1);
-  color: var(--novel-primary-light);
-  border-left-color: var(--novel-primary);
-  font-weight: 600;
-}
-.novel-writer-extension-root .reader-chapter-branch {
-  margin-left: 20px;
-  padding-left: 15px;
-  border-left: 2px solid var(--novel-border-color);
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-.novel-writer-extension-root .reader-continue-chapter-item {
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  color: var(--novel-text-muted);
-  cursor: pointer;
-  border-radius: var(--novel-radius-sm);
-  transition: all var(--novel-transition-fast);
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
-}
-.novel-writer-extension-root .reader-continue-chapter-item::before {
-  content: "└─";
-  color: var(--novel-border-color);
-  font-size: 0.8rem;
-  flex-shrink: 0;
-}
-.novel-writer-extension-root .reader-continue-chapter-item:hover {
-  background: var(--novel-bg-input);
-  color: var(--novel-primary-light);
-}
-.novel-writer-extension-root .reader-continue-chapter-item.active {
-  background: rgba(124, 58, 237, 0.1);
-  color: var(--novel-primary-light);
-  font-weight: 600;
-}
-.novel-writer-extension-root .reader-continue-chapter-item span {
-  font-size: 0.75rem;
-  color: var(--novel-secondary);
-  flex-shrink: 0;
-}
+        // 面板关闭按钮
+        const closeBtn = document.getElementById("panel-close-btn");
+        closeBtn?.addEventListener("click", this.boundHandlers.onPanelClose);
 
-/* ==============================================响应式适配============================================== */
-@media (max-width: 768px) {
-  .novel-writer-extension-root .float-ball {
-    width: 60px;
-    height: 60px;
-    right: 15px;
-  }
-  .novel-writer-extension-root .ball-icon {
-    font-size: 1.3rem;
-  }
-  .novel-writer-extension-root .ball-tip {
-    font-size: 0.6rem;
-  }
-  .novel-writer-extension-root .writer-panel {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
-    top: 0 !important;
-    left: 0 !important;
-    transform: none !important;
-  }
-  .novel-writer-extension-root .panel-tab-item span:last-child {
-    display: none;
-  }
-  .novel-writer-extension-root .panel-tab-item {
-    padding: 14px;
-    flex: 1;
-    justify-content: center;
-  }
-  .novel-writer-extension-root .panel-tab-content {
-    padding: 12px 16px;
-  }
-  .novel-writer-extension-root .grid-2 {
-    grid-template-columns: 1fr;
-  }
-  .novel-writer-extension-root .card-header-inline {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .novel-writer-extension-root .btn-group-row {
-    width: 100%;
-  }
-  .novel-writer-extension-root .btn {
-    flex: 1;
-    justify-content: center;
-  }
-  .novel-writer-extension-root .reader-content {
-    padding: 20px 16px;
-    --novel-reader-font-size: 15px;
-  }
-  .novel-writer-extension-root .reader-chapter-drawer {
-    width: 80vw;
-    left: -80vw;
-  }
-  .novel-writer-extension-root .reader-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .novel-writer-extension-root .reader-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .novel-writer-extension-root .reader-chapter-branch {
-    margin-left: 12px;
-    padding-left: 10px;
-  }
-  .novel-writer-extension-root .reader-footer .btn {
-    min-width: 60px;
-    padding: 7px 10px;
-  }
-}
+        // 选项卡切换
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+            tab.addEventListener("click", this.boundHandlers.onTabSwitch);
+        });
+
+        // 点击外部关闭面板
+        document.addEventListener("click", this.boundHandlers.onOutsideClose);
+
+        // 窗口缩放适配
+        window.addEventListener("resize", this.boundHandlers.resizeHandler);
+    },
+
+    // 拖拽开始，对齐源文件逻辑
+    startDrag(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.isDragging = false;
+        this.isClick = true;
+        this.ball.classList.add("dragging");
+
+        // 统一获取鼠标/触屏坐标
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        const rect = this.ball.getBoundingClientRect();
+
+        this.startPos.x = clientX;
+        this.startPos.y = clientY;
+        this.offset.x = clientX - rect.left;
+        this.offset.y = clientY - rect.top;
+    },
+
+    // 拖拽中，对齐源文件位置计算逻辑
+    onDrag(e) {
+        if (!this.ball.classList.contains("dragging")) return;
+
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+        // 计算移动距离，超过阈值判定为拖拽
+        const moveX = Math.abs(clientX - this.startPos.x);
+        const moveY = Math.abs(clientY - this.startPos.y);
+        if (moveX > this.minMoveDistance || moveY > this.minMoveDistance) {
+            this.isClick = false;
+            this.isDragging = true;
+        }
+
+        // 非拖拽状态不执行位置更新
+        if (!this.isDragging) return;
+
+        // 彻底阻止浏览器默认行为，避免拖拽时页面滚动
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 计算安全边界，确保悬浮球不会超出屏幕
+        let x = clientX - this.offset.x;
+        let y = clientY - this.offset.y;
+        const maxX = window.innerWidth - this.ball.offsetWidth;
+        const maxY = window.innerHeight - this.ball.offsetHeight;
+        x = Math.max(10, Math.min(x, maxX - 10));
+        y = Math.max(10, Math.min(y, maxY - 10));
+
+        // 更新位置，清除所有冲突的transform属性
+        this.ball.style.left = `${x}px`;
+        this.ball.style.top = `${y}px`;
+        this.ball.style.right = 'auto';
+        this.ball.style.transform = 'none'; // 核心修复：彻底清除transform，避免hover冲突
+    },
+
+    // 拖拽结束，对齐源文件逻辑
+    stopDrag(e) {
+        if (!this.ball.classList.contains("dragging")) return;
+        this.ball.classList.remove("dragging");
+
+        // 拖拽结束执行边缘吸附
+        if (this.isDragging) {
+            this.autoAdsorbEdge();
+            // 保存拖拽后的位置
+            const rect = this.ball.getBoundingClientRect();
+            extension_settings[extensionName].floatBallState.position = { x: rect.left, y: rect.top };
+            saveSettingsDebounced();
+        }
+
+        // 下一帧重置状态，避免影响click事件
+        requestAnimationFrame(() => {
+            this.isDragging = false;
+            this.isClick = false;
+        });
+    },
+
+    // 核心修复：悬浮球点击事件，彻底阻断所有冒泡，避免面板闪关
+    onBallClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // 拖拽过程中不触发点击
+        if (this.isDragging) {
+            console.log("[小说续写插件] 拖拽操作，不触发点击");
+            return;
+        }
+
+        console.log("[小说续写插件] 悬浮球点击，切换面板");
+        this.togglePanel();
+    },
+
+    // 点击外部关闭面板，对齐源文件逻辑
+    onOutsideClose(e) {
+        const isInPanel = e.target.closest("#novel-writer-panel");
+        const isInBall = e.target.closest("#novel-writer-float-ball");
+        // 仅当点击既不在面板也不在悬浮球时，才关闭面板
+        if (!isInPanel && !isInBall && this.panel.classList.contains("show")) {
+            console.log("[小说续写插件] 点击外部，关闭面板");
+            this.hidePanel();
+        }
+    },
+
+    // 面板关闭按钮事件
+    onPanelClose(e) {
+        e.stopPropagation();
+        this.hidePanel();
+    },
+
+    // 选项卡切换事件
+    onTabSwitch(e) {
+        e.stopPropagation();
+        const tabId = e.currentTarget.dataset.tab;
+        this.switchTab(tabId);
+    },
+
+    // 边缘吸附，完全对齐源文件逻辑：仅左右吸附，不改变垂直位置
+    autoAdsorbEdge() {
+        const rect = this.ball.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const centerX = windowWidth / 2;
+
+        // 仅左右吸附，垂直位置完全保留用户拖拽的位置
+        const targetLeft = rect.left < centerX ? 10 : windowWidth - this.ball.offsetWidth - 10;
+        // 垂直方向安全边界，避免超出屏幕
+        const maxY = window.innerHeight - this.ball.offsetHeight;
+        const safeTop = Math.max(10, Math.min(rect.top, maxY - 10));
+
+        // 更新位置，彻底清除transform
+        this.ball.style.left = `${targetLeft}px`;
+        this.ball.style.top = `${safeTop}px`;
+        this.ball.style.right = 'auto';
+        this.ball.style.transform = 'none';
+
+        // 保存位置
+        const newRect = this.ball.getBoundingClientRect();
+        extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
+        saveSettingsDebounced();
+    },
+
+    // 面板开关，对齐源文件逻辑，修复过渡动画问题
+    togglePanel() {
+        this.panel.classList.contains("show") ? this.hidePanel() : this.showPanel();
+    },
+
+    showPanel() {
+        // 先设置display，再触发过渡，解决display:none无法过渡的问题
+        this.panel.style.display = "flex";
+        this.panel.style.opacity = "0";
+        this.panel.style.transform = "translate(-50%, -50%) scale(0.8)";
+        
+        // 下一帧添加show类，触发过渡，对齐源文件显示逻辑
+        requestAnimationFrame(() => {
+            this.panel.classList.add("show");
+            this.panel.style.opacity = "1";
+            this.panel.style.transform = "translate(-50%, -50%) scale(1)";
+            extension_settings[extensionName].floatBallState.isPanelOpen = true;
+            saveSettingsDebounced();
+            console.log("[小说续写插件] 面板已打开");
+        });
+    },
+
+    hidePanel() {
+        this.panel.classList.remove("show");
+        this.panel.style.opacity = "0";
+        this.panel.style.transform = "translate(-50%, -50%) scale(0.8)";
+        
+        // 过渡结束后隐藏，对齐源文件关闭逻辑
+        setTimeout(() => {
+            if (!this.panel.classList.contains("show")) {
+                this.panel.style.display = "none";
+            }
+        }, 300);
+        
+        extension_settings[extensionName].floatBallState.isPanelOpen = false;
+        saveSettingsDebounced();
+        console.log("[小说续写插件] 面板已关闭");
+    },
+
+    switchTab(tabId) {
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+            tab.classList.toggle("active", tab.dataset.tab === tabId);
+        });
+        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
+            panel.classList.toggle("active", panel.id === tabId);
+        });
+        extension_settings[extensionName].floatBallState.activeTab = tabId;
+        saveSettingsDebounced();
+    },
+
+    // 恢复状态，对齐源文件逻辑
+    restoreState() {
+        const state = extension_settings[extensionName].floatBallState || defaultSettings.floatBallState;
+        // 计算安全位置
+        const maxX = window.innerWidth - this.ball.offsetWidth;
+        const maxY = window.innerHeight - this.ball.offsetHeight;
+        const safeX = Math.max(10, Math.min(state.position.x, maxX - 10));
+        const safeY = Math.max(10, Math.min(state.position.y, maxY - 10));
+
+        // 恢复位置，清除transform
+        this.ball.style.left = `${safeX}px`;
+        this.ball.style.top = `${safeY}px`;
+        this.ball.style.right = "auto";
+        this.ball.style.transform = "none";
+
+        // 恢复标签页
+        this.switchTab(state.activeTab);
+        // 恢复面板状态
+        if (state.isPanelOpen) {
+            this.showPanel();
+        } else {
+            this.hidePanel();
+        }
+    }
+};
