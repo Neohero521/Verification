@@ -55,7 +55,7 @@ export async function generateChapterGraphBatch(chapters) {
     state.stopGenerateFlag = false;
     let successCount = 0;
     const totalCount = chapters.length;
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
 
     setButtonDisabled("#graph-single-btn, #graph-batch-btn, #graph-merge-btn", true);
     setButtonDisabled("#graph-stop-btn", false);
@@ -86,8 +86,8 @@ export async function generateChapterGraphBatch(chapters) {
             }
         }
 
-        extension_settings.Always_remember_me.chapterGraphMap = graphMap;
-        extension_settings.Always_remember_me.chapterList = state.currentParsedChapters;
+        extension_settings.Verification.chapterGraphMap = graphMap;
+        extension_settings.Verification.chapterList = state.currentParsedChapters;
         saveSettingsDebounced();
         renderChapterList(state.currentParsedChapters);
 
@@ -112,7 +112,7 @@ export async function generateChapterGraphBatch(chapters) {
 export async function mergeAllGraphs() {
     const context = getContext();
     const { generateRaw } = context;
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
     const graphList = Object.values(graphMap);
 
     if (graphList.length === 0) {
@@ -148,7 +148,7 @@ ${JSON.stringify(graphList, null, 2)}
         });
 
         const mergedGraph = JSON.parse(removeBOM(result.trim()));
-        extension_settings.Always_remember_me.mergedGraph = mergedGraph;
+        extension_settings.Verification.mergedGraph = mergedGraph;
         saveSettingsDebounced();
         $("#merged-graph-preview").val(JSON.stringify(mergedGraph, null, 2));
         toastr.success('知识图谱合并完成！', "小说续写器");
@@ -164,7 +164,7 @@ ${JSON.stringify(graphList, null, 2)}
 
 // 校验图谱合规性
 export async function validateGraphCompliance() {
-    const mergedGraph = extension_settings.Always_remember_me.mergedGraph || {};
+    const mergedGraph = extension_settings.Verification.mergedGraph || {};
     const fullRequiredFields = mergeGraphJsonSchema.value.required;
     const singleRequiredFields = graphJsonSchema.value.required;
 
@@ -199,7 +199,7 @@ export async function validateGraphCompliance() {
 
     $("#graph-validate-content").val(result);
     $("#graph-validate-result").show();
-    extension_settings.Always_remember_me.graphValidateResultShow = true;
+    extension_settings.Verification.graphValidateResultShow = true;
     saveSettingsDebounced();
 
     isPass ? toastr.success('图谱合规性校验通过', "小说续写器") : toastr.warning('图谱合规性校验不通过', "小说续写器");
@@ -208,7 +208,7 @@ export async function validateGraphCompliance() {
 
 // 校验章节图谱状态
 export async function validateChapterGraphStatus() {
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
     if (state.currentParsedChapters.length === 0) {
         toastr.warning('请先上传小说文件并解析章节', "小说续写器");
         return;
@@ -272,12 +272,12 @@ ${modifiedContent}
         });
 
         const graphData = JSON.parse(removeBOM(result.trim()));
-        const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+        const graphMap = extension_settings.Verification.chapterGraphMap || {};
         graphMap[chapterId] = graphData;
 
-        extension_settings.Always_remember_me.chapterGraphMap = graphMap;
+        extension_settings.Verification.chapterGraphMap = graphMap;
         targetChapter.content = modifiedContent;
-        extension_settings.Always_remember_me.chapterList = state.currentParsedChapters;
+        extension_settings.Verification.chapterList = state.currentParsedChapters;
         saveSettingsDebounced();
 
         renderChapterList(state.currentParsedChapters);
@@ -295,7 +295,7 @@ ${modifiedContent}
 export async function updateGraphWithContinueContent(chapter) {
     const context = getContext();
     const { generateRaw } = context;
-    const graphMap = extension_settings.Always_remember_me.chapterGraphMap || {};
+    const graphMap = extension_settings.Verification.chapterGraphMap || {};
 
     const systemPrompt = `
 你是专业的小说知识图谱构建专家，严格按照给定的JSON Schema输出，不能有任何额外内容，不能有markdown格式，必须是纯JSON。
@@ -322,7 +322,7 @@ ${chapter.content}
 
         const graphData = JSON.parse(removeBOM(result.trim()));
         graphMap[chapter.id] = graphData;
-        extension_settings.Always_remember_me.chapterGraphMap = graphMap;
+        extension_settings.Verification.chapterGraphMap = graphMap;
         saveSettingsDebounced();
         return graphData;
     } catch (error) {
