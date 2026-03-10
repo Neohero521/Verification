@@ -1,13 +1,15 @@
-// 【Verification悬浮球核心】严格对齐Cola仓库floating-ball.js实现
+// 【Verification悬浮球核心】彻底修复拖拽、点击问题，严格对齐Cola仓库floating-ball.js
 import { extension_settings, saveSettingsDebounced, defaultSettings, extensionName } from './config.js';
 import { debounce } from './utils.js';
 
-// 单例模式，对齐Cola的实现，防止重复初始化
+// 单例模式，防止重复初始化
 export const FloatBall = {
     isInited: false,
     ball: null,
     panel: null,
     root: null,
+    closeBtn: null,
+    tabItems: [],
     isDragging: false,
     isClick: false,
     startPos: { x: 0, y: 0 },
@@ -16,10 +18,10 @@ export const FloatBall = {
     ballSize: 70,
     zIndex: 9999999,
 
-    // 核心：动态创建DOM，不依赖外部HTML，对齐Cola的结构
+    // 核心：动态创建DOM，100%隔离，不依赖外部文件
     create() {
-        console.log('[Verification] 开始创建悬浮球DOM');
-        // 根容器，完全隔离
+        console.log('[Verification FloatBall] 开始创建DOM元素');
+        // 根容器，完全隔离，不影响页面
         this.root = document.createElement('div');
         this.root.className = 'Verification-extension-root';
         this.root.id = 'Verification-extension-root';
@@ -37,66 +39,63 @@ export const FloatBall = {
             background: transparent !important;
         `;
 
-        // 悬浮球核心DOM，行内强制样式兜底，即使CSS不加载也能显示
+        // 悬浮球核心：行内样式兜底，CSS不加载也能正常显示
         this.ball = document.createElement('div');
         this.ball.id = 'Verification-float-ball';
         this.ball.className = 'Verification-float-ball';
-        // 【强制行内样式兜底】核心显示样式全部写在行内，加!important
-        this.ball.style.cssText = `
-            position: fixed !important;
-            right: 20px !important;
-            top: 50% !important;
-            transform: translateY(-50%) !important;
-            width: ${this.ballSize}px !important;
-            height: ${this.ballSize}px !important;
-            border-radius: 999px !important;
-            background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%) !important;
-            box-shadow: 0 0 25px rgba(124, 58, 237, 0.7), 0 4px 15px rgba(0, 0, 0, 0.5) !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
-            cursor: pointer !important;
-            z-index: ${this.zIndex} !important;
-            transition: all 0.3s ease !important;
-            user-select: none !important;
-            border: 2px solid rgba(255, 255, 255, 0.1) !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            touch-action: none !important;
-            -webkit-user-select: none !important;
-        `;
+        // 【修复】用setProperty设置带!important的样式，直接赋值无效
+        this.ball.style.setProperty('position', 'fixed', 'important');
+        this.ball.style.setProperty('right', '20px', 'important');
+        this.ball.style.setProperty('top', '50%', 'important');
+        this.ball.style.setProperty('transform', 'translateY(-50%)', 'important');
+        this.ball.style.setProperty('width', `${this.ballSize}px`, 'important');
+        this.ball.style.setProperty('height', `${this.ballSize}px`, 'important');
+        this.ball.style.setProperty('border-radius', '999px', 'important');
+        this.ball.style.setProperty('background', 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%)', 'important');
+        this.ball.style.setProperty('box-shadow', '0 0 25px rgba(124, 58, 237, 0.7), 0 4px 15px rgba(0, 0, 0, 0.5)', 'important');
+        this.ball.style.setProperty('display', 'flex', 'important');
+        this.ball.style.setProperty('flex-direction', 'column', 'important');
+        this.ball.style.setProperty('align-items', 'center', 'important');
+        this.ball.style.setProperty('justify-content', 'center', 'important');
+        this.ball.style.setProperty('cursor', 'pointer', 'important');
+        this.ball.style.setProperty('z-index', `${this.zIndex}`, 'important');
+        this.ball.style.setProperty('transition', 'all 0.3s ease', 'important');
+        this.ball.style.setProperty('user-select', 'none', 'important');
+        this.ball.style.setProperty('border', '2px solid rgba(255, 255, 255, 0.1)', 'important');
+        this.ball.style.setProperty('visibility', 'visible', 'important');
+        this.ball.style.setProperty('opacity', '1', 'important');
+        this.ball.style.setProperty('touch-action', 'none', 'important');
+        this.ball.style.setProperty('-webkit-user-select', 'none', 'important');
+        // 悬浮球内部内容
         this.ball.innerHTML = `
             <div style="font-size: 1.5rem !important; color: white !important; margin-bottom: 2px !important; line-height: 1 !important;">📖</div>
             <div style="font-size: 0.7rem !important; color: white !important; font-weight: 600 !important; text-align: center !important; line-height: 1 !important;">小说续写</div>
         `;
 
-        // 面板DOM，对齐Cola的面板结构
+        // 功能面板：行内样式兜底，点击必显示
         this.panel = document.createElement('div');
         this.panel.id = 'Verification-panel';
         this.panel.className = 'Verification-panel';
-        this.panel.style.cssText = `
-            position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) scale(0.8) !important;
-            width: 900px !important;
-            height: 850px !important;
-            max-width: 95vw !important;
-            max-height: 95vh !important;
-            background: linear-gradient(135deg, #0c0c18 0%, #101022 100%) !important;
-            border: 1px solid #334155 !important;
-            border-radius: 16px !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 0, 0, 0.8) !important;
-            display: none !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
-            z-index: ${this.zIndex - 1} !important;
-            opacity: 0 !important;
-            transition: all 0.3s ease !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-        `;
-        // 面板HTML内容，完全对齐Cola的结构
+        this.panel.style.setProperty('position', 'fixed', 'important');
+        this.panel.style.setProperty('top', '50%', 'important');
+        this.panel.style.setProperty('left', '50%', 'important');
+        this.panel.style.setProperty('transform', 'translate(-50%, -50%) scale(0.8)', 'important');
+        this.panel.style.setProperty('width', '900px', 'important');
+        this.panel.style.setProperty('height', '850px', 'important');
+        this.panel.style.setProperty('max-width', '95vw', 'important');
+        this.panel.style.setProperty('max-height', '95vh', 'important');
+        this.panel.style.setProperty('background', 'linear-gradient(135deg, #0c0c18 0%, #101022 100%)', 'important');
+        this.panel.style.setProperty('border', '1px solid #334155', 'important');
+        this.panel.style.setProperty('border-radius', '16px', 'important');
+        this.panel.style.setProperty('box-shadow', '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 0, 0, 0.8)', 'important');
+        this.panel.style.setProperty('display', 'none', 'important');
+        this.panel.style.setProperty('flex-direction', 'column', 'important');
+        this.panel.style.setProperty('overflow', 'hidden', 'important');
+        this.panel.style.setProperty('z-index', `${this.zIndex - 1}`, 'important');
+        this.panel.style.setProperty('opacity', '0', 'important');
+        this.panel.style.setProperty('transition', 'all 0.3s ease', 'important');
+        this.panel.style.setProperty('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 'important');
+        // 面板内部HTML，完整功能
         this.panel.innerHTML = `
             <div class="panel-header" style="display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 16px 24px !important; background: linear-gradient(90deg, #151528 0%, #0c0c18 100%) !important; border-bottom: 1px solid #334155 !important; flex-shrink: 0 !important;">
                 <div class="panel-title" style="display: flex !important; align-items: center !important; gap: 10px !important; font-weight: 700 !important; font-size: 1.25rem !important; color: #f8fafc !important;">
@@ -196,18 +195,26 @@ export const FloatBall = {
             </div>
         `;
 
-        // 组装DOM
+        // 组装DOM，先append到root，再append到body
         this.root.appendChild(this.ball);
         this.root.appendChild(this.panel);
         document.body.appendChild(this.root);
 
-        console.log('[Verification] 悬浮球DOM创建完成，已append到document.body');
+        // 【修复】从root内查询元素，避免全局冲突，确保找到正确的元素
+        this.closeBtn = this.root.querySelector('#panel-close-btn');
+        this.tabItems = this.root.querySelectorAll('.panel-tab-item');
+        console.log('[Verification FloatBall] DOM创建完成，元素查询成功', {
+            ball: this.ball,
+            panel: this.panel,
+            closeBtn: this.closeBtn,
+            tabItems: this.tabItems
+        });
     },
 
-    // 初始化，对齐Cola的init流程
+    // 【修复】用箭头函数绑定事件，确保this指向正确，不会丢失
     init() {
         if (this.isInited) {
-            console.log('[Verification] 悬浮球已初始化，跳过重复执行');
+            console.log('[Verification FloatBall] 已初始化，跳过重复执行');
             return;
         }
 
@@ -216,57 +223,73 @@ export const FloatBall = {
             this.bindEvents();
             this.restoreState();
             this.isInited = true;
-            console.log('[Verification] 悬浮球全量初始化完成，已强制显示在屏幕右侧');
+            // 挂载到window，方便用户控制台调试
+            window.VerificationFloatBall = this;
+            console.log('[Verification FloatBall] 初始化完成！已挂载到window.VerificationFloatBall');
+            toastr.success('悬浮球初始化完成', 'Verification插件');
         } catch (error) {
-            console.error('[Verification] 悬浮球初始化失败', error);
+            console.error('[Verification FloatBall] 初始化失败', error);
+            toastr.error('悬浮球初始化失败，详情查看控制台', 'Verification插件');
             throw error;
         }
     },
 
-    // 绑定事件，对齐Cola的事件处理逻辑
+    // 【修复】事件绑定全用箭头函数，确保this指向正确，每个事件加日志
     bindEvents() {
-        // 拖动事件，同时支持鼠标和触摸
-        this.ball.addEventListener("mousedown", this.startDrag.bind(this));
-        document.addEventListener("mousemove", this.onDrag.bind(this));
-        document.addEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
-        document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
-        document.addEventListener("touchend", this.stopDrag.bind(this));
+        console.log('[Verification FloatBall] 开始绑定事件');
+        // 拖动事件：鼠标+触摸，全兼容
+        this.ball.addEventListener("mousedown", (e) => this.startDrag(e));
+        document.addEventListener("mousemove", (e) => this.onDrag(e));
+        document.addEventListener("mouseup", (e) => this.stopDrag(e));
+        this.ball.addEventListener("touchstart", (e) => this.startDrag(e), { passive: false });
+        document.addEventListener("touchmove", (e) => this.onDrag(e), { passive: false });
+        document.addEventListener("touchend", (e) => this.stopDrag(e));
 
-        // 面板关闭事件
-        document.getElementById("panel-close-btn").addEventListener("click", (e) => {
-            e.stopPropagation();
-            this.hidePanel();
-        });
-
-        // 选项卡切换
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
-            tab.addEventListener("click", (e) => {
+        // 关闭按钮事件
+        if (this.closeBtn) {
+            this.closeBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.switchTab(e.currentTarget.dataset.tab);
+                console.log('[Verification FloatBall] 点击关闭按钮');
+                this.hidePanel();
             });
-        });
+        }
+
+        // 选项卡切换事件
+        if (this.tabItems.length > 0) {
+            this.tabItems.forEach(tab => {
+                tab.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const tabId = e.currentTarget.dataset.tab;
+                    console.log('[Verification FloatBall] 切换选项卡', tabId);
+                    this.switchTab(tabId);
+                });
+            });
+        }
 
         // 点击外部关闭面板
-        document.addEventListener("click", this.outsideClose.bind(this));
+        document.addEventListener("click", (e) => this.outsideClose(e));
 
         // 窗口大小变化适配
-        window.addEventListener("resize", debounce(this.autoAdsorbEdge.bind(this), 200));
+        window.addEventListener("resize", debounce(() => this.autoAdsorbEdge(), 200));
+
+        console.log('[Verification FloatBall] 事件绑定完成');
     },
 
     // 点击外部关闭面板
     outsideClose(e) {
-        const isInPanel = e.target.closest("#Verification-panel");
-        const isInBall = e.target.closest("#Verification-float-ball");
-        if (!isInPanel && !isInBall && this.panel.classList.contains("show")) {
+        const isInPanel = e.target.closest('#Verification-panel');
+        const isInBall = e.target.closest('#Verification-float-ball');
+        if (!isInPanel && !isInBall && this.panel.style.display === 'flex') {
+            console.log('[Verification FloatBall] 点击外部，关闭面板');
             this.hidePanel();
         }
     },
 
-    // 开始拖动
+    // 【修复】开始拖动，加日志，确保事件触发
     startDrag(e) {
         e.preventDefault();
         e.stopPropagation();
+        console.log('[Verification FloatBall] 开始拖动/点击', e.type);
         this.isDragging = false;
         this.isClick = true;
         this.ball.classList.add("dragging");
@@ -281,7 +304,7 @@ export const FloatBall = {
         this.offset.y = clientY - rect.top;
     },
 
-    // 拖动中
+    // 【修复】拖动中，用setProperty设置样式，确保位置生效，加日志
     onDrag(e) {
         if (!this.ball.classList.contains("dragging")) return;
 
@@ -290,157 +313,209 @@ export const FloatBall = {
         const moveX = Math.abs(clientX - this.startPos.x);
         const moveY = Math.abs(clientY - this.startPos.y);
 
+        // 区分点击和拖动
         if (moveX > this.minMoveDistance || moveY > this.minMoveDistance) {
             this.isClick = false;
             this.isDragging = true;
         }
 
         if (!this.isDragging) return;
+        console.log('[Verification FloatBall] 拖动中', { clientX, clientY });
 
+        // 计算安全位置
         let x = clientX - this.offset.x;
         let y = clientY - this.offset.y;
-
         const maxX = window.innerWidth - this.ball.offsetWidth;
         const maxY = window.innerHeight - this.ball.offsetHeight;
         x = Math.max(0, Math.min(x, maxX));
         y = Math.max(0, Math.min(y, maxY));
 
-        // 应用位置，强制行内样式
-        this.ball.style.left = `${x}px !important`;
-        this.ball.style.top = `${y}px !important`;
-        this.ball.style.right = 'auto !important';
-        this.ball.style.transform = 'none !important';
+        // 【修复】用setProperty设置带!important的样式，确保生效
+        this.ball.style.setProperty('left', `${x}px`, 'important');
+        this.ball.style.setProperty('top', `${y}px`, 'important');
+        this.ball.style.setProperty('right', 'auto', 'important');
+        this.ball.style.setProperty('transform', 'none', 'important');
 
         // 保存位置
-        if (extension_settings?.[extensionName]?.floatBallState) {
-            extension_settings[extensionName].floatBallState.position = { x, y };
-            saveSettingsDebounced();
+        try {
+            if (extension_settings?.[extensionName]?.floatBallState) {
+                extension_settings[extensionName].floatBallState.position = { x, y };
+                saveSettingsDebounced();
+            }
+        } catch (error) {
+            console.warn('[Verification FloatBall] 保存位置失败', error);
         }
     },
 
-    // 结束拖动
+    // 结束拖动，加日志
     stopDrag(e) {
         if (!this.ball.classList.contains("dragging")) return;
+        console.log('[Verification FloatBall] 结束拖动/点击', { isClick: this.isClick, isDragging: this.isDragging });
 
         this.ball.classList.remove("dragging");
 
+        // 点击事件：未拖动则切换面板
         if (this.isClick && !this.isDragging) {
             this.togglePanel();
         }
 
+        // 拖动结束：自动吸附边缘
         if (this.isDragging) {
             this.autoAdsorbEdge();
         }
 
+        // 重置状态
         this.isDragging = false;
         this.isClick = false;
     },
 
-    // 自动吸附边缘
+    // 自动吸附边缘，用setProperty设置样式
     autoAdsorbEdge() {
         const rect = this.ball.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const centerX = windowWidth / 2;
 
-        if (rect.left < centerX) {
-            this.ball.style.left = "10px !important";
-        } else {
-            this.ball.style.left = `${windowWidth - this.ball.offsetWidth - 10}px !important`;
-        }
-
-        this.ball.style.right = "auto !important";
-        this.ball.style.transform = "none !important";
+        // 吸附到左右边缘
+        let targetX = rect.left < centerX ? 10 : windowWidth - this.ball.offsetWidth - 10;
+        this.ball.style.setProperty('left', `${targetX}px`, 'important');
+        this.ball.style.setProperty('right', 'auto', 'important');
+        this.ball.style.setProperty('transform', 'none', 'important');
 
         // 保存位置
-        const newRect = this.ball.getBoundingClientRect();
-        if (extension_settings?.[extensionName]?.floatBallState) {
-            extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
-            saveSettingsDebounced();
+        try {
+            const newRect = this.ball.getBoundingClientRect();
+            if (extension_settings?.[extensionName]?.floatBallState) {
+                extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
+                saveSettingsDebounced();
+            }
+        } catch (error) {
+            console.warn('[Verification FloatBall] 保存吸附位置失败', error);
         }
     },
 
-    // 面板切换
+    // 【修复】面板切换，统一用style，不用class，避免冲突，加日志
     togglePanel() {
-        this.panel.classList.contains("show") ? this.hidePanel() : this.showPanel();
+        const isShow = this.panel.style.display === 'flex';
+        console.log('[Verification FloatBall] 切换面板', isShow ? '关闭' : '打开');
+        isShow ? this.hidePanel() : this.showPanel();
     },
 
-    // 显示面板
+    // 显示面板，统一用style设置，必显示
     showPanel() {
-        this.panel.style.display = 'flex !important';
-        this.panel.style.opacity = '1 !important';
-        this.panel.style.transform = 'translate(-50%, -50%) scale(1) !important';
-        this.panel.classList.add("show");
-        if (extension_settings?.[extensionName]?.floatBallState) {
-            extension_settings[extensionName].floatBallState.isPanelOpen = true;
-            saveSettingsDebounced();
+        this.panel.style.setProperty('display', 'flex', 'important');
+        this.panel.style.setProperty('opacity', '1', 'important');
+        this.panel.style.setProperty('transform', 'translate(-50%, -50%) scale(1)', 'important');
+        // 保存状态
+        try {
+            if (extension_settings?.[extensionName]?.floatBallState) {
+                extension_settings[extensionName].floatBallState.isPanelOpen = true;
+                saveSettingsDebounced();
+            }
+        } catch (error) {
+            console.warn('[Verification FloatBall] 保存面板状态失败', error);
         }
+        console.log('[Verification FloatBall] 面板已打开');
     },
 
-    // 隐藏面板
+    // 隐藏面板，统一用style设置
     hidePanel() {
-        this.panel.style.display = 'none !important';
-        this.panel.style.opacity = '0 !important';
-        this.panel.style.transform = 'translate(-50%, -50%) scale(0.8) !important';
-        this.panel.classList.remove("show");
-        if (extension_settings?.[extensionName]?.floatBallState) {
-            extension_settings[extensionName].floatBallState.isPanelOpen = false;
-            saveSettingsDebounced();
+        this.panel.style.setProperty('display', 'none', 'important');
+        this.panel.style.setProperty('opacity', '0', 'important');
+        this.panel.style.setProperty('transform', 'translate(-50%, -50%) scale(0.8)', 'important');
+        // 保存状态
+        try {
+            if (extension_settings?.[extensionName]?.floatBallState) {
+                extension_settings[extensionName].floatBallState.isPanelOpen = false;
+                saveSettingsDebounced();
+            }
+        } catch (error) {
+            console.warn('[Verification FloatBall] 保存面板状态失败', error);
         }
+        console.log('[Verification FloatBall] 面板已关闭');
     },
 
-    // 切换选项卡
+    // 切换选项卡，用style设置显示隐藏，加日志
     switchTab(tabId) {
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+        // 切换选项卡样式
+        this.tabItems.forEach(tab => {
             const isActive = tab.dataset.tab === tabId;
             tab.classList.toggle("active", isActive);
-            tab.style.background = isActive ? 'linear-gradient(180deg, #6d28d9 0%, #7c3aed 100%) !important' : 'transparent !important';
-            tab.style.color = isActive ? 'white !important' : '#94a3b8 !important';
+            tab.style.setProperty('background', isActive ? 'linear-gradient(180deg, #6d28d9 0%, #7c3aed 100%)' : 'transparent', 'important');
+            tab.style.setProperty('color', isActive ? 'white' : '#94a3b8', 'important');
         });
-        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
+
+        // 切换面板显示
+        const allPanels = this.root.querySelectorAll('.panel-tab-panel');
+        allPanels.forEach(panel => {
             const isActive = panel.id === tabId;
-            panel.classList.toggle("active", isActive);
-            panel.style.display = isActive ? 'block !important' : 'none !important';
+            panel.style.setProperty('display', isActive ? 'block' : 'none', 'important');
         });
-        if (extension_settings?.[extensionName]?.floatBallState) {
-            extension_settings[extensionName].floatBallState.activeTab = tabId;
-            saveSettingsDebounced();
+
+        // 保存状态
+        try {
+            if (extension_settings?.[extensionName]?.floatBallState) {
+                extension_settings[extensionName].floatBallState.activeTab = tabId;
+                saveSettingsDebounced();
+            }
+        } catch (error) {
+            console.warn('[Verification FloatBall] 保存选项卡状态失败', error);
         }
     },
 
-    // 恢复状态
+    // 恢复状态，加容错
     restoreState() {
-        if (!extension_settings?.[extensionName]) return;
-        const settings = extension_settings[extensionName];
-        const floatState = settings.floatBallState || defaultSettings.floatBallState;
-        const ballWidth = this.ball.offsetWidth || this.ballSize;
-        const ballHeight = this.ball.offsetHeight || this.ballSize;
-        const maxX = window.innerWidth - ballWidth;
-        const maxY = window.innerHeight - ballHeight;
+        try {
+            if (!extension_settings?.[extensionName]) return;
+            const settings = extension_settings[extensionName];
+            const floatState = settings.floatBallState || defaultSettings.floatBallState;
+            const ballWidth = this.ball.offsetWidth || this.ballSize;
+            const ballHeight = this.ball.offsetHeight || this.ballSize;
+            const maxX = window.innerWidth - ballWidth;
+            const maxY = window.innerHeight - ballHeight;
 
-        // 无效位置兜底
-        let safeX = floatState.position.x;
-        let safeY = floatState.position.y;
-        if (isNaN(safeX) || isNaN(safeY) || safeX <= 0 || safeY <= 0 || safeX > maxX || safeY > maxY) {
-            safeX = window.innerWidth - ballWidth - 20;
-            safeY = window.innerHeight / 2 - ballHeight / 2;
+            // 无效位置兜底
+            let safeX = floatState.position.x;
+            let safeY = floatState.position.y;
+            if (isNaN(safeX) || isNaN(safeY) || safeX <= 0 || safeY <= 0 || safeX > maxX || safeY > maxY) {
+                safeX = window.innerWidth - ballWidth - 20;
+                safeY = window.innerHeight / 2 - ballHeight / 2;
+            }
+
+            safeX = Math.max(0, Math.min(safeX, maxX));
+            safeY = Math.max(0, Math.min(safeY, maxY));
+
+            // 应用位置
+            this.ball.style.setProperty('left', `${safeX}px`, 'important');
+            this.ball.style.setProperty('top', `${safeY}px`, 'important');
+            this.ball.style.setProperty('right', 'auto', 'important');
+            this.ball.style.setProperty('transform', 'none', 'important');
+
+            // 恢复其他状态
+            this.switchTab(floatState.activeTab);
+            if (floatState.isPanelOpen) this.showPanel();
+
+            // 保存修正后的位置
+            settings.floatBallState.position = { x: safeX, y: safeY };
+            saveSettingsDebounced();
+            console.log('[Verification FloatBall] 状态恢复完成');
+        } catch (error) {
+            console.error('[Verification FloatBall] 恢复状态失败', error);
         }
+    },
 
-        safeX = Math.max(0, Math.min(safeX, maxX));
-        safeY = Math.max(0, Math.min(safeY, maxY));
+    // 强制显示方法，控制台可调用
+    forceShow() {
+        this.ball.style.setProperty('display', 'flex', 'important');
+        this.ball.style.setProperty('visibility', 'visible', 'important');
+        this.ball.style.setProperty('opacity', '1', 'important');
+        this.ball.style.setProperty('z-index', '9999999', 'important');
+        console.log('[Verification FloatBall] 已强制显示悬浮球');
+    },
 
-        // 应用位置
-        this.ball.style.left = `${safeX}px !important`;
-        this.ball.style.top = `${safeY}px !important`;
-        this.ball.style.right = "auto !important";
-        this.ball.style.transform = "none !important";
-
-        // 恢复其他状态
-        this.switchTab(floatState.activeTab);
-        if (floatState.isPanelOpen) this.showPanel();
-
-        // 保存修正后的位置
-        settings.floatBallState.position = { x: safeX, y: safeY };
-        saveSettingsDebounced();
+    // 强制重新绑定事件，控制台可调用
+    forceBindEvents() {
+        this.bindEvents();
+        console.log('[Verification FloatBall] 已强制重新绑定事件');
     },
 
     // 销毁方法
@@ -452,6 +527,7 @@ export const FloatBall = {
         this.ball = null;
         this.panel = null;
         this.root = null;
-        console.log('[Verification] 悬浮球已销毁');
+        window.VerificationFloatBall = null;
+        console.log('[Verification FloatBall] 已销毁');
     }
 };
