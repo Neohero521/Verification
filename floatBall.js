@@ -1,7 +1,7 @@
 import { debounce } from "./utils.js";
 import { extension_settings, extensionName, defaultSettings, saveSettingsDebounced } from "./constants.js";
 
-// 可移动悬浮球核心模块（原有逻辑100%保留，修复所有语法错误）
+// 可移动悬浮球核心模块（完整修复版，解决位置错误、面板无法打开问题）
 export const FloatBall = {
     ball: null,
     panel: null,
@@ -9,8 +9,8 @@ export const FloatBall = {
     isClick: false,
     startPos: { x: 0, y: 0 },
     offset: { x: 0, y: 0 },
-    minMoveDistance: 3,
-
+    minMoveDistance: 5,
+    boundHandlers: {},
     init() {
         this.ball = document.getElementById("novel-writer-float-ball");
         this.panel = document.getElementById("novel-writer-panel");
@@ -24,54 +24,60 @@ export const FloatBall = {
             toastr.error("小说续写插件加载失败：面板元素未找到", "插件错误");
             return;
         }
+        this.boundHandlers = {
+            startDrag: this.startDrag.bind(this),
+            onDrag: this.onDrag.bind(this),
+            stopDrag: this.stopDrag.bind(this),
+            hidePanel: this.hidePanel.bind(this),
+            switchTab: this.switchTab.bind(this),
+            outsideClose: this.outsideClose.bind(this),
+            resizeHandler: this.resizeHandler.bind(this)
+        };
         console.log("[小说续写插件] 悬浮球初始化成功");
         this.bindEvents();
-        this.restoreState();
-        this.ball.style.visibility = "visible";
-        this.ball.style.opacity = "1";
-        this.ball.style.display = "flex";
+        requestAnimationFrame(() => {
+            this.restoreState();
+            this.autoAdsorbEdge();
+            this.ball.style.visibility = "visible";
+            this.ball.style.opacity = "1";
+            this.ball.style.display = "flex";
+        });
     },
     bindEvents() {
-        // 清除旧事件，避免重复绑定
-        this.ball.removeEventListener("mousedown", this.startDrag.bind(this));
-        document.removeEventListener("mousemove", this.onDrag.bind(this));
-        document.removeEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.removeEventListener("touchstart", this.startDrag.bind(this));
-        document.removeEventListener("touchmove", this.onDrag.bind(this));
-        document.removeEventListener("touchend", this.stopDrag.bind(this));
+        this.ball.removeEventListener("mousedown", this.boundHandlers.startDrag);
+        document.removeEventListener("mousemove", this.boundHandlers.onDrag);
+        document.removeEventListener("mouseup", this.boundHandlers.stopDrag);
+        this.ball.removeEventListener("touchstart", this.boundHandlers.startDrag);
+        document.removeEventListener("touchmove", this.boundHandlers.onDrag);
+        document.removeEventListener("touchend", this.boundHandlers.stopDrag);
 
-        // 重新绑定事件
-        this.ball.addEventListener("mousedown", this.startDrag.bind(this));
-        document.addEventListener("mousemove", this.onDrag.bind(this));
-        document.addEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
-        document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
-        document.addEventListener("touchend", this.stopDrag.bind(this));
+        this.ball.addEventListener("mousedown", this.boundHandlers.startDrag);
+        document.addEventListener("mousemove", this.boundHandlers.onDrag);
+        document.addEventListener("mouseup", this.boundHandlers.stopDrag);
+        this.ball.addEventListener("touchstart", this.boundHandlers.startDrag, { passive: false });
+        document.addEventListener("touchmove", this.boundHandlers.onDrag, { passive: false });
+        document.addEventListener("touchend", this.boundHandlers.stopDrag);
 
-        // 面板关闭按钮
         const closeBtn = document.getElementById("panel-close-btn");
-        closeBtn.removeEventListener("click", this.hidePanel.bind(this));
-        closeBtn.addEventListener("click", (e) => {
+        closeBtn?.removeEventListener("click", this.boundHandlers.hidePanel);
+        closeBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
             this.hidePanel();
         });
 
-        // 选项卡切换
         document.querySelectorAll(".panel-tab-item").forEach(tab => {
-            tab.removeEventListener("click", this.switchTab.bind(this));
+            tab.removeEventListener("click", this.boundHandlers.switchTab);
             tab.addEventListener("click", (e) => {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
             });
         });
 
-        // 点击外部关闭面板
-        document.removeEventListener("click", this.outsideClose.bind(this));
-        document.addEventListener("click", this.outsideClose.bind(this));
+        document.removeEventListener("click", this.boundHandlers.outsideClose);
+        document.addEventListener("click", this.boundHandlers.outsideClose);
 
-        // 窗口resize适配
-        window.removeEventListener("resize", this.resizeHandler.bind(this));
-        window.addEventListener("resize", this.resizeHandler.bind(this));
+        window.removeEventListener("resize", this.boundHandlers.resizeHandler);
+        window.addEventListener("resize", this.boundHandlers.resizeHandler);
     },
     outsideClose(e) {
         const isInPanel = e.target.closest("#novel-writer-panel");
@@ -105,20 +111,18 @@ export const FloatBall = {
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         const moveX = Math.abs(clientX - this.startPos.x);
         const moveY = Math.abs(clientY - this.startPos.y);
-
         if (moveX > this.minMoveDistance || moveY > this.minMoveDistance) {
             this.isClick = false;
             this.isDragging = true;
         }
         if (!this.isDragging) return;
-
+        e.preventDefault();
         let x = clientX - this.offset.x;
         let y = clientY - this.offset.y;
         const maxX = window.innerWidth - this.ball.offsetWidth;
         const maxY = window.innerHeight - this.ball.offsetHeight;
         x = Math.max(0, Math.min(x, maxX));
         y = Math.max(0, Math.min(y, maxY));
-
         this.ball.style.left = `${x}px`;
         this.ball.style.top = `${y}px`;
         this.ball.style.right = 'auto';
@@ -130,6 +134,7 @@ export const FloatBall = {
         if (!this.ball.classList.contains("dragging")) return;
         this.ball.classList.remove("dragging");
         if (this.isClick && !this.isDragging) {
+            e.stopPropagation();
             this.togglePanel();
         }
         if (this.isDragging) {
@@ -138,20 +143,17 @@ export const FloatBall = {
         this.isDragging = false;
         this.isClick = false;
     },
-    // 吸附仅处理左右边缘，不改变垂直位置，不强制居中
     autoAdsorbEdge() {
         const rect = this.ball.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const centerX = windowWidth / 2;
-        // 仅左右吸附，垂直位置保持用户拖动的位置
-        if (rect.left < centerX) {
-            this.ball.style.left = "10px";
-        } else {
-            this.ball.style.left = `${windowWidth - this.ball.offsetWidth - 10}px`;
-        }
-        this.ball.style.right = "auto";
-        // 移除强制垂直居中的transform，避免位置偏移
-        this.ball.style.transform = "none";
+        const targetLeft = rect.left < centerX ? 10 : windowWidth - this.ball.offsetWidth - 10;
+        const maxY = window.innerHeight - this.ball.offsetHeight;
+        const safeTop = Math.max(10, Math.min(rect.top, maxY));
+        this.ball.style.left = `${targetLeft}px`;
+        this.ball.style.top = `${safeTop}px`;
+        this.ball.style.right = 'auto';
+        this.ball.style.transform = 'none';
         const newRect = this.ball.getBoundingClientRect();
         extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
         saveSettingsDebounced();
