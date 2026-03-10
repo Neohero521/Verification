@@ -1,5 +1,5 @@
-// 【Verification工具函数】
-import { extension_settings, extensionName } from './config.js';
+// 【Verification工具函数】基于SillyTavern官方规范优化
+import { extensionSettings, extensionName } from './config.js';
 import { saveSettingsDebounced } from './config.js';
 
 // 深合并
