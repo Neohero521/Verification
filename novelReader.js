@@ -1,7 +1,7 @@
 import { extension_settings, extensionName, defaultSettings, saveSettingsDebounced, currentParsedChapters, continueWriteChain } from "./constants.js";
 import { debounce } from "./utils.js";
 
-// 小说阅读器核心模块（原有逻辑100%保留，修复模板字符串错误）
+// 小说阅读器核心模块（原有逻辑100%保留，修复所有语法错误）
 export const NovelReader = {
     currentChapterId: null,
     currentChapterType: "original",
@@ -155,7 +155,6 @@ export const NovelReader = {
             const continueChapters = continueWriteChain.filter(item => item.baseChapterId === chapter.id);
             const isActive = this.currentChapterType === 'original' && this.currentChapterId === chapter.id;
             listHtml += `<div class="reader-chapter-item ${isActive ? 'active' : ''}" data-chapter-id="${chapter.id}" data-chapter-type="original">${chapter.title}</div>`;
-
             if (continueChapters.length > 0) {
                 listHtml += `<div class="reader-chapter-branch">`;
                 continueChapters.forEach((continueChapter, index) => {
