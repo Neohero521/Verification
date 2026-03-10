@@ -83,7 +83,9 @@ export function updateProgress(progressId, statusId, current, total, textPrefix 
 
 // 渲染sendas命令模板
 export function renderCommandTemplate(template, charName, chapterContent) {
+    // 转义特殊字符，确保命令执行正常，无注入风险
     const escapedContent = chapterContent.replace(/"/g, '\\"').replace(/\|/g, '\\|');
+    // 直接替换模板变量，而非生成模板代码
     return template.replace(/{{char}}/g, charName || '角色').replace(/{{pipe}}/g, escapedContent);
 }
 
@@ -91,9 +93,11 @@ export function renderCommandTemplate(template, charName, chapterContent) {
 export function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
+    // 优先级：父级对话预设（对齐ST全局生效的生成参数）
     if (settings.enableAutoParentPreset && window.generation_params) {
         presetParams = { ...window.generation_params };
     }
+    // 过滤无效参数，只保留generateRaw支持的字段
     const validParams = ['temperature', 'top_p', 'top_k', 'min_p', 'top_a',
         'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
         'repetition_penalty_range', 'typical_p', 'tfs',
