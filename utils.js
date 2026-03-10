@@ -1,8 +1,8 @@
-// 【Verification工具函数】严格对齐Cola仓库实现
+// 【Verification工具函数】
 import { extension_settings, extensionName } from './config.js';
 import { saveSettingsDebounced } from './config.js';
 
-// 深合并，对齐Cola的实现
+// 深合并
 export function deepMerge(target, source) {
     const merged = structuredClone(target);
     for (const key in source) {
@@ -49,7 +49,7 @@ export function setButtonDisabled(selector, disabled) {
     $(selector).prop('disabled', disabled).toggleClass('menu_button--disabled', disabled);
 }
 
-// 防抖函数，对齐Cola的实现
+// 防抖函数
 export function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -74,29 +74,4 @@ export function throttle(func, limit) {
             setTimeout(() => inThrottle = false, limit);
         }
     };
-}
-
-// 字数统计
-export function countWords(text) {
-    if (!text) return 0;
-    return text.replace(/\s+/g, '').length;
-}
-
-// 安全JSON解析
-export function safeJsonParse(str, defaultValue = null) {
-    try {
-        return JSON.parse(str);
-    } catch (error) {
-        console.warn('[Verification] JSON解析失败', error);
-        return defaultValue;
-    }
-}
-
-// 保存抽屉状态
-export function saveDrawerState(drawerId, isOpen) {
-    if (!extension_settings[extensionName].drawerState) {
-        extension_settings[extensionName].drawerState = {};
-    }
-    extension_settings[extensionName].drawerState[drawerId] = isOpen;
-    saveSettingsDebounced();
 }
