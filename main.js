@@ -20,6 +20,7 @@ import {
 import { validateContinuePrecondition, generateNovelWrite, generateContinueWrite, initContinueChainEvents } from "./novelWrite.js";
 import { NovelReader } from "./novelReader.js";
 import { loadSettings, initDrawerToggle, initVisibilityListener, onExampleInput, onButtonClick } from "./settings.js";
+import { getContext } from "../../../extensions.js";
 
 // 插件主入口，完全对齐原代码初始化与事件绑定逻辑
 jQuery(async () => {
