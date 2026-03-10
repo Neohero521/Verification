@@ -23,6 +23,7 @@ export async function generateSingleChapterGraph(chapter) {
 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length}
 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${chapter.title}\n小说章节内容：${chapter.content}`;
+
     try {
         const result = await generateRaw({
             systemPrompt,
@@ -49,11 +50,13 @@ export async function generateChapterGraphBatch(chapters) {
         toastr.warning('没有可生成图谱的章节', "小说续写器");
         return;
     }
+
     isGeneratingGraph = true;
     stopGenerateFlag = false;
     let successCount = 0;
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     setButtonDisabled('#graph-single-btn, #graph-batch-btn, #graph-merge-btn', true);
+
     try {
         for (let i = 0; i < chapters.length; i++) {
             if (stopGenerateFlag) break;
@@ -95,11 +98,13 @@ export async function mergeAllGraphs() {
     const { generateRaw } = context;
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     const graphList = Object.values(graphMap);
+
     if (graphList.length === 0) {
         toastr.warning('没有可合并的章节图谱，请先生成图谱', "小说续写器");
         return;
     }
     setButtonDisabled('#graph-merge-btn', true);
+
     const systemPrompt = `触发词：合并全量知识图谱JSON、小说全局图谱构建
 强制约束（100%遵守）：
 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
@@ -112,6 +117,7 @@ export async function mergeAllGraphs() {
 必须构建完整的反向依赖图谱，支持任意章节续写的前置信息提取
 必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估`;
     const userPrompt = `待合并的多组知识图谱：\n${JSON.stringify(graphList, null, 2)}`;
+
     try {
         toastr.info('开始合并知识图谱，请稍候...', "小说续写器");
         const result = await generateRaw({
@@ -142,15 +148,18 @@ export async function validateGraphCompliance() {
     const singleRequiredFields = graphJsonSchema.value.required;
     let isFullGraph = true;
     let missingFields = fullRequiredFields.filter(field => !Object.hasOwn(mergedGraph, field));
+
     if (missingFields.length > 0) {
         isFullGraph = false;
         missingFields = singleRequiredFields.filter(field => !Object.hasOwn(mergedGraph, field));
     }
+
     const graphJsonString = JSON.stringify(mergedGraph, null, 2);
     const graphWordCount = graphJsonString.length;
     const minWordCount = 1200;
     let result = "";
     let isPass = false;
+
     if (missingFields.length > 0) {
         const graphType = isFullGraph ? "全量图谱" : "单章节图谱";
         result = `图谱合规性校验不通过，${graphType}缺少必填字段：${missingFields.join('、')}，请重新生成/合并图谱`;
@@ -165,10 +174,12 @@ export async function validateGraphCompliance() {
         result = `图谱合规性校验通过，${graphType}所有必填字段完整，内容字数：${graphWordCount}字，全文本逻辑自洽性得分：${logicScore}/100`;
         isPass = true;
     }
+
     $("#graph-validate-content").val(result);
     $("#graph-validate-result").show();
     extension_settings[extensionName].graphValidateResultShow = true;
     saveSettingsDebounced();
+
     if (isPass) {
         toastr.success('图谱合规性校验通过', "小说续写器");
     } else {
@@ -184,6 +195,7 @@ export async function validateChapterGraphStatus() {
         toastr.warning('请先上传小说文件并解析章节', "小说续写器");
         return;
     }
+
     let hasGraphCount = 0;
     let noGraphList = [];
     currentParsedChapters.forEach(chapter => {
@@ -195,12 +207,14 @@ export async function validateChapterGraphStatus() {
             noGraphList.push(chapter.title);
         }
     });
+
     renderChapterList(currentParsedChapters);
     const totalCount = currentParsedChapters.length;
     let message = `图谱状态检验完成\n总章节数：${totalCount}\n已生成图谱：${hasGraphCount}个\n未生成图谱：${totalCount - hasGraphCount}个`;
     if (noGraphList.length > 0) {
         message += `\n\n未生成图谱的章节：\n${noGraphList.join('\n')}`;
     }
+
     if (noGraphList.length === 0) {
         toastr.success(message, "小说续写器");
     } else {
@@ -241,10 +255,12 @@ export async function importChapterGraphs(file) {
             if (!importData.chapterGraphMap || typeof importData.chapterGraphMap !== 'object') {
                 throw new Error("图谱格式错误，缺少chapterGraphMap字段");
             }
+            // 合并导入的图谱，不覆盖已有内容
             const existingGraphMap = extension_settings[extensionName].chapterGraphMap || {};
             const newGraphMap = { ...existingGraphMap, ...importData.chapterGraphMap };
             extension_settings[extensionName].chapterGraphMap = newGraphMap;
             saveSettingsDebounced();
+            // 更新章节图谱状态
             currentParsedChapters.forEach(chapter => {
                 chapter.hasGraph = !!newGraphMap[chapter.id];
             });
@@ -277,6 +293,7 @@ export async function updateModifiedChapterGraph(chapterId, modifiedContent) {
         toastr.error('魔改后的章节内容不能为空', "小说续写器");
         return null;
     }
+
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说魔改章节解析
 强制约束（100%遵守）：
 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
@@ -289,6 +306,7 @@ export async function updateModifiedChapterGraph(chapterId, modifiedContent) {
 基础章节信息必须填写：章节号=${targetChapter.id}，章节节点唯一标识=chapter_${targetChapter.id}，本章字数=${modifiedContent.length}
 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${targetChapter.title}\n魔改后章节内容：${modifiedContent}`;
+
     try {
         toastr.info('正在更新魔改章节图谱，请稍候...', "小说续写器");
         const result = await generateRaw({
@@ -320,6 +338,7 @@ export async function updateGraphWithContinueContent(continueChapter, continueId
     const context = getContext();
     const { generateRaw } = context;
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说续写章节解析
 强制约束（100%遵守）：
 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown
@@ -329,6 +348,7 @@ export async function updateGraphWithContinueContent(continueChapter, continueId
 无对应内容设为"暂无"，数组设为[]，不得留空
 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：续写章节${continueId}\n小说章节内容：${continueChapter.content}`;
+
     try {
         const result = await generateRaw({
             systemPrompt,
