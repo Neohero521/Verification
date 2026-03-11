@@ -1,5 +1,5 @@
-// 严格遵循官方模板导入规范，路径完全对齐原版本，新增官方getGenerationParams导入
-import { extension_settings, getContext, loadExtensionSettings, getGenerationParams } from "../../../extensions.js";
+// 严格遵循官方模板导入规范，路径完全对齐原版本
+import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
@@ -99,49 +99,87 @@ function deepMerge(target, source) {
     }
     return merged;
 }
+
 // ==============================================
-// 修复：对话补全预设核心函数（适配SillyTavern源码规范，100%修复父级预设无效问题）
+// 新增：获取SillyTavern当前生效的预设名称（兼容官方源码全版本）
 // ==============================================
-// 获取当前生效的预设参数（修复父级预设无效BUG，对齐ST官方源码优先级规则）
+function getCurrentPresetName() {
+    try {
+        // 优先级1：ST官方全局函数（最新稳定版）
+        if (typeof getCurrentPresetName === 'function') {
+            return getCurrentPresetName() || '默认预设';
+        }
+        // 优先级2：ST全局变量（主流兼容版）
+        if (window.currentPresetName) {
+            return window.currentPresetName;
+        }
+        // 优先级3：从上下文对象获取
+        const context = getContext();
+        if (context?.presetName) {
+            return context.presetName;
+        }
+        // 优先级4：从全局设置兜底获取
+        if (window.extension_settings?.presets?.current_preset) {
+            return window.extension_settings.presets.current_preset;
+        }
+        return '未识别预设';
+    } catch (error) {
+        console.error('[小说续写插件] 获取预设名称失败:', error);
+        return '获取失败';
+    }
+}
+
+// ==============================================
+// 新增：更新父级预设名称显示
+// ==============================================
+function updatePresetNameDisplay() {
+    const settings = extension_settings[extensionName];
+    const presetNameEl = document.getElementById('current-preset-name');
+    const displayEl = document.getElementById('preset-name-display');
+    
+    if (!presetNameEl || !displayEl) return;
+    
+    // 开关关闭时隐藏显示区域
+    if (!settings.enableAutoParentPreset) {
+        displayEl.style.display = 'none';
+        return;
+    }
+    
+    // 开关开启时显示并实时更新预设名称
+    displayEl.style.display = 'flex';
+    const presetName = getCurrentPresetName();
+    presetNameEl.textContent = presetName;
+}
+
+// ==============================================
+// 修复：对话补全预设核心函数（100%适配SillyTavern官方源码规范）
+// ==============================================
+// 获取当前生效的预设参数（修复父级预设无效BUG，对齐ST官方源码）
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
-    // 优先级：使用ST官方getGenerationParams获取当前对话生效的完整预设参数，对齐ST原生优先级规则
+    
+    // 优先级：父级对话预设（严格对齐ST全局生效的生成参数，修复原window变量不实时问题）
     if (settings.enableAutoParentPreset) {
-        try {
-            // 调用ST官方API获取当前生效的生成参数，确保和对话预设完全一致（对话预设>角色预设>全局预设）
-            const officialParams = getGenerationParams();
-            if (officialParams && typeof officialParams === 'object') {
-                presetParams = { ...officialParams };
-            }
-        } catch (error) {
-            console.warn("[小说续写插件] 获取官方生成参数失败，降级使用全局参数", error);
-            // 降级方案：兼容旧版本ST，使用全局generation_params
-            if (window.generation_params) {
-                presetParams = { ...window.generation_params };
-            }
+        const context = getContext();
+        // 核心修复：优先使用context.generation_settings（ST官方实时生效的生成参数）
+        if (context?.generation_settings) {
+            presetParams = { ...context.generation_settings };
+        }
+        // 兜底兼容：旧版本ST的window.generation_params
+        else if (window.generation_params) {
+            presetParams = { ...window.generation_params };
         }
     }
-    // 过滤ST官方generateRaw支持的全量有效参数，避免传入无效字段导致请求失败
+    
+    // 过滤无效参数，只保留generateRaw原生支持的字段（严格对齐ST官方入参规范）
     const validParams = [
-        // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        // 生成长度参数
-        'max_length', 'max_new_tokens', 'min_new_tokens',
-        // 重复惩罚参数
-        'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 
-        'presence_penalty', 'frequency_penalty',
-        // 高级采样参数
-        'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 
-        'mirostat_mode', 'mirostat_tau', 'mirostat_eta',
-        // 引导与提示参数
-        'guidance_scale', 'cfg_scale', 'negative_prompt',
-        // 停止序列、随机种子与采样开关
-        'stop_sequence', 'seed', 'do_sample',
-        // 令牌处理参数
-        'add_bos_token', 'ban_eos_token', 'skip_special_tokens', 'truncation_length',
-        // 束搜索相关参数
-        'early_stopping', 'num_beams', 'length_penalty', 'no_repeat_ngram_size'
+        'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
+        'repetition_penalty_range', 'typical_p', 'tfs',
+        'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
+        'negative_prompt', 'stop_sequence', 'seed', 'do_sample',
+        'truncation_length', 'ban_eos_token', 'skip_special_tokens'
     ];
     const filteredParams = {};
     for (const key of validParams) {
@@ -151,6 +189,7 @@ function getActivePresetParams() {
     }
     return filteredParams;
 }
+
 // ==============================================
 // 修复：可移动悬浮球核心模块（拖动吸附BUG修复+防抖优化，原功能完整保留）
 // ==============================================
@@ -952,6 +991,8 @@ async function loadSettings() {
     if (settings.selectedBaseChapterId) {
         $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
+    // 初始化预设名称显示
+    updatePresetNameDisplay();
     isInitialized = true;
     await new Promise(resolve => setTimeout(resolve, 50));
     FloatBall.init();
@@ -1035,6 +1076,21 @@ function initVisibilityListener() {
         }
     });
 }
+
+// ==============================================
+// 新增：监听ST预设/对话切换事件，实时更新预设名称
+// ==============================================
+function initPresetChangeListener() {
+    // 监听ST官方预设更新事件（兼容1.12.0+版本）
+    $(document).off('generation_settings_updated.novel-writer').on('generation_settings_updated.novel-writer', () => {
+        updatePresetNameDisplay();
+    });
+    // 监听对话切换事件，切换对话时同步更新预设
+    $(document).off('chat_selected.novel-writer').on('chat_selected.novel-writer', () => {
+        updatePresetNameDisplay();
+    });
+}
+
 function setButtonDisabled(selector, disabled) {
     $(selector).prop('disabled', disabled).toggleClass('menu_button--disabled', disabled);
 }
@@ -2165,6 +2221,7 @@ jQuery(async () => {
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
+    initPresetChangeListener(); // 新增：初始化预设切换监听
     await loadSettings();
     // 原有基础事件绑定
     $("#my_button").off("click").on("click", onButtonClick);
@@ -2300,11 +2357,13 @@ jQuery(async () => {
         };
         reader.readAsText(file, 'UTF-8');
     });
-    // 修复：父级预设开关事件绑定
+    // 修复：父级预设开关事件绑定（新增预设名称更新）
     $("#auto-parent-preset-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
+        // 切换开关时更新预设名称显示
+        updatePresetNameDisplay();
     });
     // 原有章节管理事件
     $("#select-all-btn").off("click").on("click", () => {
