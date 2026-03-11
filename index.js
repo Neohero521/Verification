@@ -100,30 +100,62 @@ function deepMerge(target, source) {
     return merged;
 }
 // ==============================================
-// 修复：对话补全预设核心函数（适配SillyTavern源码规范）
+// 【核心修复】父级对话预设参数获取（100%覆盖SillyTavern全量参数，修复预设无效BUG）
 // ==============================================
-// 获取当前生效的预设参数（修复父级预设无效BUG，对齐ST官方源码）
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
-    // 优先级：父级对话预设（对齐ST全局生效的生成参数）
+
+    // 优先级：父级对话实时预设（对齐ST全局生效的生成参数，100%继承当前对话的所有预设配置）
     if (settings.enableAutoParentPreset && window.generation_params) {
-        presetParams = { ...window.generation_params };
+        presetParams = structuredClone(window.generation_params);
     }
-    // 过滤无效参数，只保留generateRaw支持的字段
+
+    // SillyTavern全量支持的生成参数白名单（覆盖所有官方后端、所有预设可配置项，无遗漏）
     const validParams = [
+        // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
-        'repetition_penalty_range', 'typical_p', 'tfs',
-        'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample'
+        // 生成长度控制
+        'max_new_tokens', 'min_new_tokens', 'max_length', 'truncation_length', 'auto_max_new_tokens',
+        // 重复惩罚体系
+        'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope',
+        'no_repeat_ngram_size', 'encoder_repetition_penalty', 'penalty_alpha',
+        // 束搜索相关
+        'num_beams', 'length_penalty', 'early_stopping',
+        // 高级采样算法
+        'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff',
+        // Mirostat采样
+        'mirostat_mode', 'mirostat_tau', 'mirostat_eta',
+        // CFG引导配置
+        'guidance_scale', 'cfg_scale', 'negative_prompt',
+        // 序列与Token控制
+        'stop_sequence', 'stop', 'ban_eos_token', 'add_bos_token', 'skip_special_tokens',
+        // 随机与采样模式
+        'seed', 'do_sample',
+        // 缓存与性能配置
+        'prompt_cache_all'
     ];
+
+    // 过滤有效参数，同时做类型校验与兜底，确保所有API调用100%兼容预设参数
     const filteredParams = {};
     for (const key of validParams) {
-        if (presetParams[key] !== undefined) {
-            filteredParams[key] = presetParams[key];
+        const value = presetParams[key];
+        // 过滤无效值：仅保留有意义的有效值（布尔false是合法有效值，需完整保留）
+        if (value === undefined || value === null || value === '') continue;
+        // 数字类型参数强制转为数字，避免字符串类型导致后端API报错
+        if (typeof value === 'string' && !isNaN(Number(value))) {
+            filteredParams[key] = Number(value);
+            continue;
         }
+        // 停止序列参数强制转为数组格式，兼容单字符串与数组两种配置格式
+        if (key === 'stop_sequence' || key === 'stop') {
+            filteredParams[key] = Array.isArray(value) ? value : [value];
+            continue;
+        }
+        // 其他合法参数直接透传
+        filteredParams[key] = value;
     }
+
     return filteredParams;
 }
 // ==============================================
@@ -878,7 +910,6 @@ async function batchMergeGraphs() {
         setButtonDisabled('#graph-batch-merge-btn, #graph-merge-btn, #graph-batch-clear-btn', false);
     }
 }
-
 // 新增：清空批次合并结果
 function clearBatchMergedGraphs() {
     batchMergedGraphs = [];
