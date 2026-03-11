@@ -1,5 +1,5 @@
-// 严格遵循官方模板导入规范，路径完全对齐原版本
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+// 严格遵循官方模板导入规范，路径完全对齐原版本，新增官方getGenerationParams导入
+import { extension_settings, getContext, loadExtensionSettings, getGenerationParams } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
@@ -100,62 +100,55 @@ function deepMerge(target, source) {
     return merged;
 }
 // ==============================================
-// 【核心修复】父级对话预设参数获取（100%覆盖SillyTavern全量参数，修复预设无效BUG）
+// 修复：对话补全预设核心函数（适配SillyTavern源码规范，100%修复父级预设无效问题）
 // ==============================================
+// 获取当前生效的预设参数（修复父级预设无效BUG，对齐ST官方源码优先级规则）
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
-
-    // 优先级：父级对话实时预设（对齐ST全局生效的生成参数，100%继承当前对话的所有预设配置）
-    if (settings.enableAutoParentPreset && window.generation_params) {
-        presetParams = structuredClone(window.generation_params);
+    // 优先级：使用ST官方getGenerationParams获取当前对话生效的完整预设参数，对齐ST原生优先级规则
+    if (settings.enableAutoParentPreset) {
+        try {
+            // 调用ST官方API获取当前生效的生成参数，确保和对话预设完全一致（对话预设>角色预设>全局预设）
+            const officialParams = getGenerationParams();
+            if (officialParams && typeof officialParams === 'object') {
+                presetParams = { ...officialParams };
+            }
+        } catch (error) {
+            console.warn("[小说续写插件] 获取官方生成参数失败，降级使用全局参数", error);
+            // 降级方案：兼容旧版本ST，使用全局generation_params
+            if (window.generation_params) {
+                presetParams = { ...window.generation_params };
+            }
+        }
     }
-
-    // SillyTavern全量支持的生成参数白名单（覆盖所有官方后端、所有预设可配置项，无遗漏）
+    // 过滤ST官方generateRaw支持的全量有效参数，避免传入无效字段导致请求失败
     const validParams = [
         // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        // 生成长度控制
-        'max_new_tokens', 'min_new_tokens', 'max_length', 'truncation_length', 'auto_max_new_tokens',
-        // 重复惩罚体系
-        'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope',
-        'no_repeat_ngram_size', 'encoder_repetition_penalty', 'penalty_alpha',
-        // 束搜索相关
-        'num_beams', 'length_penalty', 'early_stopping',
-        // 高级采样算法
-        'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff',
-        // Mirostat采样
+        // 生成长度参数
+        'max_length', 'max_new_tokens', 'min_new_tokens',
+        // 重复惩罚参数
+        'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 
+        'presence_penalty', 'frequency_penalty',
+        // 高级采样参数
+        'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 
         'mirostat_mode', 'mirostat_tau', 'mirostat_eta',
-        // CFG引导配置
+        // 引导与提示参数
         'guidance_scale', 'cfg_scale', 'negative_prompt',
-        // 序列与Token控制
-        'stop_sequence', 'stop', 'ban_eos_token', 'add_bos_token', 'skip_special_tokens',
-        // 随机与采样模式
-        'seed', 'do_sample',
-        // 缓存与性能配置
-        'prompt_cache_all'
+        // 停止序列、随机种子与采样开关
+        'stop_sequence', 'seed', 'do_sample',
+        // 令牌处理参数
+        'add_bos_token', 'ban_eos_token', 'skip_special_tokens', 'truncation_length',
+        // 束搜索相关参数
+        'early_stopping', 'num_beams', 'length_penalty', 'no_repeat_ngram_size'
     ];
-
-    // 过滤有效参数，同时做类型校验与兜底，确保所有API调用100%兼容预设参数
     const filteredParams = {};
     for (const key of validParams) {
-        const value = presetParams[key];
-        // 过滤无效值：仅保留有意义的有效值（布尔false是合法有效值，需完整保留）
-        if (value === undefined || value === null || value === '') continue;
-        // 数字类型参数强制转为数字，避免字符串类型导致后端API报错
-        if (typeof value === 'string' && !isNaN(Number(value))) {
-            filteredParams[key] = Number(value);
-            continue;
+        if (presetParams[key] !== undefined) {
+            filteredParams[key] = presetParams[key];
         }
-        // 停止序列参数强制转为数组格式，兼容单字符串与数组两种配置格式
-        if (key === 'stop_sequence' || key === 'stop') {
-            filteredParams[key] = Array.isArray(value) ? value : [value];
-            continue;
-        }
-        // 其他合法参数直接透传
-        filteredParams[key] = value;
     }
-
     return filteredParams;
 }
 // ==============================================
