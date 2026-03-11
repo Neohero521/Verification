@@ -1,6 +1,6 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
+import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 预设章节拆分正则列表（覆盖全场景，含括号序号格式）
@@ -62,7 +62,7 @@ const defaultSettings = {
     // 新增：分批合并中间结果存储
     batchMergedGraphs: []
 };
-// 全局状态缓存（原有字段完全不变，新增分批合并状态）
+// 全局状态缓存（原有字段完全不变，新增分批合并状态+预设名缓存）
 let currentParsedChapters = [];
 let isGeneratingGraph = false;
 let isGeneratingWrite = false;
@@ -75,6 +75,8 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 // 新增：分批合并全局状态
 let batchMergedGraphs = [];
+// 新增：当前父级预设名缓存
+let currentPresetName = "";
 // 防抖工具函数（新增，修复resize频繁触发问题）
 function debounce(func, delay) {
     let timer = null;
@@ -99,97 +101,124 @@ function deepMerge(target, source) {
     }
     return merged;
 }
-
 // ==============================================
-// 新增：获取SillyTavern当前生效的预设名称（兼容官方源码全版本）
+// 核心修复：父级预设参数获取函数（对齐SillyTavern官方源码，彻底解决预设不生效问题）
 // ==============================================
-function getCurrentPresetName() {
-    try {
-        // 优先级1：ST官方全局函数（最新稳定版）
-        if (typeof getCurrentPresetName === 'function') {
-            return getCurrentPresetName() || '默认预设';
-        }
-        // 优先级2：ST全局变量（主流兼容版）
-        if (window.currentPresetName) {
-            return window.currentPresetName;
-        }
-        // 优先级3：从上下文对象获取
-        const context = getContext();
-        if (context?.presetName) {
-            return context.presetName;
-        }
-        // 优先级4：从全局设置兜底获取
-        if (window.extension_settings?.presets?.current_preset) {
-            return window.extension_settings.presets.current_preset;
-        }
-        return '未识别预设';
-    } catch (error) {
-        console.error('[小说续写插件] 获取预设名称失败:', error);
-        return '获取失败';
-    }
-}
-
-// ==============================================
-// 新增：更新父级预设名称显示
-// ==============================================
-function updatePresetNameDisplay() {
-    const settings = extension_settings[extensionName];
-    const presetNameEl = document.getElementById('current-preset-name');
-    const displayEl = document.getElementById('preset-name-display');
-    
-    if (!presetNameEl || !displayEl) return;
-    
-    // 开关关闭时隐藏显示区域
-    if (!settings.enableAutoParentPreset) {
-        displayEl.style.display = 'none';
-        return;
-    }
-    
-    // 开关开启时显示并实时更新预设名称
-    displayEl.style.display = 'flex';
-    const presetName = getCurrentPresetName();
-    presetNameEl.textContent = presetName;
-}
-
-// ==============================================
-// 修复：对话补全预设核心函数（100%适配SillyTavern官方源码规范）
-// ==============================================
-// 获取当前生效的预设参数（修复父级预设无效BUG，对齐ST官方源码）
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
-    
-    // 优先级：父级对话预设（严格对齐ST全局生效的生成参数，修复原window变量不实时问题）
+
+    // 核心修复：优先级严格对齐ST官方规范
+    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新，ST所有官方功能均使用此对象）
+    // 2. 兜底优先级：window.generation_params（兼容ST 1.12.0以下旧版本）
+    // 3. 开关控制：仅当enableAutoParentPreset开启时，才使用父级对话预设
     if (settings.enableAutoParentPreset) {
         const context = getContext();
-        // 核心修复：优先使用context.generation_settings（ST官方实时生效的生成参数）
+        // 优先从官方标准上下文获取实时参数（解决原代码参数不实时、不生效的核心问题）
         if (context?.generation_settings) {
             presetParams = { ...context.generation_settings };
-        }
-        // 兜底兼容：旧版本ST的window.generation_params
+        } 
+        // 兜底兼容旧版本全局变量
         else if (window.generation_params) {
             presetParams = { ...window.generation_params };
         }
     }
-    
-    // 过滤无效参数，只保留generateRaw原生支持的字段（严格对齐ST官方入参规范）
+
+    // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效）
+    // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
     const validParams = [
+        // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        'max_new_tokens', 'min_new_tokens', 'repetition_penalty',
-        'repetition_penalty_range', 'typical_p', 'tfs',
-        'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample',
-        'truncation_length', 'ban_eos_token', 'skip_special_tokens'
+        // 生成长度控制
+        'max_new_tokens', 'min_new_tokens',
+        // 重复惩罚相关
+        'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty', 'dry_multiplier', 'dry_base', 'dry_sequence_length', 'dry_allowed_length', 'dry_penalty_last_n',
+        // 高级采样参数
+        'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
+        // 特殊控制参数
+        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'logit_bias'
     ];
+
+    // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
     for (const key of validParams) {
-        if (presetParams[key] !== undefined) {
+        if (presetParams[key] !== undefined && presetParams[key] !== null) {
             filteredParams[key] = presetParams[key];
         }
     }
+
     return filteredParams;
 }
+// ==============================================
+// 新增：父级预设名显示核心模块（兼容ST全版本，实时更新）
+// ==============================================
+// 兼容ST全版本的当前预设名获取函数（多渠道兜底，确保全版本可用）
+function getCurrentPresetName() {
+    const context = getContext();
+    let presetName = "未识别预设";
 
+    // 兼容ST全版本的预设名获取渠道（按官方优先级排序）
+    // 1. 官方标准上下文preset对象（ST 1.13.0+推荐）
+    if (context?.preset?.name) {
+        presetName = context.preset.name;
+    }
+    // 2. 生成设置中的预设名字段（ST 1.12.0+通用）
+    else if (context?.generation_settings?.preset_name) {
+        presetName = context.generation_settings.preset_name;
+    }
+    // 3. 全局current_preset变量（兼容旧版本）
+    else if (window?.current_preset?.name) {
+        presetName = window.current_preset.name;
+    }
+    // 4. 旧版本全局generation_params中的预设名
+    else if (window?.generation_params?.preset_name) {
+        presetName = window.generation_params.preset_name;
+    }
+    // 5. 兜底：从extension_settings中获取当前选中的预设
+    else if (window?.extension_settings?.presets?.current_preset) {
+        presetName = window.extension_settings.presets.current_preset;
+    }
+
+    return presetName;
+}
+
+// 更新父级预设名UI显示
+function updatePresetNameDisplay() {
+    const settings = extension_settings[extensionName];
+    const presetNameElement = document.getElementById("parent-preset-name-display");
+
+    if (!presetNameElement) return;
+
+    // 开关关闭时自动隐藏显示区域
+    if (!settings.enableAutoParentPreset) {
+        presetNameElement.style.display = "none";
+        currentPresetName = "";
+        return;
+    }
+
+    // 获取并更新预设名
+    currentPresetName = getCurrentPresetName();
+    presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
+    presetNameElement.style.display = "block";
+}
+
+// 预设事件监听（切换预设/对话/修改参数时实时更新）
+function setupPresetEventListeners() {
+    // 监听预设切换事件（用户切换预设时触发）
+    eventSource.on(event_types.PRESET_CHANGED, () => {
+        updatePresetNameDisplay();
+    });
+
+    // 监听对话切换事件（不同对话预设不同，切换时更新）
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        updatePresetNameDisplay();
+    });
+
+    // 监听生成设置变更事件（用户手动修改预设参数时触发）
+    eventSource.on(event_types.GENERATION_SETTINGS_UPDATED, () => {
+        updatePresetNameDisplay();
+    });
+}
 // ==============================================
 // 修复：可移动悬浮球核心模块（拖动吸附BUG修复+防抖优化，原功能完整保留）
 // ==============================================
@@ -991,10 +1020,12 @@ async function loadSettings() {
     if (settings.selectedBaseChapterId) {
         $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
-    // 初始化预设名称显示
-    updatePresetNameDisplay();
     isInitialized = true;
     await new Promise(resolve => setTimeout(resolve, 50));
+    // 新增：初始化预设名显示和事件监听
+    updatePresetNameDisplay();
+    setupPresetEventListeners();
+    // 原有初始化逻辑
     FloatBall.init();
     NovelReader.init();
 }
@@ -1076,21 +1107,6 @@ function initVisibilityListener() {
         }
     });
 }
-
-// ==============================================
-// 新增：监听ST预设/对话切换事件，实时更新预设名称
-// ==============================================
-function initPresetChangeListener() {
-    // 监听ST官方预设更新事件（兼容1.12.0+版本）
-    $(document).off('generation_settings_updated.novel-writer').on('generation_settings_updated.novel-writer', () => {
-        updatePresetNameDisplay();
-    });
-    // 监听对话切换事件，切换对话时同步更新预设
-    $(document).off('chat_selected.novel-writer').on('chat_selected.novel-writer', () => {
-        updatePresetNameDisplay();
-    });
-}
-
 function setButtonDisabled(selector, disabled) {
     $(selector).prop('disabled', disabled).toggleClass('menu_button--disabled', disabled);
 }
@@ -1563,7 +1579,7 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
         });
         const graphData = JSON.parse(result.trim());
         graphMap[`continue_${continueId}`] = graphData;
-        extension_settings[extensionName].chapterGraphMap = graphMap;
+        extension_settings[extensionName].chapterGraphMap = graphData;
         saveSettingsDebounced();
         return graphData;
     } catch (error) {
@@ -2221,7 +2237,6 @@ jQuery(async () => {
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
-    initPresetChangeListener(); // 新增：初始化预设切换监听
     await loadSettings();
     // 原有基础事件绑定
     $("#my_button").off("click").on("click", onButtonClick);
@@ -2357,12 +2372,12 @@ jQuery(async () => {
         };
         reader.readAsText(file, 'UTF-8');
     });
-    // 修复：父级预设开关事件绑定（新增预设名称更新）
+    // 修复：父级预设开关事件，切换时更新预设名显示
     $("#auto-parent-preset-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
-        // 切换开关时更新预设名称显示
+        // 切换开关时实时更新预设名显示
         updatePresetNameDisplay();
     });
     // 原有章节管理事件
