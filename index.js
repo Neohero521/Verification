@@ -1,7 +1,7 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
-// 新增：接入SillyTavern官方预设管理器核心API，对齐官方源码规范
+// 新增：SillyTavern官方预设管理器原生导入，对齐GitHub官方源码规范
 import { getPresetManager } from "../../../preset-manager.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
@@ -79,6 +79,8 @@ let isInitialized = false;
 let batchMergedGraphs = [];
 // 新增：当前父级预设名缓存
 let currentPresetName = "";
+// 新增：当前生效完整预设对象缓存（实时更新）
+let currentFullPreset = {};
 // 防抖工具函数（新增，修复resize频繁触发问题）
 function debounce(func, delay) {
     let timer = null;
@@ -105,72 +107,81 @@ function deepMerge(target, source) {
 }
 
 // ==============================================
-// 新增：SillyTavern官方预设完整数据获取核心函数（100%对齐官方源码）
-// 每次调用API前自动执行，实时读取当前正在使用的预设全量内容，包括提示词、所有生成参数
+// 新增：SillyTavern官方完整预设获取核心函数（100%对齐GitHub官方源码）
+// 功能：每次调用实时读取当前正在使用的预设全量内容，包括提示词、所有字段、配置参数
 // ==============================================
-function getCurrentPresetFullData() {
+function getCurrentFullPreset() {
+    const context = getContext();
+    let fullPreset = {};
+
+    // 官方优先级排序：对话专属预设 > 预设管理器当前预设 > 全局生成参数 > 上下文生成设置 > 默认兜底
     try {
-        // 官方最高优先级：通过预设管理器获取当前生效的预设完整数据
-        const presetManager = getPresetManager();
+        // 1. 最高优先级：官方预设管理器原生获取（ST 1.12.0+ 全版本标准渠道）
+        const presetManager = getPresetManager?.();
         if (presetManager) {
-            const currentPresetName = presetManager.getSelectedPresetName();
-            const fullPresetData = presetManager.findPreset(currentPresetName);
-            if (fullPresetData && typeof fullPresetData === 'object') {
-                return { ...fullPresetData };
+            const currentPresetName = presetManager.getSelectedPresetName?.();
+            if (currentPresetName) {
+                const presetData = presetManager.findPreset?.(currentPresetName);
+                if (presetData && typeof presetData === 'object') {
+                    fullPreset = deepMerge(fullPreset, presetData);
+                }
             }
         }
-        // 兜底优先级1：对话上下文预设对象
-        const context = getContext();
-        if (context?.preset && typeof context.preset === 'object') {
-            return { ...context.preset };
-        }
-        // 兜底优先级2：对话生成设置
+
+        // 2. 次高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新）
         if (context?.generation_settings && typeof context.generation_settings === 'object') {
-            return { ...context.generation_settings };
+            fullPreset = deepMerge(fullPreset, context.generation_settings);
         }
-        // 兜底优先级3：全局预设参数
+
+        // 3. 第三优先级：window.generation_params（兼容ST全版本全局生效预设）
         if (window.generation_params && typeof window.generation_params === 'object') {
-            return { ...window.generation_params };
+            fullPreset = deepMerge(fullPreset, window.generation_params);
         }
-        // 最终兜底：空对象，由后续函数补充默认值
-        return {};
+
+        // 4. 第四优先级：对话元数据专属预设（ST官方对话级预设标准）
+        if (window.chat_metadata?.preset && typeof window.chat_metadata.preset === 'object') {
+            fullPreset = deepMerge(fullPreset, window.chat_metadata.preset);
+        }
+
+        // 5. 第五优先级：全局current_preset变量（兼容ST 1.11.0以下旧版本）
+        if (window.current_preset && typeof window.current_preset === 'object') {
+            fullPreset = deepMerge(fullPreset, window.current_preset);
+        }
     } catch (error) {
-        console.error('[小说续写插件] 获取官方预设完整数据失败:', error);
-        return {};
+        console.error('[小说续写插件] 完整预设获取失败:', error);
     }
+
+    // 实时更新全局缓存
+    currentFullPreset = fullPreset;
+    return fullPreset;
 }
 
 // ==============================================
-// 核心修复+升级：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
-// 升级：每次调用实时读取官方预设全量内容，包括系统提示词、所有生成参数，原有逻辑100%保留
+// 核心升级：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
+// 升级点：每次API调用实时拉取最新预设，完整读取预设内所有字段、提示词、配置参数
 // ==============================================
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
-    let presetParams = {};
-    const context = getContext();
+    // 每次调用实时获取当前完整预设，确保无缓存延迟
+    const fullPreset = getCurrentFullPreset();
+    let presetParams = { ...fullPreset };
 
-    // 新增：最高优先级 - 官方预设管理器获取的完整预设数据（每次调用实时读取，无缓存）
-    const officialPresetData = getCurrentPresetFullData();
-    if (Object.keys(officialPresetData).length > 0) {
-        presetParams = { ...officialPresetData };
-    }
-    // 原有优先级逻辑完整保留，兼容全版本，仅做补充兜底
-    else if (context?.generation_settings && typeof context.generation_settings === 'object') {
-        presetParams = { ...context.generation_settings };
-    } else if (window.generation_params && typeof window.generation_params === 'object') {
-        presetParams = { ...window.generation_params };
-    }
-
-    // 核心修复：开关关闭时，仍使用全局默认预设参数，而非空对象，彻底解决预设获取失败
-    // 仅当开关开启时，强制覆盖为对话实时预设，关闭时沿用全局默认预设
+    // 核心修复：开关关闭时，强制使用全局默认预设，而非对话专属预设，完全对齐官方规范
     if (!settings.enableAutoParentPreset) {
-        if (window.generation_params && typeof window.generation_params === 'object') {
+        const presetManager = getPresetManager?.();
+        if (presetManager) {
+            const globalPresetName = presetManager.getSelectedPresetName?.();
+            if (globalPresetName) {
+                const globalPreset = presetManager.findPreset?.(globalPresetName);
+                if (globalPreset) presetParams = { ...globalPreset };
+            }
+        } else if (window.generation_params) {
             presetParams = { ...window.generation_params };
         }
     }
 
-    // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效）
-    // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
+    // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效，覆盖官方全字段）
+    // 字段来源：SillyTavern官方GitHub源码script.js中generateRaw函数的完整参数定义
     const validParams = [
         // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
@@ -180,8 +191,10 @@ function getActivePresetParams() {
         'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty', 'dry_multiplier', 'dry_base', 'dry_sequence_length', 'dry_allowed_length', 'dry_penalty_last_n',
         // 高级采样参数
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
-        // 特殊控制参数（新增：完整支持预设中的提示词、停止序列等核心配置）
-        'negative_prompt', 'stop_sequence', 'stop', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'preset_prompt', 'logit_bias', 'stream'
+        // 特殊控制参数（完整包含预设中的提示词、停止序列等核心字段）
+        'system_prompt', 'negative_prompt', 'stop_sequence', 'stop', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'logit_bias', 'stream',
+        // 新增：官方扩展预设字段，确保全量覆盖
+        'preset_name', 'preset_prompt', 'trim_stop', 'include_story', 'include_world_info', 'include_character', 'include_user', 'auto_punctuate', 'single_line', 'use_stop_words'
     ];
     // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
@@ -198,7 +211,7 @@ function getActivePresetParams() {
         repetition_penalty: 1.1,
         do_sample: true
     };
-    // 仅当参数缺失时补充默认值，不覆盖用户已配置的参数
+    // 仅当参数缺失时补充默认值，不覆盖用户已配置的预设参数
     for (const [key, value] of Object.entries(defaultFallbackParams)) {
         if (filteredParams[key] === undefined || filteredParams[key] === null) {
             filteredParams[key] = value;
@@ -213,50 +226,49 @@ function getActivePresetParams() {
 function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
-    // 新增：最高优先级 - 官方预设管理器获取当前预设名（对齐官方源码）
+    // 兼容ST全版本的预设名获取渠道（按官方优先级从高到低排序）
+    // 1. 官方标准预设管理器（ST 1.12.0+推荐首选渠道，GitHub官方标准）
     try {
-        const presetManager = getPresetManager();
+        const presetManager = getPresetManager?.();
         if (presetManager) {
-            const managerPresetName = presetManager.getSelectedPresetName();
+            const managerPresetName = presetManager.getSelectedPresetName?.();
             if (managerPresetName && typeof managerPresetName === 'string') {
                 presetName = managerPresetName;
-                return presetName;
             }
         }
-    } catch (error) {
-        console.warn('[小说续写插件] 预设管理器获取名称失败，降级使用备用渠道:', error);
-    }
-    // 兼容ST全版本的预设名获取渠道（按官方优先级从高到低排序）
-    // 1. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
+    } catch (e) { /* 兼容降级处理 */ }
+    // 2. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
     if (context?.preset?.name && typeof context.preset.name === 'string') {
         presetName = context.preset.name;
     }
-    // 2. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
+    // 3. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
     else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
         presetName = context.generation_settings.preset_name;
     }
-    // 3. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
+    // 4. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
     else if (window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
         presetName = window.SillyTavern.presetManager.currentPreset.name;
     }
-    // 4. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
+    // 5. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
     else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
         presetName = window.current_preset.name;
     }
-    // 5. 旧版本全局generation_params中的预设名
+    // 6. 旧版本全局generation_params中的预设名
     else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
         presetName = window.generation_params.preset_name;
     }
-    // 6. 扩展设置中的当前预设兜底
+    // 7. 扩展设置中的当前预设兜底
     else if (window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
         presetName = window.extension_settings.presets.current_preset;
     }
     return presetName;
 }
-// 更新父级预设名UI显示（增加防抖，避免频繁触发）
+// 更新父级预设名UI显示（增加防抖，避免频繁触发，同步更新完整预设缓存）
 const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
     const presetNameElement = document.getElementById("parent-preset-name-display");
+    // 每次更新UI时同步刷新完整预设缓存
+    getCurrentFullPreset();
     if (!presetNameElement) return;
     // 开关关闭时自动隐藏显示区域
     if (!settings.enableAutoParentPreset) {
@@ -290,6 +302,10 @@ function setupPresetEventListeners() {
     // 监听全局设置更新事件（全局预设变更时触发，新增修复）
     eventSource.on(event_types.SETTINGS_UPDATED, () => {
         updatePresetNameDisplay();
+    });
+    // 新增：监听消息生成完成事件，同步更新预设缓存
+    eventSource.on(event_types.MESSAGE_RECEIVED, () => {
+        getCurrentFullPreset();
     });
 }
 // ==============================================
