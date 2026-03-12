@@ -109,7 +109,7 @@ function getActivePresetParams() {
     let presetParams = {};
     const context = getContext();
     // 核心修复：优先级严格对齐ST官方规范，全场景兜底，杜绝空参数
-    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设/对话独立预设实时更新，ST所有官方功能均使用此对象）
+    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新，ST所有官方功能均使用此对象）
     // 2. 次高优先级：window.generation_params（兼容ST 1.12.0+全版本全局生效预设）
     // 3. 兜底优先级：ST官方默认生成参数（彻底解决参数为空导致的预设获取失败）
     if (context?.generation_settings && typeof context.generation_settings === 'object') {
@@ -162,79 +162,73 @@ function getActivePresetParams() {
     return filteredParams;
 }
 // ==============================================
-// 核心重写：父级预设名显示核心模块（100%兼容ST全版本，严格对齐官方优先级，彻底解决预设名获取错误）
+// 核心修复：父级预设名显示核心模块（100%兼容ST全版本，严格对齐官方优先级，彻底解决预设名获取失败）
 // ==============================================
-// 兼容ST全版本的当前预设名获取函数（严格遵循官方优先级排序，全场景兜底，支持对话独立预设）
+// 兼容ST全版本的当前预设名获取函数（严格遵循官方优先级排序，全渠道兜底，确保全版本可用）
 function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
-    let isCustomPreset = false;
 
-    // 官方优先级1：当前对话独立绑定的预设（chatMetadata，ST核心特性，每个对话可单独设置预设，最高优先级）
-    if (context?.chatMetadata?.preset && typeof context.chatMetadata.preset === 'string') {
-        presetName = context.chatMetadata.preset;
-    }
-    // 官方优先级2：ST全局预设管理器标准API（1.13.0+官方推荐首选渠道）
-    else if (window.SillyTavern?.presetManager?.getCurrentPreset) {
-        const currentPreset = window.SillyTavern.presetManager.getCurrentPreset();
-        if (currentPreset?.name && typeof currentPreset.name === 'string') {
-            presetName = currentPreset.name;
+    // 1. 最高优先级：当前对话单独绑定的预设（ST官方核心逻辑，对话级预设优先级最高）
+    if (context?.chat?.metadata?.preset) {
+        const chatPresetId = context.chat.metadata.preset;
+        // 从预设管理器中查找对应预设的显示名称（官方标准渠道）
+        if (window.SillyTavern?.presetManager?.presets && Array.isArray(window.SillyTavern.presetManager.presets)) {
+            const matchedPreset = window.SillyTavern.presetManager.presets.find(p => p.id === chatPresetId || p.file === chatPresetId);
+            if (matchedPreset?.name && typeof matchedPreset.name === 'string') {
+                presetName = matchedPreset.name;
+                return presetName;
+            }
         }
+        // 兼容旧版本，若预设管理器无数据，直接使用预设ID作为兜底名称
+        presetName = chatPresetId;
+        return presetName;
     }
-    // 官方优先级3：上下文preset对象（ST 1.13.0+稳定渠道）
-    else if (context?.preset?.name && typeof context.preset.name === 'string') {
+
+    // 2. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
+    if (context?.preset?.name && typeof context.preset.name === 'string') {
         presetName = context.preset.name;
     }
-    // 官方优先级4：生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
+    // 3. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
     else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
         presetName = context.generation_settings.preset_name;
     }
-    // 官方优先级5：全局current_preset变量（兼容ST 1.11.0以下旧版本）
+    // 4. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
+    else if (window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
+        presetName = window.SillyTavern.presetManager.currentPreset.name;
+    }
+    // 5. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
     else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
         presetName = window.current_preset.name;
     }
-    // 官方优先级6：旧版本全局generation_params中的预设名
+    // 6. 旧版本全局generation_params中的预设名
     else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
         presetName = window.generation_params.preset_name;
     }
-    // 官方优先级7：扩展设置中的当前预设兜底
+    // 7. 扩展设置中的当前预设兜底
     else if (window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
         presetName = window.extension_settings.presets.current_preset;
     }
 
-    // 核心修复：自定义预设识别（用户手动修改参数未保存预设时，正确显示为自定义预设）
-    const currentGenerationSettings = context?.generation_settings || window.generation_params || {};
-    // 当预设名为空/默认预设，但核心参数与官方默认值不一致时，判定为自定义预设
-    if (
-        (!presetName || presetName === "默认预设") &&
-        (currentGenerationSettings.temperature !== undefined && currentGenerationSettings.temperature !== 0.7) ||
-        (currentGenerationSettings.top_p !== undefined && currentGenerationSettings.top_p !== 0.9) ||
-        (currentGenerationSettings.max_new_tokens !== undefined && currentGenerationSettings.max_new_tokens !== 2048) ||
-        (currentGenerationSettings.repetition_penalty !== undefined && currentGenerationSettings.repetition_penalty !== 1.1)
-    ) {
-        isCustomPreset = true;
-    }
-
-    // 最终兜底：自定义预设显示处理
-    return isCustomPreset ? "自定义预设" : presetName;
+    return presetName;
 }
 // 更新父级预设名UI显示（增加防抖，避免频繁触发，原有逻辑完全保留）
 const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
     const presetNameElement = document.getElementById("parent-preset-name-display");
     if (!presetNameElement) return;
-    // 开关关闭时自动隐藏显示区域（原有逻辑完全保留，不改动原有功能）
+    // 开关关闭时自动隐藏显示区域（原有逻辑完全保留）
     if (!settings.enableAutoParentPreset) {
         presetNameElement.style.display = "none";
         currentPresetName = "";
         return;
     }
-    // 获取并更新预设名（使用重写后的正确获取逻辑）
+    // 获取并更新预设名
     currentPresetName = getCurrentPresetName();
     presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
     presetNameElement.style.display = "block";
 }, 100);
-// 预设事件监听（全覆盖ST官方事件，新增对话元数据监听，彻底解决切换预设/对话/角色不更新问题）
+// 预设事件监听（全覆盖ST官方事件，彻底解决切换预设/对话/角色不更新问题）
 function setupPresetEventListeners() {
     // 监听预设切换事件（用户切换预设时触发）
     eventSource.on(event_types.PRESET_CHANGED, () => {
@@ -256,7 +250,7 @@ function setupPresetEventListeners() {
     eventSource.on(event_types.SETTINGS_UPDATED, () => {
         updatePresetNameDisplay();
     });
-    // 核心新增：监听对话元数据更新事件（对话绑定独立预设时触发，ST官方核心事件）
+    // 监听对话元数据更新事件（对话单独预设修改时触发，新增修复）
     eventSource.on(event_types.CHAT_METADATA_UPDATED, () => {
         updatePresetNameDisplay();
     });
