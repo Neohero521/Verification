@@ -1,3 +1,4 @@
+javascript  
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
@@ -162,62 +163,95 @@ function getActivePresetParams() {
     return filteredParams;
 }
 // ==============================================
-// 核心修复：父级预设名显示核心模块（100%兼容ST全版本，严格对齐官方优先级，彻底解决预设名获取失败）
+// 核心修复：父级预设名显示核心模块（100%兼容ST全版本，彻底解决预设名获取失败）
 // ==============================================
-// 兼容ST全版本的当前预设名获取函数（严格遵循官方优先级排序，全渠道兜底，确保全版本可用）
+// 兼容ST全版本的当前预设名获取函数（多渠道兜底，按官方优先级排序，确保全版本可用）
 function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
+    let isCustomPreset = false;
 
-    // 1. 最高优先级：当前对话单独绑定的预设（ST官方核心逻辑，对话级预设优先级最高）
-    if (context?.chat?.metadata?.preset) {
-        const chatPresetId = context.chat.metadata.preset;
-        // 从预设管理器中查找对应预设的显示名称（官方标准渠道）
-        if (window.SillyTavern?.presetManager?.presets && Array.isArray(window.SillyTavern.presetManager.presets)) {
-            const matchedPreset = window.SillyTavern.presetManager.presets.find(p => p.id === chatPresetId || p.file === chatPresetId);
-            if (matchedPreset?.name && typeof matchedPreset.name === 'string') {
+    // 核心修复：严格对齐ST官方预设优先级，先判断是否为自定义修改后的预设
+    // 1. 检查是否为手动修改后的自定义预设（官方逻辑：修改参数后preset_name为null/custom）
+    if (context?.generation_settings?.preset_name === null || context?.generation_settings?.preset_name === 'custom') {
+        isCustomPreset = true;
+    }
+
+    // 2. 检查对话专属预设覆盖（ST官方对话级预设优先级最高）
+    if (context?.chat_metadata?.preset_override && !isCustomPreset) {
+        const overridePresetId = context.chat_metadata.preset_override;
+        // 从预设管理器获取对话专属预设的显示名
+        if (window.SillyTavern?.presetManager?.presets) {
+            const overridePreset = window.SillyTavern.presetManager.presets.find(p => p.id === overridePresetId);
+            if (overridePreset?.name) {
+                return `对话专属：${overridePreset.name}`;
+            }
+        }
+        return "对话专属预设";
+    }
+
+    // 3. 官方标准预设管理器（ST 1.13.0+推荐首选渠道，100%对齐官方UI显示）
+    if (!isCustomPreset && window.SillyTavern?.presetManager?.getCurrentPreset) {
+        try {
+            const currentPreset = window.SillyTavern.presetManager.getCurrentPreset();
+            if (currentPreset?.name && typeof currentPreset.name === 'string') {
+                presetName = currentPreset.name;
+                return presetName;
+            }
+        } catch (e) {
+            console.warn("[小说续写插件] 预设管理器获取失败，降级使用备用渠道", e);
+        }
+    }
+
+    // 4. 生成设置中的预设名（ST 1.12.0+通用稳定渠道，兼容预设ID到名称的映射）
+    if (!isCustomPreset && context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
+        const presetId = context.generation_settings.preset_name;
+        // 优先从预设管理器映射显示名
+        if (window.SillyTavern?.presetManager?.presets) {
+            const matchedPreset = window.SillyTavern.presetManager.presets.find(p => p.id === presetId || p.name === presetId);
+            if (matchedPreset?.name) {
                 presetName = matchedPreset.name;
                 return presetName;
             }
         }
-        // 兼容旧版本，若预设管理器无数据，直接使用预设ID作为兜底名称
-        presetName = chatPresetId;
+        // 无映射时直接使用预设名
+        presetName = presetId;
         return presetName;
     }
 
-    // 2. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
-    if (context?.preset?.name && typeof context.preset.name === 'string') {
-        presetName = context.preset.name;
-    }
-    // 3. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
-    else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
-        presetName = context.generation_settings.preset_name;
-    }
-    // 4. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
-    else if (window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
+    // 5. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
+    if (!isCustomPreset && window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
         presetName = window.SillyTavern.presetManager.currentPreset.name;
-    }
-    // 5. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
-    else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
-        presetName = window.current_preset.name;
-    }
-    // 6. 旧版本全局generation_params中的预设名
-    else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
-        presetName = window.generation_params.preset_name;
-    }
-    // 7. 扩展设置中的当前预设兜底
-    else if (window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
-        presetName = window.extension_settings.presets.current_preset;
+        return presetName;
     }
 
-    return presetName;
+    // 6. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
+    if (!isCustomPreset && window?.current_preset?.name && typeof window.current_preset.name === 'string') {
+        presetName = window.current_preset.name;
+        return presetName;
+    }
+
+    // 7. 旧版本全局generation_params中的预设名
+    if (!isCustomPreset && window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
+        presetName = window.generation_params.preset_name;
+        return presetName;
+    }
+
+    // 8. 扩展设置中的当前预设兜底
+    if (!isCustomPreset && window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
+        presetName = window.extension_settings.presets.current_preset;
+        return presetName;
+    }
+
+    // 最终兜底：自定义预设/默认预设
+    return isCustomPreset ? "自定义预设" : presetName;
 }
-// 更新父级预设名UI显示（增加防抖，避免频繁触发，原有逻辑完全保留）
+// 更新父级预设名UI显示（增加防抖，避免频繁触发，修复自定义预设显示）
 const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
     const presetNameElement = document.getElementById("parent-preset-name-display");
     if (!presetNameElement) return;
-    // 开关关闭时自动隐藏显示区域（原有逻辑完全保留）
+    // 开关关闭时自动隐藏显示区域
     if (!settings.enableAutoParentPreset) {
         presetNameElement.style.display = "none";
         currentPresetName = "";
@@ -228,7 +262,7 @@ const updatePresetNameDisplay = debounce(function() {
     presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
     presetNameElement.style.display = "block";
 }, 100);
-// 预设事件监听（全覆盖ST官方事件，彻底解决切换预设/对话/角色不更新问题）
+// 预设事件监听（全覆盖ST官方事件，彻底解决切换预设/对话/角色/导入预设不更新问题）
 function setupPresetEventListeners() {
     // 监听预设切换事件（用户切换预设时触发）
     eventSource.on(event_types.PRESET_CHANGED, () => {
@@ -250,8 +284,16 @@ function setupPresetEventListeners() {
     eventSource.on(event_types.SETTINGS_UPDATED, () => {
         updatePresetNameDisplay();
     });
-    // 监听对话元数据更新事件（对话单独预设修改时触发，新增修复）
-    eventSource.on(event_types.CHAT_METADATA_UPDATED, () => {
+    // 监听预设保存事件（用户修改并保存预设时触发）
+    eventSource.on(event_types.PRESET_SAVED, () => {
+        updatePresetNameDisplay();
+    });
+    // 监听预设删除事件（用户删除预设时触发）
+    eventSource.on(event_types.PRESET_DELETED, () => {
+        updatePresetNameDisplay();
+    });
+    // 监听预设导入事件（用户导入新预设时触发）
+    eventSource.on(event_types.PRESET_IMPORTED, () => {
         updatePresetNameDisplay();
     });
 }
