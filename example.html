@@ -87,9 +87,16 @@
                         <div class="form-group form-group-inline">
                             <label for="auto-parent-preset-switch" class="form-label">自动使用父级对话预设</label>
                             <input id="auto-parent-preset-switch" type="checkbox" checked />
-                            <span class="input-tip">开启后，续写将使用当前对话的生成预设参数</span>
+                            <span class="input-tip">开启后，续写将使用当前对话的生成预设参数，关闭后可手动选择预设</span>
                         </div>
-                        <!-- 新增：父级预设名显示区域（不影响原有布局，开关关闭时自动隐藏） -->
+                        <!-- 新增：手动预设选择下拉框（开关关闭时显示） -->
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label class="form-label">手动选择预设</label>
+                            <select id="preset-select" class="form-select" style="display: none;">
+                                <option value="">请选择预设</option>
+                            </select>
+                        </div>
+                        <!-- 预设名显示区域 -->
                         <div id="parent-preset-name-display" class="form-label" style="margin-top: 8px; color: var(--novel-primary); font-weight: 600; display: none;"></div>
                     </div>
                 </div>
