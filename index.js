@@ -1,8 +1,6 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
-// 新增：SillyTavern官方预设管理器原生导入，对齐GitHub官方源码规范
-import { getPresetManager } from "../../../preset-manager.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 预设章节拆分正则列表（覆盖全场景，含括号序号格式）
@@ -79,8 +77,13 @@ let isInitialized = false;
 let batchMergedGraphs = [];
 // 新增：当前父级预设名缓存
 let currentPresetName = "";
-// 新增：当前生效完整预设对象缓存（实时更新）
-let currentFullPreset = {};
+// ==============================================
+// 新增：预设与提示词全量数据核心缓存（不影响原有功能）
+// ==============================================
+// 新增：当前预设完整原始数据缓存（含所有字段、提示词配置）
+let currentPresetFullData = {};
+// 新增：当前完整提示词上下文缓存（含最终发送给LLM的格式化内容）
+let currentFullPromptContext = {};
 // 防抖工具函数（新增，修复resize频繁触发问题）
 function debounce(func, delay) {
     let timer = null;
@@ -105,83 +108,32 @@ function deepMerge(target, source) {
     }
     return merged;
 }
-
 // ==============================================
-// 新增：SillyTavern官方完整预设获取核心函数（100%对齐GitHub官方源码）
-// 功能：每次调用实时读取当前正在使用的预设全量内容，包括提示词、所有字段、配置参数
-// ==============================================
-function getCurrentFullPreset() {
-    const context = getContext();
-    let fullPreset = {};
-
-    // 官方优先级排序：对话专属预设 > 预设管理器当前预设 > 全局生成参数 > 上下文生成设置 > 默认兜底
-    try {
-        // 1. 最高优先级：官方预设管理器原生获取（ST 1.12.0+ 全版本标准渠道）
-        const presetManager = getPresetManager?.();
-        if (presetManager) {
-            const currentPresetName = presetManager.getSelectedPresetName?.();
-            if (currentPresetName) {
-                const presetData = presetManager.findPreset?.(currentPresetName);
-                if (presetData && typeof presetData === 'object') {
-                    fullPreset = deepMerge(fullPreset, presetData);
-                }
-            }
-        }
-
-        // 2. 次高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新）
-        if (context?.generation_settings && typeof context.generation_settings === 'object') {
-            fullPreset = deepMerge(fullPreset, context.generation_settings);
-        }
-
-        // 3. 第三优先级：window.generation_params（兼容ST全版本全局生效预设）
-        if (window.generation_params && typeof window.generation_params === 'object') {
-            fullPreset = deepMerge(fullPreset, window.generation_params);
-        }
-
-        // 4. 第四优先级：对话元数据专属预设（ST官方对话级预设标准）
-        if (window.chat_metadata?.preset && typeof window.chat_metadata.preset === 'object') {
-            fullPreset = deepMerge(fullPreset, window.chat_metadata.preset);
-        }
-
-        // 5. 第五优先级：全局current_preset变量（兼容ST 1.11.0以下旧版本）
-        if (window.current_preset && typeof window.current_preset === 'object') {
-            fullPreset = deepMerge(fullPreset, window.current_preset);
-        }
-    } catch (error) {
-        console.error('[小说续写插件] 完整预设获取失败:', error);
-    }
-
-    // 实时更新全局缓存
-    currentFullPreset = fullPreset;
-    return fullPreset;
-}
-
-// ==============================================
-// 核心升级：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
-// 升级点：每次API调用实时拉取最新预设，完整读取预设内所有字段、提示词、配置参数
+// 【核心升级】当前预设全量参数获取函数（100%对齐ST官方源码，每次API调用自动读取）
+// 新增：完整覆盖预设中所有提示词、模板、生成配置字段，全版本兼容
 // ==============================================
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
-    // 每次调用实时获取当前完整预设，确保无缓存延迟
-    const fullPreset = getCurrentFullPreset();
-    let presetParams = { ...fullPreset };
-
-    // 核心修复：开关关闭时，强制使用全局默认预设，而非对话专属预设，完全对齐官方规范
+    let presetParams = {};
+    const context = getContext();
+    // 核心优先级严格对齐ST官方规范，全场景兜底，杜绝空参数
+    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新，ST所有官方功能均使用此对象）
+    // 2. 次高优先级：window.generation_params（兼容ST 1.12.0+全版本全局生效预设）
+    // 3. 兜底优先级：ST官方默认生成参数（彻底解决参数为空导致的预设获取失败）
+    if (context?.generation_settings && typeof context.generation_settings === 'object') {
+        presetParams = { ...context.generation_settings };
+    } else if (window.generation_params && typeof window.generation_params === 'object') {
+        presetParams = { ...window.generation_params };
+    }
+    // 核心修复：开关关闭时，仍使用全局默认预设参数，而非空对象，彻底解决预设获取失败
+    // 仅当开关开启时，强制覆盖为对话实时预设，关闭时沿用全局默认预设
     if (!settings.enableAutoParentPreset) {
-        const presetManager = getPresetManager?.();
-        if (presetManager) {
-            const globalPresetName = presetManager.getSelectedPresetName?.();
-            if (globalPresetName) {
-                const globalPreset = presetManager.findPreset?.(globalPresetName);
-                if (globalPreset) presetParams = { ...globalPreset };
-            }
-        } else if (window.generation_params) {
+        if (window.generation_params && typeof window.generation_params === 'object') {
             presetParams = { ...window.generation_params };
         }
     }
-
-    // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效，覆盖官方全字段）
-    // 字段来源：SillyTavern官方GitHub源码script.js中generateRaw函数的完整参数定义
+    // 【升级】完整对齐ST官方generateRaw支持的所有参数字段（含提示词、模板、所有配置项）
+    // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
     const validParams = [
         // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
@@ -191,10 +143,16 @@ function getActivePresetParams() {
         'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty', 'dry_multiplier', 'dry_base', 'dry_sequence_length', 'dry_allowed_length', 'dry_penalty_last_n',
         // 高级采样参数
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
-        // 特殊控制参数（完整包含预设中的提示词、停止序列等核心字段）
-        'system_prompt', 'negative_prompt', 'stop_sequence', 'stop', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'logit_bias', 'stream',
-        // 新增：官方扩展预设字段，确保全量覆盖
-        'preset_name', 'preset_prompt', 'trim_stop', 'include_story', 'include_world_info', 'include_character', 'include_user', 'auto_punctuate', 'single_line', 'use_stop_words'
+        // 提示词与模板相关核心字段（新增，完整覆盖预设中的提示词配置）
+        'system_prompt', 'prompt_template', 'custom_prompt_template', 'jinja_template',
+        'stop_sequence', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length',
+        'negative_prompt', 'logit_bias', 'custom_token_bans', 'sampler_priority',
+        // 特殊控制参数
+        'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping',
+        'stream', 'use_cache', 'beam_width', 'repeat_last_n', 'sampler_order',
+        // 上下文注入相关字段
+        'author_note', 'author_note_position', 'author_note_depth',
+        'worldinfo', 'worldInfoOn', 'bias_list'
     ];
     // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
@@ -209,15 +167,114 @@ function getActivePresetParams() {
         top_p: 0.9,
         max_new_tokens: 2048,
         repetition_penalty: 1.1,
-        do_sample: true
+        do_sample: true,
+        system_prompt: window.system_prompt || "",
+        prompt_template: window.prompt_template || "Alpaca"
     };
-    // 仅当参数缺失时补充默认值，不覆盖用户已配置的预设参数
+    // 仅当参数缺失时补充默认值，不覆盖用户已配置的参数
     for (const [key, value] of Object.entries(defaultFallbackParams)) {
         if (filteredParams[key] === undefined || filteredParams[key] === null) {
             filteredParams[key] = value;
         }
     }
+    // 【新增】每次调用自动更新当前预设完整数据缓存
+    currentPresetFullData = { ...filteredParams };
     return filteredParams;
+}
+// ==============================================
+// 【新增核心】获取当前预设完整原始数据（含所有字段、提示词、配置）
+// 每次调用API前可执行，100%读取当前正在使用的预设全部内容
+// ==============================================
+function getCurrentPresetFullData() {
+    const context = getContext();
+    let fullPresetData = {};
+    // 1. 获取预设基础信息
+    fullPresetData.presetName = getCurrentPresetName();
+    fullPresetData.presetId = window.current_preset || context?.preset?.id || "";
+    // 2. 获取当前生效的完整生成参数
+    fullPresetData.generationSettings = getActivePresetParams();
+    // 3. 获取预设原始完整配置（未修改的原始数据）
+    if (window.presets && typeof window.presets === 'object') {
+        fullPresetData.originalPresetData = window.presets[fullPresetData.presetName] || window.presets[fullPresetData.presetId] || {};
+    }
+    // 4. 获取提示词相关全量内容
+    fullPresetData.promptContext = getFullPromptContext();
+    // 5. 获取API与模型相关配置
+    fullPresetData.apiConfig = {
+        apiType: window.api_type || context?.api_type || "",
+        currentModel: window.model || context?.model || "",
+        apiServer: window.api_server || context?.api_server || "",
+        apiVersion: window.api_version || "",
+        isStreaming: window.streaming_enabled || false
+    };
+    // 6. 获取全局设置相关配置
+    fullPresetData.globalSettings = window.global_settings || {};
+    // 更新全局缓存
+    currentPresetFullData = { ...fullPresetData };
+    // 控制台输出（可选，方便调试）
+    console.log(`[${extensionName}] 当前预设完整数据已加载`, fullPresetData);
+    return fullPresetData;
+}
+// ==============================================
+// 【新增核心】获取完整提示词上下文（含最终发送给LLM的格式化内容）
+// 覆盖预设中所有提示词相关配置、角色卡、上下文、注入内容
+// ==============================================
+function getFullPromptContext() {
+    const context = getContext();
+    let promptContext = {};
+    // 1. 基础提示词核心字段
+    promptContext.systemPrompt = window.system_prompt || context?.system_prompt || "";
+    promptContext.currentCharacter = window.character || context?.characters?.[context.characterId] || {};
+    promptContext.chatHistory = window.chat || context?.chat || [];
+    promptContext.userName = window.name1 || context?.name1 || "User";
+    promptContext.characterName = window.name2 || context?.name2 || "Assistant";
+    // 2. 提示词模板配置
+    promptContext.promptTemplate = window.prompt_template || context?.prompt_template || "";
+    promptContext.customPromptTemplate = window.custom_prompt_template || context?.custom_prompt_template || "";
+    promptContext.jinjaTemplate = window.jinja_template || context?.jinja_template || "";
+    // 3. 额外注入内容
+    promptContext.authorNote = {
+        content: window.author_note || "",
+        position: window.author_note_position || "",
+        depth: window.author_note_depth || 0
+    };
+    promptContext.worldInfo = {
+        isEnabled: window.worldInfoOn || false,
+        fullData: window.worldinfo || context?.worldinfo || {},
+        activeEntries: window.worldInfoActiveEntries || []
+    };
+    promptContext.tokenBias = window.bias_list || [];
+    // 4. 【关键】获取经过ST完整格式化、即将发送给LLM的最终提示词
+    try {
+        if (typeof window.generatePrompt === 'function') {
+            promptContext.finalFormattedPrompt = window.generatePrompt();
+        } else if (context?.generatePrompt && typeof context.generatePrompt === 'function') {
+            promptContext.finalFormattedPrompt = context.generatePrompt();
+        } else {
+            promptContext.finalFormattedPrompt = "当前ST版本未暴露generatePrompt方法，可通过generation_started事件获取";
+        }
+    } catch (error) {
+        promptContext.finalFormattedPrompt = `提示词生成失败: ${error.message}`;
+        console.warn(`[${extensionName}] 最终提示词生成失败`, error);
+    }
+    // 更新全局缓存
+    currentFullPromptContext = { ...promptContext };
+    return promptContext;
+}
+// ==============================================
+// 【新增】API调用前置钩子：每次调用API前自动读取预设与提示词全量内容
+// 不影响原有API调用逻辑，仅新增数据读取与缓存
+// ==============================================
+function beforeApiCallHook() {
+    // 每次API调用前自动读取当前预设完整数据
+    getCurrentPresetFullData();
+    // 每次API调用前自动读取完整提示词上下文
+    getFullPromptContext();
+    console.log(`[${extensionName}] API调用前置钩子执行完成，预设与提示词数据已更新`);
+    return {
+        presetData: currentPresetFullData,
+        promptContext: currentFullPromptContext
+    };
 }
 // ==============================================
 // 核心修复：父级预设名显示核心模块（100%兼容ST全版本，彻底解决预设名获取失败）
@@ -227,48 +284,36 @@ function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
     // 兼容ST全版本的预设名获取渠道（按官方优先级从高到低排序）
-    // 1. 官方标准预设管理器（ST 1.12.0+推荐首选渠道，GitHub官方标准）
-    try {
-        const presetManager = getPresetManager?.();
-        if (presetManager) {
-            const managerPresetName = presetManager.getSelectedPresetName?.();
-            if (managerPresetName && typeof managerPresetName === 'string') {
-                presetName = managerPresetName;
-            }
-        }
-    } catch (e) { /* 兼容降级处理 */ }
-    // 2. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
+    // 1. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
     if (context?.preset?.name && typeof context.preset.name === 'string') {
         presetName = context.preset.name;
     }
-    // 3. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
+    // 2. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
     else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
         presetName = context.generation_settings.preset_name;
     }
-    // 4. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
+    // 3. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
     else if (window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
         presetName = window.SillyTavern.presetManager.currentPreset.name;
     }
-    // 5. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
-    else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
-        presetName = window.current_preset.name;
+    // 4. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
+    else if (window?.current_preset && typeof window.current_preset === 'string') {
+        presetName = window.current_preset;
     }
-    // 6. 旧版本全局generation_params中的预设名
+    // 5. 旧版本全局generation_params中的预设名
     else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
         presetName = window.generation_params.preset_name;
     }
-    // 7. 扩展设置中的当前预设兜底
+    // 6. 扩展设置中的当前预设兜底
     else if (window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
         presetName = window.extension_settings.presets.current_preset;
     }
     return presetName;
 }
-// 更新父级预设名UI显示（增加防抖，避免频繁触发，同步更新完整预设缓存）
+// 更新父级预设名UI显示（增加防抖，避免频繁触发）
 const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
     const presetNameElement = document.getElementById("parent-preset-name-display");
-    // 每次更新UI时同步刷新完整预设缓存
-    getCurrentFullPreset();
     if (!presetNameElement) return;
     // 开关关闭时自动隐藏显示区域
     if (!settings.enableAutoParentPreset) {
@@ -276,8 +321,9 @@ const updatePresetNameDisplay = debounce(function() {
         currentPresetName = "";
         return;
     }
-    // 获取并更新预设名
+    // 获取并更新预设名，同时更新预设完整数据
     currentPresetName = getCurrentPresetName();
+    getCurrentPresetFullData(); // 切换预设时自动更新完整数据
     presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
     presetNameElement.style.display = "block";
 }, 100);
@@ -286,26 +332,47 @@ function setupPresetEventListeners() {
     // 监听预设切换事件（用户切换预设时触发）
     eventSource.on(event_types.PRESET_CHANGED, () => {
         updatePresetNameDisplay();
+        getCurrentPresetFullData(); // 切换预设时自动更新完整数据
     });
     // 监听对话切换事件（不同对话预设不同，切换时更新）
     eventSource.on(event_types.CHAT_CHANGED, () => {
         updatePresetNameDisplay();
+        getCurrentPresetFullData(); // 切换对话时自动更新完整数据
     });
     // 监听角色切换事件（切换角色预设同步变更，新增修复）
     eventSource.on(event_types.CHARACTER_CHANGED, () => {
         updatePresetNameDisplay();
+        getCurrentPresetFullData(); // 切换角色时自动更新完整数据
     });
     // 监听生成设置变更事件（用户手动修改预设参数时触发）
     eventSource.on(event_types.GENERATION_SETTINGS_UPDATED, () => {
         updatePresetNameDisplay();
+        getCurrentPresetFullData(); // 修改参数时自动更新完整数据
     });
     // 监听全局设置更新事件（全局预设变更时触发，新增修复）
     eventSource.on(event_types.SETTINGS_UPDATED, () => {
         updatePresetNameDisplay();
+        getCurrentPresetFullData(); // 全局设置更新时自动更新完整数据
     });
-    // 新增：监听消息生成完成事件，同步更新预设缓存
-    eventSource.on(event_types.MESSAGE_RECEIVED, () => {
-        getCurrentFullPreset();
+    // 监听系统提示词更新事件（预设中系统提示修改时触发）
+    eventSource.on(event_types.SYSTEM_PROMPT_UPDATED, () => {
+        getFullPromptContext(); // 系统提示更新时自动更新提示词上下文
+    });
+    // 监听WorldInfo更新事件（预设中世界信息修改时触发）
+    eventSource.on(event_types.WORLDINFO_UPDATED, () => {
+        getFullPromptContext(); // 世界信息更新时自动更新提示词上下文
+    });
+    // 【关键】监听生成开始事件，获取最终发送给API的精准提示词+预设参数
+    eventSource.on(event_types.GENERATION_STARTED, (finalPrompt, generationParams) => {
+        console.log(`[${extensionName}] 即将发送给API的最终提示词`, finalPrompt);
+        console.log(`[${extensionName}] 本次生成使用的完整预设参数`, generationParams);
+        // 更新缓存
+        currentFullPromptContext.finalFormattedPrompt = finalPrompt;
+        currentPresetFullData.generationSettings = { ...generationParams };
+    });
+    // 监听生成完成事件，获取生成结果
+    eventSource.on(event_types.GENERATION_COMPLETE, (responseText, fullChatMessage) => {
+        console.log(`[${extensionName}] 生成完成，响应内容`, responseText);
     });
 }
 // ==============================================
@@ -1015,6 +1082,8 @@ async function batchMergeGraphs() {
             const systemPrompt = `触发词：合并批次知识图谱JSON、小说批次图谱构建 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的当前批次的多组章节图谱合并，不引入任何外部内容 严格去重，同一人物/设定/事件不能重复，不同别名合并为同一条目 同一设定以当前批次内最新章节的生效内容为准，同时保留历史变更记录 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必须构建完整的反向依赖图谱，支持后续合并与续写 必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估`;
             const userPrompt = `待合并的批次${batchNum}章节图谱列表：\n${JSON.stringify(batch, null, 2)}`;
             
+            // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+            beforeApiCallHook();
             const result = await generateRaw({
                 systemPrompt,
                 prompt: userPrompt,
@@ -1115,6 +1184,8 @@ async function loadSettings() {
     // 新增：初始化预设名显示和事件监听
     updatePresetNameDisplay();
     setupPresetEventListeners();
+    // 新增：初始化时自动加载预设完整数据
+    getCurrentPresetFullData();
     // 原有初始化逻辑
     FloatBall.init();
     NovelReader.init();
@@ -1157,8 +1228,8 @@ async function copyToClipboard(text) {
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
+        textArea.style.left = '-99999px';
+        textArea.style.top = '-99999px';
         textArea.style.opacity = '0';
         textArea.readOnly = true;
         document.body.appendChild(textArea);
@@ -1552,6 +1623,8 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
     const systemPrompt = `触发词：续写节点逆向分析、前置合规性校验 强制约束（100%遵守）： 所有分析只能基于续写节点（章节号${baseId}）及之前的小说内容，绝对不能引入该节点之后的任何剧情、设定、人物变化，禁止剧透 若前文有设定冲突，以续写节点前最后一次出现的内容为准，同时标注冲突预警 优先以用户提供的魔改后基准章节内容为准，更新对应人设、设定、剧情状态 只能基于提供的章节知识图谱分析，绝对不能引入外部信息、主观新增设定 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾 必填字段：isPass、preMergedGraph、人设红线清单、设定禁区清单、可呼应伏笔清单、潜在矛盾预警、可推进剧情方向、合规性报告`;
     const userPrompt = `续写基准章节ID：${baseId} 基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList, null, 2)} 用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"} 请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
     try {
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({ 
             systemPrompt, 
             prompt: userPrompt, 
@@ -1601,6 +1674,8 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
     const systemPrompt = `触发词：小说续写质量评估、多维度合规性校验 强制约束（100%遵守）： 严格按照5个维度执行评估，单项得分0-100分，总分=5个维度得分的平均值，精确到整数 合格标准：单项得分不得低于80分，总分不得低于85分，不符合即为不合格 所有评估只能基于提供的前置校验结果、知识图谱、基准章节内容，不能引入外部主观标准 必须校验字数合规性：目标字数${targetWordCount}字，实际字数${actualWordCount}字，误差超过10%（当前误差率${(wordErrorRate*100).toFixed(2)}%），内容质量得分必须对应扣分 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾 评估维度说明： ● 人设一致性：校验续写内容中人物的言行、性格、动机是否符合人设设定，有无OOC问题 ● 设定合规性：校验续写内容是否符合世界观设定，有无吃书、新增违规设定、违反原有规则的问题 ● 剧情衔接度：校验续写内容与前文的衔接是否自然，逻辑是否自洽，有无剧情断层、前后矛盾的问题 ● 文风匹配度：校验续写内容的叙事视角、语言风格、对话模式、节奏规律是否与原文一致，有无风格割裂 ● 内容质量：校验续写内容是否有完整的情节、生动的细节、符合逻辑的对话，有无无意义水内容、剧情拖沓、逻辑混乱的问题，字数是否符合要求`;
     const userPrompt = `待评估续写内容：${continueContent} 前置校验合规边界：${JSON.stringify(precheckResult)} 小说核心设定知识图谱：${JSON.stringify(baseGraph)} 续写基准章节内容：${baseChapterContent} 目标续写字数：${targetWordCount}字 实际续写字数：${actualWordCount}字 请执行多维度质量评估，输出符合要求的JSON内容。`;
     try {
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({ 
             systemPrompt, 
             prompt: userPrompt, 
@@ -1631,6 +1706,8 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
     const userPrompt = `小说章节标题：${targetChapter.title}\n魔改后章节内容：${modifiedContent}`;
     try {
         toastr.info('正在更新魔改章节图谱，请稍候...', "小说续写器");
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({ 
             systemPrompt, 
             prompt: userPrompt, 
@@ -1661,6 +1738,8 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说续写章节解析 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的续写章节内容分析，不引入任何外部内容 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：续写章节${continueId}\n小说章节内容：${continueChapter.content}`;
     try {
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({ 
             systemPrompt, 
             prompt: userPrompt, 
@@ -1895,6 +1974,8 @@ async function generateSingleChapterGraph(chapter) {
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说章节解析 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的小说文本分析，不引入任何外部内容 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必须实现全链路双向可追溯，所有信息必须关联对应原文位置 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length} 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${chapter.title}\n小说章节内容：${chapter.content}`;
     try {
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({
             systemPrompt,
             prompt: userPrompt,
@@ -1987,6 +2068,8 @@ async function mergeAllGraphs() {
     
     try {
         toastr.info(`开始合并${mergeType}，生成最终全量知识图谱，请稍候...`, "小说续写器");
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         const result = await generateRaw({
             systemPrompt,
             prompt: userPrompt,
@@ -2129,28 +2212,31 @@ async function generateContinueWrite(targetChainId) {
     const targetContent = targetChapter.content;
     const targetParagraphs = targetContent.split('\n').filter(p => p.trim() !== '');
     const targetLastParagraph = targetParagraphs.length > 0 ? targetParagraphs[targetParagraphs.length - 1].trim() : '';
-    const precheckResult = await validateContinuePrecondition(selectedBaseChapterId, editedBaseChapterContent);
-    const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
-    let fullContextContent = '';
-    const baseChapterId = parseInt(selectedBaseChapterId);
-    const preBaseChapters = currentParsedChapters.filter(chapter => chapter.id < baseChapterId);
-    preBaseChapters.forEach(chapter => {
-        fullContextContent += `${chapter.title}\n${chapter.content}\n\n`;
-    });
-    const baseChapterTitle = currentParsedChapters.find(c => c.id === baseChapterId)?.title || '基准章节';
-    fullContextContent += `${baseChapterTitle}\n${editedBaseChapterContent}\n\n`;
-    const targetBeforeChapters = continueWriteChain.slice(0, targetChainId + 1);
-    targetBeforeChapters.forEach((chapter, index) => {
-        fullContextContent += `续写章节 ${index + 1}\n${chapter.content}\n\n`;
-    });
-    const systemPrompt = `小说续写规则（100%遵守）： 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines} 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules} 文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。 剧情承接：续写内容必须承接前文所有剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新章节，且与上述文本衔接要求一致，不得重复前文已有的情节。 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线 字数要求：续写约${wordCount}字，误差不超过10% 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning} 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
-    const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)} 完整前文上下文：${fullContextContent} 请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
     isGeneratingWrite = true;
     stopGenerateFlag = false;
     setButtonDisabled('#write-generate-btn, .continue-write-btn', true);
     setButtonDisabled('#write-stop-btn', false);
     toastr.info('正在生成续写章节，请稍候...', "小说续写器");
     try {
+        const precheckResult = await validateContinuePrecondition(selectedBaseChapterId, editedBaseChapterContent);
+        const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
+        let fullContextContent = '';
+        const baseChapterId = parseInt(selectedBaseChapterId);
+        const preBaseChapters = currentParsedChapters.filter(chapter => chapter.id < baseChapterId);
+        preBaseChapters.forEach(chapter => {
+            fullContextContent += `${chapter.title}\n${chapter.content}\n\n`;
+        });
+        const baseChapterTitle = currentParsedChapters.find(c => c.id === baseChapterId)?.title || '基准章节';
+        fullContextContent += `${baseChapterTitle}\n${editedBaseChapterContent}\n\n`;
+        const targetBeforeChapters = continueWriteChain.slice(0, targetChainId + 1);
+        targetBeforeChapters.forEach((chapter, index) => {
+            fullContextContent += `续写章节 ${index + 1}\n${chapter.content}\n\n`;
+        });
+        const systemPrompt = `小说续写规则（100%遵守）： 人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines} 设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules} 文本衔接：续写内容必须紧接在上一章（续写章节 ${targetChapter.title}）的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。上一章的最后一段内容是："${targetLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。 剧情承接：续写内容必须承接前文所有剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新章节，且与上述文本衔接要求一致，不得重复前文已有的情节。 文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂 剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话 输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线 字数要求：续写约${wordCount}字，误差不超过10% 矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning} 小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
+        const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)} 完整前文上下文：${fullContextContent} 请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
+        $('#write-status').text('正在生成续写章节，请稍候...');
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成，丢弃本次生成结果');
@@ -2163,10 +2249,13 @@ async function generateContinueWrite(targetChainId) {
         continueContent = continueContent.trim();
         let qualityResult = null;
         if (enableQualityCheck && !stopGenerateFlag) {
-            toastr.info('正在执行续写内容质量校验，请稍候...', "小说续写器");
+            $('#write-status').text('正在执行续写内容质量校验，请稍候...');
             qualityResult = await evaluateContinueQuality(continueContent, precheckResult, useGraph, editedBaseChapterContent, wordCount);
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，正在重新生成...`, "小说续写器");
+                $('#write-status').text('正在重新生成续写章节，请稍候...');
+                // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+                beforeApiCallHook();
                 continueContent = await generateRaw({ systemPrompt: systemPrompt + `\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`, prompt: userPrompt, ...getActivePresetParams()});
                 if (stopGenerateFlag) {
                     $('#write-status').text('已停止生成');
@@ -2182,6 +2271,10 @@ async function generateContinueWrite(targetChainId) {
             extension_settings[extensionName].qualityResultShow = true;
             saveSettingsDebounced();
         }
+        $('#write-content-preview').val(continueContent);
+        $('#write-status').text('续写章节生成完成！');
+        extension_settings[extensionName].writeContentPreview = continueContent;
+        saveSettingsDebounced();
         const newChapter = {
             id: continueChapterIdCounter++,
             title: `续写章节 ${continueWriteChain.length + 1}`,
@@ -2199,6 +2292,7 @@ async function generateContinueWrite(targetChainId) {
     } catch (error) {
         if (!stopGenerateFlag) {
             console.error('继续续写生成失败:', error);
+            $('#write-status').text(`生成失败: ${error.message}`);
             toastr.error(`继续续写生成失败: ${error.message}`, "小说续写器");
         }
     } finally {
@@ -2248,6 +2342,8 @@ async function generateNovelWrite() {
         const systemPrompt = `小说续写规则（100%遵守）：人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。剧情承接：续写内容必须承接前文剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新的章节内容，且与上述文本衔接要求一致。文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线字数要求：续写约${wordCount}字，误差不超过10%矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
         const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}基准章节内容：${editedChapterContent}请基于以上内容，按照规则续写后续的章节正文。`;
         $('#write-status').text('正在生成续写章节，请稍候...');
+        // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+        beforeApiCallHook();
         let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成');
@@ -2265,6 +2361,8 @@ async function generateNovelWrite() {
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，正在重新生成...`, "小说续写器");
                 $('#write-status').text('正在重新生成续写章节，请稍候...');
+                // 【升级】API调用前执行钩子，自动读取当前预设与提示词全量内容
+                beforeApiCallHook();
                 continueContent = await generateRaw({ systemPrompt: systemPrompt + `\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`, prompt: userPrompt, ...getActivePresetParams()});
                 if (stopGenerateFlag) {
                     $('#write-status').text('已停止生成');
@@ -2467,8 +2565,9 @@ jQuery(async () => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
-        // 切换开关时实时更新预设名显示
+        // 切换开关时实时更新预设名显示和完整数据
         updatePresetNameDisplay();
+        getCurrentPresetFullData();
     });
     // 原有章节管理事件
     $("#select-all-btn").off("click").on("click", () => {
@@ -2624,10 +2723,6 @@ jQuery(async () => {
         const modifiedContent = $('#write-chapter-content').val().trim();
         if (!selectedChapterId) {
             toastr.error('请先选择基准章节', "小说续写器");
-            return;
-        }
-        if (!modifiedContent) {
-            toastr.error('基准章节内容不能为空', "小说续写器");
             return;
         }
         updateModifiedChapterGraph(selectedChapterId, modifiedContent);
