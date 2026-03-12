@@ -1,6 +1,8 @@
 // 严格遵循官方模板导入规范，路径完全对齐原版本
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
+// 新增：接入SillyTavern官方预设管理器核心API，对齐官方源码规范
+import { getPresetManager } from "../../../preset-manager.js";
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // 预设章节拆分正则列表（覆盖全场景，含括号序号格式）
@@ -101,22 +103,64 @@ function deepMerge(target, source) {
     }
     return merged;
 }
+
 // ==============================================
-// 核心修复：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
+// 新增：SillyTavern官方预设完整数据获取核心函数（100%对齐官方源码）
+// 每次调用API前自动执行，实时读取当前正在使用的预设全量内容，包括提示词、所有生成参数
+// ==============================================
+function getCurrentPresetFullData() {
+    try {
+        // 官方最高优先级：通过预设管理器获取当前生效的预设完整数据
+        const presetManager = getPresetManager();
+        if (presetManager) {
+            const currentPresetName = presetManager.getSelectedPresetName();
+            const fullPresetData = presetManager.findPreset(currentPresetName);
+            if (fullPresetData && typeof fullPresetData === 'object') {
+                return { ...fullPresetData };
+            }
+        }
+        // 兜底优先级1：对话上下文预设对象
+        const context = getContext();
+        if (context?.preset && typeof context.preset === 'object') {
+            return { ...context.preset };
+        }
+        // 兜底优先级2：对话生成设置
+        if (context?.generation_settings && typeof context.generation_settings === 'object') {
+            return { ...context.generation_settings };
+        }
+        // 兜底优先级3：全局预设参数
+        if (window.generation_params && typeof window.generation_params === 'object') {
+            return { ...window.generation_params };
+        }
+        // 最终兜底：空对象，由后续函数补充默认值
+        return {};
+    } catch (error) {
+        console.error('[小说续写插件] 获取官方预设完整数据失败:', error);
+        return {};
+    }
+}
+
+// ==============================================
+// 核心修复+升级：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
+// 升级：每次调用实时读取官方预设全量内容，包括系统提示词、所有生成参数，原有逻辑100%保留
 // ==============================================
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
     const context = getContext();
-    // 核心修复：优先级严格对齐ST官方规范，全场景兜底，杜绝空参数
-    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新，ST所有官方功能均使用此对象）
-    // 2. 次高优先级：window.generation_params（兼容ST 1.12.0+全版本全局生效预设）
-    // 3. 兜底优先级：ST官方默认生成参数（彻底解决参数为空导致的预设获取失败）
-    if (context?.generation_settings && typeof context.generation_settings === 'object') {
+
+    // 新增：最高优先级 - 官方预设管理器获取的完整预设数据（每次调用实时读取，无缓存）
+    const officialPresetData = getCurrentPresetFullData();
+    if (Object.keys(officialPresetData).length > 0) {
+        presetParams = { ...officialPresetData };
+    }
+    // 原有优先级逻辑完整保留，兼容全版本，仅做补充兜底
+    else if (context?.generation_settings && typeof context.generation_settings === 'object') {
         presetParams = { ...context.generation_settings };
     } else if (window.generation_params && typeof window.generation_params === 'object') {
         presetParams = { ...window.generation_params };
     }
+
     // 核心修复：开关关闭时，仍使用全局默认预设参数，而非空对象，彻底解决预设获取失败
     // 仅当开关开启时，强制覆盖为对话实时预设，关闭时沿用全局默认预设
     if (!settings.enableAutoParentPreset) {
@@ -124,6 +168,7 @@ function getActivePresetParams() {
             presetParams = { ...window.generation_params };
         }
     }
+
     // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效）
     // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
     const validParams = [
@@ -135,8 +180,8 @@ function getActivePresetParams() {
         'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty', 'dry_multiplier', 'dry_base', 'dry_sequence_length', 'dry_allowed_length', 'dry_penalty_last_n',
         // 高级采样参数
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
-        // 特殊控制参数
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'logit_bias', 'stream'
+        // 特殊控制参数（新增：完整支持预设中的提示词、停止序列等核心配置）
+        'negative_prompt', 'stop_sequence', 'stop', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'preset_prompt', 'logit_bias', 'stream'
     ];
     // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
@@ -168,6 +213,19 @@ function getActivePresetParams() {
 function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
+    // 新增：最高优先级 - 官方预设管理器获取当前预设名（对齐官方源码）
+    try {
+        const presetManager = getPresetManager();
+        if (presetManager) {
+            const managerPresetName = presetManager.getSelectedPresetName();
+            if (managerPresetName && typeof managerPresetName === 'string') {
+                presetName = managerPresetName;
+                return presetName;
+            }
+        }
+    } catch (error) {
+        console.warn('[小说续写插件] 预设管理器获取名称失败，降级使用备用渠道:', error);
+    }
     // 兼容ST全版本的预设名获取渠道（按官方优先级从高到低排序）
     // 1. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
     if (context?.preset?.name && typeof context.preset.name === 'string') {
@@ -941,18 +999,11 @@ async function batchMergeGraphs() {
             const systemPrompt = `触发词：合并批次知识图谱JSON、小说批次图谱构建 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的当前批次的多组章节图谱合并，不引入任何外部内容 严格去重，同一人物/设定/事件不能重复，不同别名合并为同一条目 同一设定以当前批次内最新章节的生效内容为准，同时保留历史变更记录 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必须构建完整的反向依赖图谱，支持后续合并与续写 必填字段：全局基础信息、人物信息库、世界观设定库、全剧情时间线、全局文风标准、全量实体关系网络、反向依赖图谱、逆向分析与质量评估`;
             const userPrompt = `待合并的批次${batchNum}章节图谱列表：\n${JSON.stringify(batch, null, 2)}`;
             
-            // 新增：预设内容合并逻辑
-            const presetParams = getActivePresetParams();
-            const mergedSystemPrompt = presetParams.system_prompt 
-                ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-                : systemPrompt;
-            const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
             const result = await generateRaw({
-                system_prompt: mergedSystemPrompt,
+                systemPrompt,
                 prompt: userPrompt,
                 jsonSchema: mergeGraphJsonSchema,
-                ...filteredPresetParams
+                ...getActivePresetParams()
             });
             
             const batchMergedGraph = JSON.parse(result.trim());
@@ -1485,18 +1536,11 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
     const systemPrompt = `触发词：续写节点逆向分析、前置合规性校验 强制约束（100%遵守）： 所有分析只能基于续写节点（章节号${baseId}）及之前的小说内容，绝对不能引入该节点之后的任何剧情、设定、人物变化，禁止剧透 若前文有设定冲突，以续写节点前最后一次出现的内容为准，同时标注冲突预警 优先以用户提供的魔改后基准章节内容为准，更新对应人设、设定、剧情状态 只能基于提供的章节知识图谱分析，绝对不能引入外部信息、主观新增设定 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾 必填字段：isPass、preMergedGraph、人设红线清单、设定禁区清单、可呼应伏笔清单、潜在矛盾预警、可推进剧情方向、合规性报告`;
     const userPrompt = `续写基准章节ID：${baseId} 基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList, null, 2)} 用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"} 请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
     try {
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
+            systemPrompt, 
             prompt: userPrompt, 
             jsonSchema: { name: 'ContinuePrecheck', strict: true, value: { type: "object", required: ["isPass", "preMergedGraph", "人设红线清单", "设定禁区清单", "可呼应伏笔清单", "潜在矛盾预警", "可推进剧情方向", "合规性报告"], properties: { isPass: { type: "boolean"}, preMergedGraph: { type: "object"}, "人设红线清单": { type: "string"}, "设定禁区清单": { type: "string"}, "可呼应伏笔清单": { type: "string"}, "潜在矛盾预警": { type: "string"}, "可推进剧情方向": { type: "string"}, "合规性报告": { type: "string"} } } },
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         const precheckResult = JSON.parse(result.trim());
         currentPrecheckResult = precheckResult;
@@ -1541,18 +1585,11 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
     const systemPrompt = `触发词：小说续写质量评估、多维度合规性校验 强制约束（100%遵守）： 严格按照5个维度执行评估，单项得分0-100分，总分=5个维度得分的平均值，精确到整数 合格标准：单项得分不得低于80分，总分不得低于85分，不符合即为不合格 所有评估只能基于提供的前置校验结果、知识图谱、基准章节内容，不能引入外部主观标准 必须校验字数合规性：目标字数${targetWordCount}字，实际字数${actualWordCount}字，误差超过10%（当前误差率${(wordErrorRate*100).toFixed(2)}%），内容质量得分必须对应扣分 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown，必须以{开头、以}结尾 评估维度说明： ● 人设一致性：校验续写内容中人物的言行、性格、动机是否符合人设设定，有无OOC问题 ● 设定合规性：校验续写内容是否符合世界观设定，有无吃书、新增违规设定、违反原有规则的问题 ● 剧情衔接度：校验续写内容与前文的衔接是否自然，逻辑是否自洽，有无剧情断层、前后矛盾的问题 ● 文风匹配度：校验续写内容的叙事视角、语言风格、对话模式、节奏规律是否与原文一致，有无风格割裂 ● 内容质量：校验续写内容是否有完整的情节、生动的细节、符合逻辑的对话，有无无意义水内容、剧情拖沓、逻辑混乱的问题，字数是否符合要求`;
     const userPrompt = `待评估续写内容：${continueContent} 前置校验合规边界：${JSON.stringify(precheckResult)} 小说核心设定知识图谱：${JSON.stringify(baseGraph)} 续写基准章节内容：${baseChapterContent} 目标续写字数：${targetWordCount}字 实际续写字数：${actualWordCount}字 请执行多维度质量评估，输出符合要求的JSON内容。`;
     try {
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
+            systemPrompt, 
             prompt: userPrompt, 
             jsonSchema: qualityEvaluateSchema,
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         return JSON.parse(result.trim());
     } catch (error) {
@@ -1578,18 +1615,11 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
     const userPrompt = `小说章节标题：${targetChapter.title}\n魔改后章节内容：${modifiedContent}`;
     try {
         toastr.info('正在更新魔改章节图谱，请稍候...', "小说续写器");
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
+            systemPrompt, 
             prompt: userPrompt, 
             jsonSchema: graphJsonSchema,
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         const graphData = JSON.parse(result.trim());
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -1615,22 +1645,15 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说续写章节解析 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的续写章节内容分析，不引入任何外部内容 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：续写章节${continueId}\n小说章节内容：${continueChapter.content}`;
     try {
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
+            systemPrompt, 
             prompt: userPrompt, 
             jsonSchema: graphJsonSchema,
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         const graphData = JSON.parse(result.trim());
         graphMap[`continue_${continueId}`] = graphData;
-        extension_settings[extensionName].chapterGraphMap = graphMap;
+        extension_settings[extensionName].chapterGraphMap = graphData;
         saveSettingsDebounced();
         return graphData;
     } catch (error) {
@@ -1856,18 +1879,11 @@ async function generateSingleChapterGraph(chapter) {
     const systemPrompt = `触发词：构建单章节知识图谱JSON、小说章节解析 强制约束（100%遵守）： 输出必须为纯JSON格式，无任何前置/后置内容、注释、markdown 必须以{开头，以}结尾，无其他字符 仅基于提供的小说文本分析，不引入任何外部内容 严格包含所有要求的字段，不修改字段名 无对应内容设为"暂无"，数组设为[]，不得留空 必须实现全链路双向可追溯，所有信息必须关联对应原文位置 同一人物、设定、事件不能重复出现，同一人物的不同别名必须合并为同一个唯一实体条目 基础章节信息必须填写：章节号=${chapter.id}，章节节点唯一标识=chapter_${chapter.id}，本章字数=${chapter.content.length} 必填字段：基础章节信息、人物信息、世界观设定、核心剧情线、文风特点、实体关系网络、变更与依赖信息、逆向分析洞察`;
     const userPrompt = `小说章节标题：${chapter.title}\n小说章节内容：${chapter.content}`;
     try {
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({
-            system_prompt: mergedSystemPrompt,
+            systemPrompt,
             prompt: userPrompt,
             jsonSchema: graphJsonSchema,
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         const graphData = JSON.parse(result.trim());
         return graphData;
@@ -1955,18 +1971,11 @@ async function mergeAllGraphs() {
     
     try {
         toastr.info(`开始合并${mergeType}，生成最终全量知识图谱，请稍候...`, "小说续写器");
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
         const result = await generateRaw({
-            system_prompt: mergedSystemPrompt,
+            systemPrompt,
             prompt: userPrompt,
             jsonSchema: mergeGraphJsonSchema,
-            ...filteredPresetParams
+            ...getActivePresetParams()
         });
         const mergedGraph = JSON.parse(result.trim());
         extension_settings[extensionName].mergedGraph = mergedGraph;
@@ -2126,18 +2135,7 @@ async function generateContinueWrite(targetChainId) {
     setButtonDisabled('#write-stop-btn', false);
     toastr.info('正在生成续写章节，请稍候...', "小说续写器");
     try {
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
-        let continueContent = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
-            prompt: userPrompt, 
-            ...filteredPresetParams
-        });
+        let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成，丢弃本次生成结果');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
@@ -2153,18 +2151,7 @@ async function generateContinueWrite(targetChainId) {
             qualityResult = await evaluateContinueQuality(continueContent, precheckResult, useGraph, editedBaseChapterContent, wordCount);
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，正在重新生成...`, "小说续写器");
-                // 新增：重写时也合并预设内容
-                const rewritePresetParams = getActivePresetParams();
-                const rewriteMergedPrompt = rewritePresetParams.system_prompt 
-                    ? `${rewritePresetParams.system_prompt}\n\n${systemPrompt}\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`
-                    : `${systemPrompt}\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`;
-                const { system_prompt: __, ...rewriteFilteredParams } = rewritePresetParams;
-
-                continueContent = await generateRaw({ 
-                    system_prompt: rewriteMergedPrompt, 
-                    prompt: userPrompt, 
-                    ...rewriteFilteredParams
-                });
+                continueContent = await generateRaw({ systemPrompt: systemPrompt + `\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`, prompt: userPrompt, ...getActivePresetParams()});
                 if (stopGenerateFlag) {
                     $('#write-status').text('已停止生成');
                     toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
@@ -2245,18 +2232,7 @@ async function generateNovelWrite() {
         const systemPrompt = `小说续写规则（100%遵守）：人设锁定：续写内容必须完全贴合小说的核心人物设定，绝对不能出现人设崩塌（OOC），严格遵守以下人设红线：${precheckResult.redLines}设定合规：续写内容必须完全符合小说的世界观设定，绝对不能出现吃书、新增违规设定、违反原有规则的问题，严格遵守以下设定禁区：${precheckResult.forbiddenRules}文本衔接：续写内容必须紧接在基准章节的最后一段之后开始，从那个地方继续写下去，确保文本连续，逻辑自洽。基准章节的最后一段内容是："${baseLastParagraph}"续写必须从这段文字之后直接开始，不能重复这段内容。剧情承接：续写内容必须承接前文剧情，合理呼应以下伏笔：${precheckResult.foreshadowList}，开启新的章节内容，且与上述文本衔接要求一致。文风统一：续写内容必须完全贴合原小说的叙事风格、语言习惯、对话方式、节奏特点，和原文无缝衔接，无风格割裂剧情合理：续写内容要符合原小说的世界观设定，推动主线剧情发展，有完整的情节起伏、生动的细节、符合人设的对话输出要求：只输出续写的正文内容，不要任何标题、章节名、解释、备注、说明、分割线字数要求：续写约${wordCount}字，误差不超过10%矛盾规避：必须规避以下潜在剧情矛盾：${precheckResult.conflictWarning}小数据适配：若前文内容较少，严格遵循现有文本的叙事范式、对话模式、剧情节奏，不做风格跳脱的续写，不无限新增设定与人物`;
         const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}基准章节内容：${editedChapterContent}请基于以上内容，按照规则续写后续的章节正文。`;
         $('#write-status').text('正在生成续写章节，请稍候...');
-        // 新增：预设内容合并逻辑
-        const presetParams = getActivePresetParams();
-        const mergedSystemPrompt = presetParams.system_prompt 
-            ? `${presetParams.system_prompt}\n\n${systemPrompt}`
-            : systemPrompt;
-        const { system_prompt: _, ...filteredPresetParams } = presetParams;
-
-        let continueContent = await generateRaw({ 
-            system_prompt: mergedSystemPrompt, 
-            prompt: userPrompt, 
-            ...filteredPresetParams
-        });
+        let continueContent = await generateRaw({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
             $('#write-status').text('已停止生成');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
@@ -2273,18 +2249,7 @@ async function generateNovelWrite() {
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，正在重新生成...`, "小说续写器");
                 $('#write-status').text('正在重新生成续写章节，请稍候...');
-                // 新增：重写时也合并预设内容
-                const rewritePresetParams = getActivePresetParams();
-                const rewriteMergedPrompt = rewritePresetParams.system_prompt 
-                    ? `${rewritePresetParams.system_prompt}\n\n${systemPrompt}\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`
-                    : `${systemPrompt}\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`;
-                const { system_prompt: __, ...rewriteFilteredParams } = rewritePresetParams;
-
-                continueContent = await generateRaw({ 
-                    system_prompt: rewriteMergedPrompt, 
-                    prompt: userPrompt, 
-                    ...rewriteFilteredParams
-                });
+                continueContent = await generateRaw({ systemPrompt: systemPrompt + `\n注意：本次续写必须修正以下问题：${qualityResult.评估报告}`, prompt: userPrompt, ...getActivePresetParams()});
                 if (stopGenerateFlag) {
                     $('#write-status').text('已停止生成');
                     toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
