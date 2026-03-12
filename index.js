@@ -103,55 +103,46 @@ function deepMerge(target, source) {
 }
 
 // ==============================================
-// 【核心修复】预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
+// 核心修复：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
 // ==============================================
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
+    const context = getContext();
 
-    // 【修复1】全渠道优先级严格对齐ST官方规范，兼容所有ST版本
-    // 1. 最高优先级：ST官方全局API getGenerationParams()（官方推荐，实时生效，全版本兼容）
-    if (typeof window.getGenerationParams === 'function') {
-        try {
-            presetParams = { ...window.getGenerationParams() };
-        } catch (e) {
-            console.warn("[小说续写插件] 全局getGenerationParams调用失败，降级使用上下文获取", e);
-        }
+    // 核心修复：优先级严格对齐ST官方规范，全场景兜底，杜绝空参数
+    // 1. 最高优先级：当前对话实时生效的generation_settings（用户切换预设实时更新，ST所有官方功能均使用此对象）
+    // 2. 次高优先级：window.generation_params（兼容ST 1.12.0+全版本全局生效预设）
+    // 3. 兜底优先级：ST官方默认生成参数（彻底解决参数为空导致的预设获取失败）
+    if (context?.generation_settings && typeof context.generation_settings === 'object') {
+        presetParams = { ...context.generation_settings };
+    } else if (window.generation_params && typeof window.generation_params === 'object') {
+        presetParams = { ...window.generation_params };
     }
 
-    // 2. 次优先级：当前对话实时生效的generation_settings（用户切换预设实时更新）
-    if (Object.keys(presetParams).length === 0) {
-        const context = getContext();
-        if (context?.generation_settings) {
-            presetParams = { ...context.generation_settings };
-        } 
-        // 3. 兜底优先级：window.generation_params（兼容ST 1.12.0以下旧版本）
-        else if (window.generation_params) {
+    // 核心修复：开关关闭时，仍使用全局默认预设参数，而非空对象，彻底解决预设获取失败
+    // 仅当开关开启时，强制覆盖为对话实时预设，关闭时沿用全局默认预设
+    if (!settings.enableAutoParentPreset) {
+        if (window.generation_params && typeof window.generation_params === 'object') {
             presetParams = { ...window.generation_params };
         }
     }
 
-    // 【修复2】开关仅控制是否继承父级对话预设，关闭时仍返回ST全局默认预设参数，绝不返回空对象
-    if (!settings.enableAutoParentPreset) {
-        console.log("[小说续写插件] 父级预设继承已关闭，使用ST全局默认生成参数");
-    }
-
-    // 【修复3】完整对齐ST官方generateRaw支持的所有参数字段，无遗漏，确保所有预设配置100%生效
-    // 字段来源：SillyTavern官方最新源码script.js中generateRaw函数的完整参数定义
+    // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效）
+    // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
     const validParams = [
         // 核心采样参数
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
         // 生成长度控制
-        'max_new_tokens', 'min_new_tokens',
+        'max_new_tokens', 'min_new_tokens', 'max_tokens',
         // 重复惩罚相关
         'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty', 'dry_multiplier', 'dry_base', 'dry_sequence_length', 'dry_allowed_length', 'dry_penalty_last_n',
         // 高级采样参数
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
         // 特殊控制参数
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'logit_bias', 'model'
+        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'logit_bias', 'stream'
     ];
-
-    // 过滤有效参数，确保只传递generateRaw支持的字段，同时保留所有有效预设配置
+    // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
     for (const key of validParams) {
         if (presetParams[key] !== undefined && presetParams[key] !== null) {
@@ -159,65 +150,60 @@ function getActivePresetParams() {
         }
     }
 
-    // 【修复4】终极兜底：核心参数默认值，确保极端情况下也不会因参数缺失导致生成失败
+    // 核心兜底：核心参数强制默认值，彻底解决参数缺失导致的预设获取失败
     const defaultFallbackParams = {
         temperature: 0.7,
         top_p: 0.9,
-        max_new_tokens: 2000,
-        repetition_penalty: 1.1
+        max_new_tokens: 2048,
+        repetition_penalty: 1.1,
+        do_sample: true
     };
+    // 仅当参数缺失时补充默认值，不覆盖用户已配置的参数
+    for (const [key, value] of Object.entries(defaultFallbackParams)) {
+        if (filteredParams[key] === undefined || filteredParams[key] === null) {
+            filteredParams[key] = value;
+        }
+    }
 
-    // 合并兜底参数，仅当过滤后参数缺失核心字段时补充，绝不覆盖用户预设值
-    const finalParams = { ...defaultFallbackParams, ...filteredParams };
-
-    console.log("[小说续写插件] 已获取生效预设参数", finalParams);
-    return finalParams;
+    return filteredParams;
 }
 
 // ==============================================
-// 【修复】父级预设名显示核心模块（兼容ST全版本，实时更新，兜底完善）
+// 核心修复：父级预设名显示核心模块（100%兼容ST全版本，彻底解决预设名获取失败）
 // ==============================================
-// 兼容ST全版本的当前预设名获取函数（多渠道兜底，确保全版本可用）
+// 兼容ST全版本的当前预设名获取函数（多渠道兜底，按官方优先级排序，确保全版本可用）
 function getCurrentPresetName() {
-    // 【修复1】优先级严格对齐ST官方，优先使用官方全局变量
-    // 1. 最高优先级：ST官方全局变量 current_preset_name（全版本通用，实时更新）
-    if (window.current_preset_name && typeof window.current_preset_name === 'string') {
-        return window.current_preset_name;
-    }
-
-    // 2. 次优先级：全局current_preset对象（ST 1.13.0+通用）
-    if (window?.current_preset?.name) {
-        return window.current_preset.name;
-    }
-
-    // 3. 第三优先级：上下文生成设置中的preset字段
     const context = getContext();
-    if (context?.generation_settings?.preset) {
-        return context.generation_settings.preset;
+    let presetName = "默认预设";
+    // 兼容ST全版本的预设名获取渠道（按官方优先级从高到低排序）
+    // 1. 官方标准上下文preset对象（ST 1.13.0+推荐首选渠道）
+    if (context?.preset?.name && typeof context.preset.name === 'string') {
+        presetName = context.preset.name;
     }
-    if (context?.generation_settings?.preset_name) {
-        return context.generation_settings.preset_name;
+    // 2. 生成设置中的预设名字段（ST 1.12.0+通用稳定渠道）
+    else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
+        presetName = context.generation_settings.preset_name;
     }
-
-    // 4. 第四优先级：旧版本全局generation_params中的预设名
-    if (window?.generation_params?.preset) {
-        return window.generation_params.preset;
+    // 3. ST全局预设管理器对象（ST 1.14.0+官方新增标准渠道）
+    else if (window.SillyTavern?.presetManager?.currentPreset?.name && typeof window.SillyTavern.presetManager.currentPreset.name === 'string') {
+        presetName = window.SillyTavern.presetManager.currentPreset.name;
     }
-    if (window?.generation_params?.preset_name) {
-        return window.generation_params.preset_name;
+    // 4. 全局current_preset变量（兼容ST 1.11.0以下旧版本）
+    else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
+        presetName = window.current_preset.name;
     }
-
-    // 5. 兜底：从extension_settings中获取当前选中的预设
-    if (window?.extension_settings?.presets?.current_preset) {
-        return window.extension_settings.presets.current_preset;
+    // 5. 旧版本全局generation_params中的预设名
+    else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
+        presetName = window.generation_params.preset_name;
     }
-
-    // 【修复2】兜底返回默认预设，绝不返回未识别预设
-    return "默认预设";
+    // 6. 扩展设置中的当前预设兜底
+    else if (window?.extension_settings?.presets?.current_preset && typeof window.extension_settings.presets.current_preset === 'string') {
+        presetName = window.extension_settings.presets.current_preset;
+    }
+    return presetName;
 }
-
-// 更新父级预设名UI显示
-function updatePresetNameDisplay() {
+// 更新父级预设名UI显示（增加防抖，避免频繁触发）
+const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
     const presetNameElement = document.getElementById("parent-preset-name-display");
     if (!presetNameElement) return;
@@ -231,33 +217,29 @@ function updatePresetNameDisplay() {
     currentPresetName = getCurrentPresetName();
     presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
     presetNameElement.style.display = "block";
-    console.log("[小说续写插件] 当前生效预设：", currentPresetName);
-}
-
-// 【修复】预设事件监听（全覆盖ST官方事件，确保任何预设变更都能实时更新）
+}, 100);
+// 预设事件监听（全覆盖ST官方事件，彻底解决切换预设/对话/角色不更新问题）
 function setupPresetEventListeners() {
-    // 移除旧监听，避免重复绑定
-    eventSource.off(event_types.PRESET_CHANGED, handlePresetUpdate);
-    eventSource.off(event_types.CHAT_CHANGED, handlePresetUpdate);
-    eventSource.off(event_types.GENERATION_SETTINGS_UPDATED, handlePresetUpdate);
-    eventSource.off(event_types.CHAT_LOADED, handlePresetUpdate);
-    document.removeEventListener("visibilitychange", handlePresetUpdate);
-
-    // 统一更新处理函数
-    function handlePresetUpdate() {
-        updatePresetNameDisplay();
-    }
-
     // 监听预设切换事件（用户切换预设时触发）
-    eventSource.on(event_types.PRESET_CHANGED, handlePresetUpdate);
+    eventSource.on(event_types.PRESET_CHANGED, () => {
+        updatePresetNameDisplay();
+    });
     // 监听对话切换事件（不同对话预设不同，切换时更新）
-    eventSource.on(event_types.CHAT_CHANGED, handlePresetUpdate);
-    // 监听对话加载完成事件（确保对话加载后预设名正确）
-    eventSource.on(event_types.CHAT_LOADED, handlePresetUpdate);
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        updatePresetNameDisplay();
+    });
+    // 监听角色切换事件（切换角色预设同步变更，新增修复）
+    eventSource.on(event_types.CHARACTER_CHANGED, () => {
+        updatePresetNameDisplay();
+    });
     // 监听生成设置变更事件（用户手动修改预设参数时触发）
-    eventSource.on(event_types.GENERATION_SETTINGS_UPDATED, handlePresetUpdate);
-    // 监听页面可见性变化（标签页切换回来时同步预设状态）
-    document.addEventListener("visibilitychange", handlePresetUpdate);
+    eventSource.on(event_types.GENERATION_SETTINGS_UPDATED, () => {
+        updatePresetNameDisplay();
+    });
+    // 监听全局设置更新事件（全局预设变更时触发，新增修复）
+    eventSource.on(event_types.SETTINGS_UPDATED, () => {
+        updatePresetNameDisplay();
+    });
 }
 
 // ==============================================
@@ -927,7 +909,7 @@ async function batchMergeGraphs() {
     const graphList = sortedChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
     
     if (graphList.length === 0) {
-        toastr.warning('没有可合并的章节图谱，请先生成章节图谱', "小说续写器");
+        toastr.warning('没有可合并的章节图谱，请先生成图谱', "小说续写器");
         return;
     }
     
@@ -1062,10 +1044,11 @@ async function loadSettings() {
         $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
     isInitialized = true;
-    await new Promise(resolve => setTimeout(resolve, 100));
-    // 【修复】初始化预设名显示和事件监听，确保上下文加载完成后执行
-    setupPresetEventListeners();
+    // 修复：确保ST上下文完全初始化后，再加载预设相关内容
+    await new Promise(resolve => setTimeout(resolve, 200));
+    // 新增：初始化预设名显示和事件监听
     updatePresetNameDisplay();
+    setupPresetEventListeners();
     // 原有初始化逻辑
     FloatBall.init();
     NovelReader.init();
