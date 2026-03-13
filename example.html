@@ -14,7 +14,7 @@
             </div>
             <button id="panel-close-btn" class="panel-close-btn">✕</button>
         </div>
-        <!-- 选项卡导航 -->
+        <!-- 选项卡导航（移动端仅显示图标，桌面端图标+文字） -->
         <div class="panel-tab-nav">
             <div class="panel-tab-item active" data-tab="tab-chapter">
                 <span>📋</span>
@@ -31,6 +31,10 @@
             <div class="panel-tab-item" data-tab="tab-reader">
                 <span>📚</span>
                 <span>小说阅读</span>
+            </div>
+            <div class="panel-tab-item" data-tab="tab-settings">
+                <span>⚙️</span>
+                <span>插件设置</span>
             </div>
         </div>
         <!-- 选项卡内容容器 -->
@@ -52,7 +56,7 @@
                             <div class="form-group">
                                 <label class="form-label">章节拆分正则（自定义优先）</label>
                                 <input id="chapter-regex-input" type="text" class="form-input" placeholder="请输入章节拆分正则表达式" value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$">
-                                <span class="input-tip">预设支持的章节格式：标准章节、括号序号(01)、第X节、卷X第X章、Chapter X、第X话、数字序号、中英文序号等</span>
+                                <span class="input-tip">预设支持：标准章节、括号序号、第X节、卷X第X章、Chapter X、第X话等</span>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">按字数拆分（单章字数1000-10000）</label>
@@ -89,14 +93,6 @@
                             <input id="auto-parent-preset-switch" type="checkbox" checked />
                             <span class="input-tip">开启后，续写将使用当前对话的生成预设参数</span>
                         </div>
-                        <!-- 新增：手动预设选择下拉框（开关关闭时显示，不影响原有布局） -->
-                        <div class="form-group" style="margin-top: 12px; display: none;">
-                            <label class="form-label">手动选择生成预设</label>
-                            <select id="manual-preset-selector" class="form-select">
-                                <option value="">请选择生成预设</option>
-                            </select>
-                        </div>
-                        <!-- 新增：父级预设名显示区域（不影响原有布局） -->
                         <div id="parent-preset-name-display" class="form-label" style="margin-top: 8px; color: var(--novel-primary); font-weight: 600; display: none;"></div>
                     </div>
                 </div>
@@ -107,9 +103,9 @@
                         <div class="btn-group-row">
                             <button class="btn btn-sm btn-outline" id="select-all-btn">全选</button>
                             <button class="btn btn-sm btn-outline" id="unselect-all-btn">取消全选</button>
-                            <input id="import-selected-btn" class="btn btn-sm btn-primary" type="submit" value="导入选中章节">
-                            <input id="import-all-btn" class="btn btn-sm btn-outline" type="submit" value="导入全部章节">
-                            <input id="validate-chapter-graph-btn" class="btn btn-sm btn-secondary" type="submit" value="检验图谱状态">
+                            <input id="import-selected-btn" class="btn btn-sm btn-primary" type="submit" value="导入选中">
+                            <input id="import-all-btn" class="btn btn-sm btn-outline" type="submit" value="导入全部">
+                            <input id="validate-chapter-graph-btn" class="btn btn-sm btn-secondary" type="submit" value="检验图谱">
                             <input id="stop-send-btn" class="btn btn-sm btn-danger" type="submit" value="停止发送" disabled>
                         </div>
                     </div>
@@ -132,7 +128,7 @@
                     </div>
                 </div>
             </div>
-            <!-- 选项卡2：知识图谱构建与合并 -->
+            <!-- 选项卡2：知识图谱 -->
             <div class="panel-tab-panel" id="tab-graph">
                 <!-- 图谱生成卡片 -->
                 <div class="content-card card-main">
@@ -158,7 +154,7 @@
                     </div>
                 </div>
                 <div class="divider-line"></div>
-                <!-- 图谱合并卡片（新增分批合并功能） -->
+                <!-- 图谱合并卡片 -->
                 <div class="content-card">
                     <div class="card-header card-header-inline">
                         <h4><span>📦</span>全量图谱合并</h4>
@@ -267,7 +263,7 @@
                         <div class="form-group form-group-inline">
                             <label for="quality-check-switch" class="form-label">开启续写质量自动校验</label>
                             <input id="quality-check-switch" type="checkbox" checked />
-                            <span class="input-tip">不合格自动重写</span>
+                            <span class="input-tip">不合格提示重写</span>
                         </div>
                     </div>
                 </div>
@@ -315,7 +311,6 @@
             </div>
             <!-- 选项卡4 小说阅读器 -->
             <div class="panel-tab-panel" id="tab-reader">
-                <!-- 阅读器顶部控制栏 -->
                 <div class="reader-header">
                     <div class="reader-title">
                         <span>📖</span>
@@ -333,14 +328,12 @@
                         </button>
                     </div>
                 </div>
-                <!-- 阅读器核心内容区域 -->
                 <div class="reader-content-wrap">
                     <div class="reader-content" id="reader-content">
                         <p class="reader-empty-tip">请先在「章节管理」中解析小说文件，然后选择章节开始阅读</p>
                     </div>
                     <div class="reader-click-mask" id="reader-click-mask"></div>
                 </div>
-                <!-- 阅读器底部进度条 + 翻章按钮 -->
                 <div class="reader-footer">
                     <button class="btn btn-sm btn-outline" id="reader-prev-chapter" title="上一章">
                         <span>◀</span>上一章
@@ -354,16 +347,104 @@
                         下一章 <span>▶</span>
                     </button>
                 </div>
-                <!-- 章节选择侧边抽屉 -->
+                <!-- 阅读器章节抽屉 -->
                 <div class="reader-chapter-drawer" id="reader-chapter-drawer">
-                    <div class="reader-drawer-header">
-                        <h3><span>📋</span>章节列表</h3>
-                        <button class="btn btn-sm btn-outline" id="reader-drawer-close">
-                            <span>✕</span>关闭
-                        </button>
+                    <div class="drawer-header">
+                        <h3>章节列表</h3>
+                        <button class="drawer-close-btn" id="reader-drawer-close">✕</button>
                     </div>
-                    <div class="reader-chapter-list" id="reader-chapter-list">
-                        <p class="empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>
+                    <div class="drawer-body">
+                        <div class="chapter-count-info">
+                            <span>总章节：<span id="reader-chapter-count">0</span></span>
+                        </div>
+                        <div id="reader-chapter-list" class="reader-chapter-list">
+                            <p class="empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 选项卡5：插件设置（核心新增功能） -->
+            <div class="panel-tab-panel" id="tab-settings">
+                <!-- 提示词设置分组 -->
+                <div class="content-card card-main">
+                    <div class="card-header card-header-inline">
+                        <h4><span>📝</span>自定义提示词设置</h4>
+                        <div class="btn-group-row">
+                            <button class="btn btn-sm btn-primary" id="prompt-save-btn">保存提示词</button>
+                            <button class="btn btn-sm btn-danger" id="prompt-reset-btn">重置为默认值</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="input-tip" style="margin-bottom: 12px;">提示：所有提示词模板支持{{变量名}}占位符，请勿随意删除必填占位符，重置可恢复默认值</p>
+                        <div id="prompt-settings-container" class="prompt-settings-grid">
+                            <!-- 提示词文本域由index.js动态渲染 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="divider-line"></div>
+                <!-- API调用设置分组 -->
+                <div class="content-card">
+                    <div class="card-header card-header-inline">
+                        <h4><span>⚡</span>API调用设置</h4>
+                        <button class="btn btn-sm btn-primary" id="api-settings-save-btn">保存API设置</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-row grid-2">
+                            <div class="form-group">
+                                <label class="form-label">API调用间隔(ms)（解决速率限制）</label>
+                                <div class="input-with-tip">
+                                    <input id="api-call-interval" type="number" min="500" max="10000" step="100" class="form-input" value="2000">
+                                    <span class="input-tip">范围：500-10000，1分钟3次建议设为20000</span>
+                                </div>
+                            </div>
+                            <div class="form-group form-group-inline">
+                                <label for="api-break-limit-switch" class="form-label">启用全局破限提示词</label>
+                                <input id="api-break-limit-switch" type="checkbox" checked />
+                                <span class="input-tip">开启后自动追加创作破限规则</span>
+                            </div>
+                        </div>
+                        <p class="input-tip" style="margin-top: 8px;">提示：一分钟仅能调用3次API时，建议将间隔设置为20000ms（20秒/次），彻底避免触发速率限制</p>
+                    </div>
+                </div>
+                <div class="divider-line"></div>
+                <!-- 界面UI设置分组 -->
+                <div class="content-card">
+                    <div class="card-header card-header-inline">
+                        <h4><span>🎨</span>界面UI设置</h4>
+                        <button class="btn btn-sm btn-primary" id="ui-settings-save-btn">保存UI设置</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-row grid-2">
+                            <div class="form-group">
+                                <label class="form-label">悬浮球大小(px)</label>
+                                <div class="input-with-tip">
+                                    <input id="ui-float-ball-size" type="number" min="50" max="100" step="5" class="form-input" value="70">
+                                    <span class="input-tip">范围：50-100，默认70px</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">默认打开的选项卡</label>
+                                <select id="ui-default-tab" class="form-select">
+                                    <option value="tab-chapter">章节管理</option>
+                                    <option value="tab-graph">知识图谱</option>
+                                    <option value="tab-write">内容续写</option>
+                                    <option value="tab-reader">小说阅读</option>
+                                    <option value="tab-settings">插件设置</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid-row grid-2">
+                            <div class="form-group form-group-inline">
+                                <label for="ui-hover-switch" class="form-label">启用hover动效</label>
+                                <input id="ui-hover-switch" type="checkbox" checked />
+                                <span class="input-tip">桌面端生效</span>
+                            </div>
+                            <div class="form-group form-group-inline">
+                                <label for="ui-draft-switch" class="form-label">自动保存续写草稿</label>
+                                <input id="ui-draft-switch" type="checkbox" checked />
+                                <span class="input-tip">自动保存续写内容到本地</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
