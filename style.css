@@ -9,12 +9,10 @@
     --novel-warning: #e6a23c;
     --novel-danger: #f56c6c;
     --novel-info: #909399;
-
     --novel-text-primary: #303133;
     --novel-text-regular: #606266;
     --novel-text-secondary: #909399;
     --novel-text-placeholder: #c0c4cc;
-
     --novel-border-color: #dcdfe6;
     --novel-border-light: #e4e7ed;
     --novel-border-lighter: #ebeef5;
@@ -22,7 +20,6 @@
     --novel-bg-secondary: #f5f7fa;
     --novel-bg-tertiary: #f2f3f5;
     --novel-bg-overlay: rgba(0, 0, 0, 0.5);
-
     --novel-spacing-xs: 4px;
     --novel-spacing-sm: 8px;
     --novel-spacing-md: 12px;
@@ -33,24 +30,27 @@
     --novel-radius-md: 6px;
     --novel-radius-lg: 8px;
     --novel-radius-full: 999px;
-
     --novel-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
     --novel-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
     --novel-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
     --novel-shadow-float: 0 2px 12px rgba(0, 0, 0, 0.15);
-
     --novel-transition-fast: 0.15s ease;
     --novel-transition-normal: 0.25s ease;
     --novel-transition-slow: 0.35s ease;
-
     --novel-panel-width-desktop: 800px;
     --novel-panel-height-desktop: 90vh;
     --novel-panel-width-mobile: 100vw;
     --novel-panel-height-mobile: 100vh;
-
     --novel-reader-font-size: 16px;
-}
 
+    /* 核心修复：根容器兜底，彻底避免影响子元素fixed定位 */
+    position: static !important;
+    transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    overflow: visible !important;
+    contain: none !important;
+}
 /* 插件内部样式重置，仅作用于插件内元素，不影响全局 */
 .novel-writer-extension-root * {
     margin: 0;
@@ -59,50 +59,49 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* ====================== 悬浮球样式（专属类名，无全局冲突）====================== */
-.novel-writer-extension-root .novel-float-ball {
-    position: fixed;
-    z-index: 9999;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 70px;
-    height: 70px;
-    border-radius: var(--novel-radius-full);
-    background: linear-gradient(135deg, var(--novel-primary), var(--novel-primary-hover));
-    box-shadow: var(--novel-shadow-float);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
-    transition: all var(--novel-transition-normal);
-    touch-action: none;
+/* ====================== 核心修复：悬浮球独立样式（强制生效，不受任何父容器影响）====================== */
+#novel-writer-float-ball {
+    position: fixed !important;
+    z-index: 999999 !important;
+    left: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 70px !important;
+    height: 70px !important;
+    border-radius: var(--novel-radius-full) !important;
+    background: linear-gradient(135deg, var(--novel-primary), var(--novel-primary-hover)) !important;
+    box-shadow: var(--novel-shadow-float) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: all var(--novel-transition-normal) !important;
+    touch-action: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
-
-.novel-writer-extension-root .novel-float-ball:hover {
-    transform: translateY(-50%) scale(1.05);
-    box-shadow: var(--novel-shadow-lg);
+#novel-writer-float-ball:hover {
+    transform: translateY(-50%) scale(1.05) !important;
+    box-shadow: var(--novel-shadow-lg) !important;
 }
-
-.novel-writer-extension-root .novel-float-ball.novel-dragging {
-    transition: none;
-    opacity: 0.8;
-    cursor: grabbing;
+#novel-writer-float-ball.novel-dragging {
+    transition: none !important;
+    opacity: 0.8 !important;
+    cursor: grabbing !important;
 }
-
-.novel-writer-extension-root .novel-ball-icon {
-    font-size: 24px;
-    line-height: 1;
-    margin-bottom: 2px;
+#novel-writer-float-ball .novel-ball-icon {
+    font-size: 24px !important;
+    line-height: 1 !important;
+    margin-bottom: 2px !important;
+    color: #fff !important;
 }
-
-.novel-writer-extension-root .novel-ball-tip {
-    font-size: 11px;
-    color: #fff;
-    font-weight: 500;
-    line-height: 1;
+#novel-writer-float-ball .novel-ball-tip {
+    font-size: 11px !important;
+    color: #fff !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
 }
 
 /* ====================== 主面板样式 ====================== */
@@ -126,13 +125,11 @@
     pointer-events: none;
     transition: all var(--novel-transition-normal);
 }
-
 .novel-writer-extension-root .novel-writer-panel.novel-show {
     opacity: 1;
     pointer-events: all;
     transform: translate(-50%, -50%) scale(1);
 }
-
 /* 面板头部 */
 .novel-writer-extension-root .novel-panel-header {
     display: flex;
@@ -142,7 +139,6 @@
     border-bottom: 1px solid var(--novel-border-light);
     flex-shrink: 0;
 }
-
 .novel-writer-extension-root .novel-panel-title {
     display: flex;
     align-items: center;
@@ -151,7 +147,6 @@
     font-weight: 600;
     color: var(--novel-text-primary);
 }
-
 .novel-writer-extension-root .novel-panel-close-btn {
     width: 32px;
     height: 32px;
@@ -166,7 +161,6 @@
     justify-content: center;
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-panel-close-btn:hover {
     background: var(--novel-bg-tertiary);
     color: var(--novel-danger);
@@ -181,11 +175,9 @@
     flex-shrink: 0;
     scrollbar-width: none;
 }
-
 .novel-writer-extension-root .novel-tab-nav::-webkit-scrollbar {
     display: none;
 }
-
 .novel-writer-extension-root .novel-tab-item {
     display: flex;
     align-items: center;
@@ -202,17 +194,14 @@
     user-select: none;
     flex-shrink: 0;
 }
-
 .novel-writer-extension-root .novel-tab-item:hover {
     color: var(--novel-primary);
     background: var(--novel-bg-secondary);
 }
-
 .novel-writer-extension-root .novel-tab-item.novel-active {
     color: var(--novel-primary);
     border-bottom-color: var(--novel-primary);
 }
-
 /* 选项卡内容容器 */
 .novel-writer-extension-root .novel-tab-content {
     flex: 1;
@@ -220,7 +209,6 @@
     overflow-x: hidden;
     padding: var(--novel-spacing-lg);
 }
-
 .novel-writer-extension-root .novel-tab-panel {
     display: none;
     width: 100%;
@@ -228,7 +216,6 @@
     flex-direction: column;
     gap: var(--novel-spacing-lg);
 }
-
 .novel-writer-extension-root .novel-tab-panel.novel-active {
     display: flex;
     animation: novelFadeIn var(--novel-transition-normal) ease;
@@ -243,26 +230,21 @@
     overflow: hidden;
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-card:hover {
     border-color: var(--novel-border-color);
     box-shadow: var(--novel-shadow-sm);
 }
-
 .novel-writer-extension-root .novel-card-main {
     border-color: var(--novel-primary);
 }
-
 .novel-writer-extension-root .novel-card-mini {
     padding: var(--novel-spacing-md);
 }
-
 .novel-writer-extension-root .novel-card-header {
     padding: var(--novel-spacing-md) var(--novel-spacing-lg);
     border-bottom: 1px solid var(--novel-border-lighter);
     background: var(--novel-bg-secondary);
 }
-
 .novel-writer-extension-root .novel-card-header-inline {
     display: flex;
     align-items: center;
@@ -270,7 +252,6 @@
     flex-wrap: wrap;
     gap: var(--novel-spacing-sm);
 }
-
 .novel-writer-extension-root .novel-card-header h4 {
     display: flex;
     align-items: center;
@@ -280,14 +261,12 @@
     color: var(--novel-text-primary);
     margin: 0;
 }
-
 .novel-writer-extension-root .novel-card-body {
     padding: var(--novel-spacing-lg);
     display: flex;
     flex-direction: column;
     gap: var(--novel-spacing-md);
 }
-
 .novel-writer-extension-root .novel-divider {
     width: 100%;
     height: 1px;
@@ -301,11 +280,9 @@
     gap: var(--novel-spacing-lg);
     width: 100%;
 }
-
 .novel-writer-extension-root .novel-grid-2 {
     grid-template-columns: repeat(2, 1fr);
 }
-
 .novel-writer-extension-root .novel-grid-3 {
     grid-template-columns: repeat(3, 1fr);
 }
@@ -317,21 +294,18 @@
     gap: var(--novel-spacing-sm);
     width: 100%;
 }
-
 .novel-writer-extension-root .novel-form-group-inline {
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
     gap: var(--novel-spacing-md);
 }
-
 .novel-writer-extension-root .novel-form-label {
     font-size: 13px;
     font-weight: 500;
     color: var(--novel-text-regular);
     line-height: 1.4;
 }
-
 .novel-writer-extension-root .novel-form-label-inline {
     display: flex;
     align-items: center;
@@ -339,20 +313,17 @@
     gap: var(--novel-spacing-sm);
     width: 100%;
 }
-
 .novel-writer-extension-root .novel-input-with-tip {
     display: flex;
     flex-direction: column;
     gap: var(--novel-spacing-xs);
     width: 100%;
 }
-
 .novel-writer-extension-root .novel-input-tip {
     font-size: 12px;
     color: var(--novel-text-secondary);
     line-height: 1.3;
 }
-
 .novel-writer-extension-root .novel-form-input, 
 .novel-writer-extension-root .novel-form-select {
     width: 100%;
@@ -366,18 +337,15 @@
     transition: all var(--novel-transition-fast);
     outline: none;
 }
-
 .novel-writer-extension-root .novel-form-input:focus, 
 .novel-writer-extension-root .novel-form-select:focus {
     border-color: var(--novel-primary);
     box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
-
 .novel-writer-extension-root .novel-form-input::placeholder, 
 .novel-writer-extension-root .novel-form-textarea::placeholder {
     color: var(--novel-text-placeholder);
 }
-
 .novel-writer-extension-root .novel-form-textarea {
     width: 100%;
     min-height: 80px;
@@ -393,17 +361,14 @@
     outline: none;
     font-family: inherit;
 }
-
 .novel-writer-extension-root .novel-form-textarea:focus {
     border-color: var(--novel-primary);
     box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
-
 .novel-writer-extension-root .novel-form-textarea[readonly] {
     background: var(--novel-bg-secondary);
     cursor: default;
 }
-
 .novel-writer-extension-root .novel-form-checkbox {
     width: 18px;
     height: 18px;
@@ -431,119 +396,99 @@
     white-space: nowrap;
     outline: none;
 }
-
 .novel-writer-extension-root .novel-btn:hover {
     border-color: var(--novel-primary);
     color: var(--novel-primary);
     background: var(--novel-bg-secondary);
 }
-
 .novel-writer-extension-root .novel-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
 }
-
 .novel-writer-extension-root .novel-btn-sm {
     height: 32px;
     padding: 0 var(--novel-spacing-md);
     font-size: 13px;
 }
-
 .novel-writer-extension-root .novel-btn-lg {
     height: 48px;
     padding: 0 var(--novel-spacing-xl);
     font-size: 15px;
 }
-
 .novel-writer-extension-root .novel-btn-primary {
     background: var(--novel-primary);
     border-color: var(--novel-primary);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-primary:hover {
     background: var(--novel-primary-hover);
     border-color: var(--novel-primary-hover);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-primary:active {
     background: var(--novel-primary-active);
     border-color: var(--novel-primary-active);
 }
-
 .novel-writer-extension-root .novel-btn-secondary {
     background: var(--novel-secondary);
     border-color: var(--novel-secondary);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-secondary:hover {
     background: #a6a9ad;
     border-color: #a6a9ad;
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-success {
     background: var(--novel-success);
     border-color: var(--novel-success);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-success:hover {
     background: #85ce61;
     border-color: #85ce61;
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-warning {
     background: var(--novel-warning);
     border-color: var(--novel-warning);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-warning:hover {
     background: #ebb563;
     border-color: #ebb563;
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-danger {
     background: var(--novel-danger);
     border-color: var(--novel-danger);
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-danger:hover {
     background: #f78989;
     border-color: #f78989;
     color: #fff;
 }
-
 .novel-writer-extension-root .novel-btn-outline {
     background: transparent;
     border-color: var(--novel-border-color);
     color: var(--novel-text-regular);
 }
-
 .novel-writer-extension-root .novel-btn-outline:hover {
     border-color: var(--novel-primary);
     color: var(--novel-primary);
     background: rgba(64, 158, 255, 0.05);
 }
-
 .novel-writer-extension-root .novel-btn-group {
     display: flex;
     align-items: center;
     gap: var(--novel-spacing-sm);
     flex-wrap: wrap;
 }
-
 .novel-writer-extension-root .novel-btn-group-wrap {
     flex-wrap: wrap;
 }
-
 .novel-writer-extension-root .novel-btn-group-center {
     justify-content: center;
 }
@@ -555,13 +500,11 @@
     gap: var(--novel-spacing-md);
     flex-wrap: wrap;
 }
-
 .novel-writer-extension-root .novel-file-name {
     font-size: 14px;
     color: var(--novel-text-regular);
     word-break: break-all;
 }
-
 .novel-writer-extension-root .novel-chapter-list {
     display: flex;
     flex-direction: column;
@@ -569,7 +512,6 @@
     max-height: 400px;
     overflow-y: auto;
 }
-
 .novel-writer-extension-root .novel-chapter-item {
     display: flex;
     align-items: center;
@@ -579,12 +521,10 @@
     border-radius: var(--novel-radius-sm);
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-chapter-item:hover {
     border-color: var(--novel-primary);
     background: var(--novel-bg-secondary);
 }
-
 .novel-writer-extension-root .novel-chapter-checkbox {
     display: flex;
     align-items: center;
@@ -593,7 +533,6 @@
     flex: 1;
     min-width: 0;
 }
-
 .novel-writer-extension-root .novel-chapter-title {
     font-size: 14px;
     color: var(--novel-text-primary);
@@ -610,13 +549,11 @@
     width: 100%;
     padding: 0 var(--novel-spacing-lg);
 }
-
 .novel-writer-extension-root .novel-progress-text {
     font-size: 12px;
     color: var(--novel-text-secondary);
     margin: 0;
 }
-
 .novel-writer-extension-root .novel-progress-bar {
     width: 100%;
     height: 6px;
@@ -624,7 +561,6 @@
     background: var(--novel-bg-tertiary);
     overflow: hidden;
 }
-
 .novel-writer-extension-root .novel-progress-fill {
     height: 100%;
     width: 0%;
@@ -632,14 +568,12 @@
     border-radius: var(--novel-radius-full);
     transition: width var(--novel-transition-normal);
 }
-
 .novel-writer-extension-root .novel-quality-score {
     font-size: 14px;
     font-weight: 600;
     color: var(--novel-text-primary);
     margin: 0 0 var(--novel-spacing-sm) 0;
 }
-
 .novel-writer-extension-root .novel-quality-score span {
     color: var(--novel-primary);
 }
@@ -651,22 +585,18 @@
     font-size: 12px;
     font-weight: 500;
 }
-
 .novel-writer-extension-root .novel-status-default {
     background: var(--novel-bg-tertiary);
     color: var(--novel-text-secondary);
 }
-
 .novel-writer-extension-root .novel-status-success {
     background: rgba(103, 194, 58, 0.1);
     color: var(--novel-success);
 }
-
 .novel-writer-extension-root .novel-status-danger {
     background: rgba(245, 108, 108, 0.1);
     color: var(--novel-danger);
 }
-
 .novel-writer-extension-root .novel-status-warning {
     background: rgba(230, 162, 60, 0.1);
     color: var(--novel-warning);
@@ -679,7 +609,6 @@
     border-radius: var(--novel-radius-md);
     overflow: hidden;
 }
-
 .novel-writer-extension-root .novel-drawer-header {
     display: flex;
     align-items: center;
@@ -690,11 +619,9 @@
     user-select: none;
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-drawer-header:hover {
     background: var(--novel-bg-tertiary);
 }
-
 .novel-writer-extension-root .novel-drawer-header b {
     display: flex;
     align-items: center;
@@ -703,27 +630,22 @@
     font-weight: 600;
     color: var(--novel-text-primary);
 }
-
 .novel-writer-extension-root .novel-drawer-icon {
     font-size: 12px;
     color: var(--novel-text-secondary);
     transition: transform var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-inline-drawer.novel-open .novel-drawer-icon.down {
     transform: rotate(180deg);
 }
-
 .novel-writer-extension-root .novel-drawer-content {
     max-height: 0;
     overflow: hidden;
     transition: max-height var(--novel-transition-slow);
 }
-
 .novel-writer-extension-root .novel-inline-drawer.novel-open .novel-drawer-content {
     max-height: 1000px;
 }
-
 .novel-writer-extension-root .novel-drawer-top-row {
     display: flex;
     align-items: center;
@@ -731,7 +653,6 @@
     padding: var(--novel-spacing-md) var(--novel-spacing-lg);
     border-bottom: 1px solid var(--novel-border-lighter);
 }
-
 .novel-writer-extension-root .novel-drawer-content .novel-form-group {
     padding: 0 var(--novel-spacing-lg) var(--novel-spacing-lg) var(--novel-spacing-lg);
 }
@@ -744,7 +665,6 @@
     max-height: 600px;
     overflow-y: auto;
 }
-
 .novel-writer-extension-root .novel-continue-item {
     width: 100%;
     border: 1px solid var(--novel-border-light);
@@ -752,12 +672,10 @@
     overflow: hidden;
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-continue-item:hover {
     border-color: var(--novel-primary);
     box-shadow: var(--novel-shadow-sm);
 }
-
 .novel-writer-extension-root .novel-continue-title {
     padding: var(--novel-spacing-sm) var(--novel-spacing-md);
     background: var(--novel-bg-secondary);
@@ -766,14 +684,12 @@
     color: var(--novel-text-primary);
     border-bottom: 1px solid var(--novel-border-lighter);
 }
-
 .novel-writer-extension-root .novel-continue-content {
     width: 100%;
     border: none;
     border-bottom: 1px solid var(--novel-border-lighter);
     border-radius: 0;
 }
-
 .novel-writer-extension-root .novel-continue-item .novel-btn-group {
     padding: var(--novel-spacing-sm) var(--novel-spacing-md);
 }
@@ -786,7 +702,6 @@
     max-height: 100%;
     overflow: hidden;
 }
-
 .novel-writer-extension-root .novel-reader-header {
     display: flex;
     align-items: center;
@@ -796,7 +711,6 @@
     flex-shrink: 0;
     background: var(--novel-bg-primary);
 }
-
 .novel-writer-extension-root .novel-reader-title {
     display: flex;
     align-items: center;
@@ -810,14 +724,12 @@
     flex: 1;
     min-width: 0;
 }
-
 .novel-writer-extension-root .novel-reader-controls {
     display: flex;
     align-items: center;
     gap: var(--novel-spacing-sm);
     flex-shrink: 0;
 }
-
 .novel-writer-extension-root .novel-font-btn {
     width: 36px;
     height: 36px;
@@ -827,14 +739,12 @@
     justify-content: center;
     gap: 2px;
 }
-
 .novel-writer-extension-root .novel-reader-content-wrap {
     flex: 1;
     position: relative;
     overflow: hidden;
     background: var(--novel-bg-primary);
 }
-
 .novel-writer-extension-root .novel-reader-content {
     width: 100%;
     height: 100%;
@@ -846,7 +756,6 @@
     word-break: break-word;
     scroll-behavior: smooth;
 }
-
 .novel-writer-extension-root .novel-reader-empty {
     display: flex;
     align-items: center;
@@ -855,7 +764,6 @@
     color: var(--novel-text-secondary);
     font-size: 14px;
 }
-
 .novel-writer-extension-root .novel-reader-footer {
     display: flex;
     align-items: center;
@@ -866,11 +774,9 @@
     flex-shrink: 0;
     background: var(--novel-bg-primary);
 }
-
 .novel-writer-extension-root .novel-reader-footer .novel-btn {
     flex-shrink: 0;
 }
-
 .novel-writer-extension-root .novel-reader-progress-bar {
     flex: 1;
     height: 4px;
@@ -878,7 +784,6 @@
     background: var(--novel-bg-tertiary);
     overflow: hidden;
 }
-
 .novel-writer-extension-root .novel-reader-progress-fill {
     height: 100%;
     width: 0%;
@@ -886,7 +791,6 @@
     border-radius: var(--novel-radius-full);
     transition: width var(--novel-transition-normal);
 }
-
 .novel-writer-extension-root .novel-reader-progress-text, 
 .novel-writer-extension-root .novel-reader-chapter-count {
     font-size: 12px;
@@ -895,7 +799,6 @@
     text-align: center;
     flex-shrink: 0;
 }
-
 /* 阅读器章节抽屉 */
 .novel-writer-extension-root .novel-reader-drawer {
     position: absolute;
@@ -911,11 +814,9 @@
     display: flex;
     flex-direction: column;
 }
-
 .novel-writer-extension-root .novel-reader-drawer.novel-show {
     transform: translateX(0);
 }
-
 .novel-writer-extension-root .novel-reader-drawer-header {
     display: flex;
     align-items: center;
@@ -924,14 +825,12 @@
     border-bottom: 1px solid var(--novel-border-light);
     flex-shrink: 0;
 }
-
 .novel-writer-extension-root .novel-reader-drawer-header h3 {
     font-size: 16px;
     font-weight: 600;
     color: var(--novel-text-primary);
     margin: 0;
 }
-
 .novel-writer-extension-root .novel-reader-drawer-close {
     width: 32px;
     height: 32px;
@@ -946,18 +845,15 @@
     border-radius: var(--novel-radius-sm);
     transition: all var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root .novel-reader-drawer-close:hover {
     background: var(--novel-bg-tertiary);
     color: var(--novel-danger);
 }
-
 .novel-writer-extension-root .novel-reader-drawer-body {
     flex: 1;
     overflow-y: auto;
     padding: var(--novel-spacing-md);
 }
-
 .novel-writer-extension-root .novel-chapter-count-info {
     font-size: 13px;
     color: var(--novel-text-secondary);
@@ -965,13 +861,11 @@
     padding-bottom: var(--novel-spacing-sm);
     border-bottom: 1px solid var(--novel-border-lighter);
 }
-
 .novel-writer-extension-root .novel-reader-chapter-list {
     display: flex;
     flex-direction: column;
     gap: var(--novel-spacing-xs);
 }
-
 .novel-writer-extension-root .novel-reader-chapter-item {
     padding: var(--novel-spacing-sm) var(--novel-spacing-md);
     border-radius: var(--novel-radius-sm);
@@ -983,18 +877,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .novel-writer-extension-root .novel-reader-chapter-item:hover {
     background: var(--novel-bg-secondary);
     color: var(--novel-primary);
 }
-
 .novel-writer-extension-root .novel-reader-chapter-item.novel-active {
     background: rgba(64, 158, 255, 0.1);
     color: var(--novel-primary);
     font-weight: 500;
 }
-
 .novel-writer-extension-root .novel-reader-chapter-branch {
     padding-left: var(--novel-spacing-lg);
     display: flex;
@@ -1002,7 +893,6 @@
     gap: var(--novel-spacing-xs);
     margin: var(--novel-spacing-xs) 0;
 }
-
 .novel-writer-extension-root .novel-reader-continue-item {
     padding: var(--novel-spacing-xs) var(--novel-spacing-md);
     border-radius: var(--novel-radius-sm);
@@ -1017,12 +907,10 @@
     align-items: center;
     gap: var(--novel-spacing-xs);
 }
-
 .novel-writer-extension-root .novel-reader-continue-item:hover {
     background: var(--novel-bg-secondary);
     color: var(--novel-primary);
 }
-
 .novel-writer-extension-root .novel-reader-continue-item.novel-active {
     background: rgba(64, 158, 255, 0.1);
     color: var(--novel-primary);
@@ -1036,7 +924,6 @@
     gap: var(--novel-spacing-md);
     width: 100%;
 }
-
 .novel-writer-extension-root .novel-prompt-grid .novel-form-textarea {
     min-height: 120px;
     font-size: 13px;
@@ -1058,22 +945,18 @@
     width: 6px;
     height: 6px;
 }
-
 .novel-writer-extension-root ::-webkit-scrollbar-track {
     background: var(--novel-bg-tertiary);
     border-radius: var(--novel-radius-full);
 }
-
 .novel-writer-extension-root ::-webkit-scrollbar-thumb {
     background: var(--novel-border-color);
     border-radius: var(--novel-radius-full);
     transition: background var(--novel-transition-fast);
 }
-
 .novel-writer-extension-root ::-webkit-scrollbar-thumb:hover {
     background: var(--novel-secondary);
 }
-
 .novel-writer-extension-root {
     scrollbar-width: thin;
     scrollbar-color: var(--novel-border-color) var(--novel-bg-tertiary);
@@ -1089,169 +972,136 @@
         left: 0;
         transform: none;
     }
-
     .novel-writer-extension-root .novel-writer-panel.novel-show {
         transform: none;
     }
-
     /* 选项卡导航移动端优化：仅显示图标，增大触摸区域 */
     .novel-writer-extension-root .novel-tab-item {
         padding: var(--novel-spacing-md);
         min-width: 56px;
     }
-
     .novel-writer-extension-root .novel-tab-item span:last-child {
         display: none;
     }
-
     .novel-writer-extension-root .novel-tab-content {
         padding: var(--novel-spacing-md);
     }
-
     /* 网格布局移动端：2列变1列 */
     .novel-writer-extension-root .novel-grid-2, 
     .novel-writer-extension-root .novel-grid-3 {
         grid-template-columns: 1fr;
         gap: var(--novel-spacing-md);
     }
-
     /* 卡片内边距优化 */
     .novel-writer-extension-root .novel-card-body {
         padding: var(--novel-spacing-md);
     }
-
     .novel-writer-extension-root .novel-card-header {
         padding: var(--novel-spacing-sm) var(--novel-spacing-md);
     }
-
     /* 按钮移动端优化：增大触摸区域，自动换行 */
     .novel-writer-extension-root .novel-btn-group {
         width: 100%;
     }
-
     .novel-writer-extension-root .novel-btn {
         flex: 1;
         min-width: fit-content;
     }
-
     .novel-writer-extension-root .novel-btn-lg {
         width: 100%;
     }
-
     /* 章节列表移动端优化 */
     .novel-writer-extension-root .novel-chapter-item {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--novel-spacing-xs);
     }
-
     /* 阅读器移动端优化 */
     .novel-writer-extension-root .novel-reader-content {
         padding: var(--novel-spacing-md) var(--novel-spacing-lg);
         line-height: 1.9;
     }
-
     .novel-writer-extension-root .novel-reader-header {
         padding: var(--novel-spacing-sm) var(--novel-spacing-md);
     }
-
     .novel-writer-extension-root .novel-reader-footer {
         padding: var(--novel-spacing-xs) var(--novel-spacing-md);
         gap: var(--novel-spacing-sm);
     }
-
     .novel-writer-extension-root .novel-reader-drawer {
         width: 80vw;
         max-width: 320px;
     }
-
     .novel-writer-extension-root .novel-reader-title {
         font-size: 14px;
     }
-
     /* 悬浮球移动端优化：缩小尺寸，增大触摸区域 */
-    .novel-writer-extension-root .novel-float-ball {
-        width: 60px;
-        height: 60px;
+    #novel-writer-float-ball {
+        width: 60px !important;
+        height: 60px !important;
     }
-
-    .novel-writer-extension-root .novel-ball-icon {
-        font-size: 20px;
+    #novel-writer-float-ball .novel-ball-icon {
+        font-size: 20px !important;
     }
-
-    .novel-writer-extension-root .novel-ball-tip {
-        font-size: 10px;
+    #novel-writer-float-ball .novel-ball-tip {
+        font-size: 10px !important;
     }
-
     /* 表单元素移动端优化：增大高度，方便触摸 */
     .novel-writer-extension-root .novel-form-input, 
     .novel-writer-extension-root .novel-form-select {
         height: 44px;
     }
-
     .novel-writer-extension-root .novel-form-textarea {
         min-height: 100px;
     }
-
     /* 进度条移动端优化 */
     .novel-writer-extension-root .novel-progress-wrap {
         padding: 0 var(--novel-spacing-md);
     }
-
     /* 续写链条移动端优化 */
     .novel-writer-extension-root .novel-continue-item .novel-btn-group {
         justify-content: stretch;
     }
-
     .novel-writer-extension-root .novel-continue-item .novel-btn {
         flex: 1;
         min-width: calc(50% - 4px);
     }
 }
-
 /* ====================== 小屏手机极致适配 ====================== */
 @media screen and (max-width: 480px) {
     .novel-writer-extension-root .novel-tab-item {
         min-width: 48px;
         padding: var(--novel-spacing-sm);
     }
-
     .novel-writer-extension-root .novel-reader-footer .novel-btn span:last-child {
         display: none;
     }
-
     .novel-writer-extension-root .novel-reader-controls .novel-font-btn span:last-child {
         display: none;
     }
-
     .novel-writer-extension-root .novel-font-btn {
         width: 32px;
         height: 32px;
     }
-
     .novel-writer-extension-root .novel-reader-progress-text, 
     .novel-writer-extension-root .novel-reader-chapter-count {
         font-size: 10px;
         min-width: 30px;
     }
 }
-
 /* ====================== 桌面端专属优化 ====================== */
 @media screen and (min-width: 769px) {
     /* 提示词设置桌面端双列布局 */
     .novel-writer-extension-root .novel-prompt-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-
     /* 面板hover动效增强 */
     .novel-writer-extension-root .novel-card {
         will-change: transform;
     }
-
     .novel-writer-extension-root .novel-card:hover {
         transform: translateY(-1px);
     }
-
     /* 滚动条hover优化 */
     .novel-writer-extension-root .novel-tab-content:hover::-webkit-scrollbar-thumb {
         background: var(--novel-secondary);
@@ -1272,7 +1122,7 @@
 
 /* ====================== 兼容样式 ====================== */
 /* 禁用文本选中 */
-.novel-writer-extension-root .novel-float-ball, 
+#novel-writer-float-ball,
 .novel-writer-extension-root .novel-tab-item, 
 .novel-writer-extension-root .novel-drawer-header, 
 .novel-writer-extension-root .novel-btn {
@@ -1281,7 +1131,6 @@
     -ms-user-select: none;
     user-select: none;
 }
-
 /* 移除移动端点击高亮 */
 .novel-writer-extension-root * {
     -webkit-tap-highlight-color: transparent;
