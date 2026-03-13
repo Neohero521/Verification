@@ -3,11 +3,9 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 // 导入抽离的提示词模块
 import * as PromptConstants from './prompt-constants.js';
-
 // ====================== 全局配置与状态 ======================
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-
 // ====================== 核心优化：取消自动重试 + API速率控制 ======================
 // 取消失败自动重试：仅调用1次，失败直接抛出
 const MAX_RETRY_TIMES = 0;
@@ -18,7 +16,6 @@ const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起',
 let API_CALL_LOCK = false;
 // 当前生效的提示词配置
 let CURRENT_PROMPTS = { ...PromptConstants.DEFAULT_PROMPTS };
-
 // ====================== 默认配置（全量兼容原有配置，新增自定义项）======================
 const defaultSettings = {
     // 原有配置100%保留
@@ -34,10 +31,10 @@ const defaultSettings = {
     enableQualityCheck: true,
     precheckReport: {},
     drawerState: {
-        "drawer-chapter-import": true,
-        "drawer-graph": false,
-        "drawer-write": false,
-        "drawer-precheck": false
+        "novel-drawer-chapter-import": true,
+        "novel-drawer-graph": false,
+        "novel-drawer-write": false,
+        "novel-drawer-precheck": false
     },
     selectedBaseChapterId: "",
     writeContentPreview: "",
@@ -48,7 +45,7 @@ const defaultSettings = {
     floatBallState: {
         position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
         isPanelOpen: false,
-        activeTab: "tab-chapter"
+        activeTab: "novel-tab-chapter"
     },
     readerState: {
         fontSize: 16,
@@ -66,14 +63,13 @@ const defaultSettings = {
     // 新增：界面配置
     uiConfig: {
         floatBallSize: 70, // 悬浮球大小（px）
-        defaultActiveTab: "tab-chapter", // 默认打开的选项卡
+        defaultActiveTab: "novel-tab-chapter", // 默认打开的选项卡
         enableHoverEffect: true, // 是否启用hover动效
         autoSaveDraft: true, // 是否自动保存续写草稿
     },
     // 新增：用户自定义提示词配置
     customPrompts: { ...PromptConstants.DEFAULT_PROMPTS }
 };
-
 // ====================== 全局状态缓存（原有100%保留，新增扩展项）======================
 let currentParsedChapters = [];
 let isGeneratingGraph = false;
@@ -87,7 +83,6 @@ let currentPrecheckResult = null;
 let isInitialized = false;
 let batchMergedGraphs = [];
 let currentPresetName = "";
-
 // ====================== 核心优化：API调用封装（取消重试 + 速率控制 + 串行锁）======================
 async function generateRawWithBreakLimit(params) {
     const context = getContext();
@@ -95,19 +90,16 @@ async function generateRawWithBreakLimit(params) {
     const settings = extension_settings[extensionName];
     let lastError = null;
     let finalResult = null;
-
     // 等待API锁释放，保证串行调用
     while (API_CALL_LOCK) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     API_CALL_LOCK = true;
-
     try {
         // 处理提示词注入，优先使用用户自定义提示词
         let finalSystemPrompt = params.systemPrompt || '';
         const isJsonMode = !!params.jsonSchema;
         const enableBreakLimit = settings?.apiConfig?.enableBreakLimit ?? defaultSettings.apiConfig.enableBreakLimit;
-
         // 按模式追加规则
         if (isJsonMode) {
             finalSystemPrompt += CURRENT_PROMPTS.JSON_MODE_RULE;
@@ -115,23 +107,19 @@ async function generateRawWithBreakLimit(params) {
             // 小说正文模式，追加破限规则
             finalSystemPrompt += CURRENT_PROMPTS.BREAK_LIMIT_PROMPT;
         }
-
         // 合并最终参数，完整保留原有所有配置
         const finalParams = {
             ...params,
             systemPrompt: finalSystemPrompt
         };
-
         // 取消自动重试：仅调用1次
         console.log(`[小说续写插件] API调用，模式：${isJsonMode ? 'JSON结构化' : '小说正文'}`);
         const rawResult = await generateRaw(finalParams);
         const trimmedResult = rawResult.trim();
-
         // 空内容校验
         if (EMPTY_CONTENT_REGEX.test(trimmedResult)) {
             throw new Error('返回内容为空，或仅包含空格、标点符号');
         }
-
         // JSON模式校验
         if (isJsonMode) {
             let parsedJson;
@@ -161,11 +149,9 @@ async function generateRawWithBreakLimit(params) {
             }
             finalResult = trimmedResult;
         }
-
         // 调用成功后，等待设置的间隔时间，释放锁
         const callInterval = settings?.apiConfig?.callInterval ?? defaultSettings.apiConfig.callInterval;
         await new Promise(resolve => setTimeout(resolve, callInterval));
-
     } catch (error) {
         lastError = error;
         console.error(`[小说续写插件] API调用失败：${error.message}`);
@@ -173,15 +159,12 @@ async function generateRawWithBreakLimit(params) {
     } finally {
         API_CALL_LOCK = false;
     }
-
     if (finalResult === null) {
         throw lastError || new Error('API调用失败，返回无效内容');
     }
-
     console.log(`[小说续写插件] API调用成功，内容长度：${finalResult.length}字符`);
     return finalResult;
 }
-
 // ====================== 工具函数（原有100%保留，新增扩展）======================
 // 防抖工具函数
 function debounce(func, delay) {
@@ -275,7 +258,7 @@ function getCurrentPresetName() {
 }
 const updatePresetNameDisplay = debounce(function() {
     const settings = extension_settings[extensionName];
-    const presetNameElement = document.getElementById("parent-preset-name-display");
+    const presetNameElement = document.getElementById("novel-parent-preset-name-display");
     if (!presetNameElement) return;
     if (!settings.enableAutoParentPreset) {
         presetNameElement.style.display = "none";
@@ -303,7 +286,6 @@ function setupPresetEventListeners() {
         updatePresetNameDisplay();
     });
 }
-
 // ====================== 新增：提示词配置管理函数 ======================
 // 重置提示词到默认值
 function resetPromptsToDefault() {
@@ -319,7 +301,7 @@ function saveCustomPrompts() {
     const newCustomPrompts = { ...settings.customPrompts };
     // 遍历所有提示词输入框，更新配置
     Object.keys(PromptConstants.DEFAULT_PROMPTS).forEach(key => {
-        const inputEl = document.getElementById(`prompt-${key}`);
+        const inputEl = document.getElementById(`novel-prompt-${key}`);
         if (inputEl) {
             newCustomPrompts[key] = inputEl.value;
         }
@@ -332,9 +314,8 @@ function saveCustomPrompts() {
 // 渲染提示词设置面板
 function renderPromptSettings() {
     const settings = extension_settings[extensionName];
-    const promptContainer = document.getElementById("prompt-settings-container");
+    const promptContainer = document.getElementById("novel-prompt-settings-container");
     if (!promptContainer) return;
-
     const promptLabels = {
         BATCH_MERGE_GRAPH_SYSTEM_PROMPT: "批次合并图谱系统提示词",
         MERGE_ALL_GRAPH_SYSTEM_PROMPT: "全量合并图谱系统提示词",
@@ -347,22 +328,20 @@ function renderPromptSettings() {
         BREAK_LIMIT_PROMPT: "全局破限创作规则",
         JSON_MODE_RULE: "JSON模式强制规则"
     };
-
     let html = "";
     Object.keys(PromptConstants.DEFAULT_PROMPTS).forEach(key => {
         const label = promptLabels[key] || key;
         const value = settings?.customPrompts?.[key] || PromptConstants.DEFAULT_PROMPTS[key];
         html += `
-            <div class="content-card card-mini" style="margin-bottom: 12px;">
-                <div class="form-label" style="margin-bottom: 8px; font-weight: 600; color: var(--novel-text-primary);">${label}</div>
-                <textarea id="prompt-${key}" rows="4" class="form-textarea" style="width: 100%; font-size: 0.85rem;" wrap="soft">${value}</textarea>
+            <div class="novel-card novel-card-mini" style="margin-bottom: 12px;">
+                <div class="novel-form-label" style="margin-bottom: 8px; font-weight: 600; color: var(--novel-text-primary);">${label}</div>
+                <textarea id="novel-prompt-${key}" rows="4" class="novel-form-textarea" style="width: 100%; font-size: 0.85rem;" wrap="soft">${value}</textarea>
             </div>
         `;
     });
     promptContainer.innerHTML = html;
 }
-
-// ====================== 悬浮球模块（原有100%保留，新增自定义大小支持）======================
+// ====================== 悬浮球模块（原有100%保留，修正选择器）======================
 const FloatBall = {
     ball: null,
     panel: null,
@@ -387,6 +366,7 @@ const FloatBall = {
         console.log("[小说续写插件] 悬浮球初始化成功");
         this.bindEvents();
         this.restoreState();
+        // 强制显示悬浮球
         this.ball.style.visibility = "visible";
         this.ball.style.opacity = "1";
         this.ball.style.display = "flex";
@@ -404,13 +384,13 @@ const FloatBall = {
         this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
         document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
         document.addEventListener("touchend", this.stopDrag.bind(this));
-        const closeBtn = document.getElementById("panel-close-btn");
+        const closeBtn = document.getElementById("novel-panel-close-btn");
         closeBtn.removeEventListener("click", this.hidePanel.bind(this));
         closeBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             this.hidePanel();
         });
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+        document.querySelectorAll(".novel-tab-item").forEach(tab => {
             tab.removeEventListener("click", this.switchTab.bind(this));
             tab.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -425,7 +405,7 @@ const FloatBall = {
     outsideClose(e) {
         const isInPanel = e.target.closest("#novel-writer-panel");
         const isInBall = e.target.closest("#novel-writer-float-ball");
-        if (!isInPanel && !isInBall && this.panel.classList.contains("show")) {
+        if (!isInPanel && !isInBall && this.panel.classList.contains("novel-show")) {
             this.hidePanel();
         }
     },
@@ -439,7 +419,7 @@ const FloatBall = {
         e.stopPropagation();
         this.isDragging = false;
         this.isClick = true;
-        this.ball.classList.add("dragging");
+        this.ball.classList.add("novel-dragging");
         const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         const rect = this.ball.getBoundingClientRect();
@@ -449,7 +429,7 @@ const FloatBall = {
         this.offset.y = clientY - rect.top;
     },
     onDrag(e) {
-        if (!this.ball.classList.contains("dragging")) return;
+        if (!this.ball.classList.contains("novel-dragging")) return;
         const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         const moveX = Math.abs(clientX - this.startPos.x);
@@ -473,8 +453,8 @@ const FloatBall = {
         saveSettingsDebounced();
     },
     stopDrag(e) {
-        if (!this.ball.classList.contains("dragging")) return;
-        this.ball.classList.remove("dragging");
+        if (!this.ball.classList.contains("novel-dragging")) return;
+        this.ball.classList.remove("novel-dragging");
         if (this.isClick && !this.isDragging) {
             this.togglePanel();
         }
@@ -500,28 +480,28 @@ const FloatBall = {
         saveSettingsDebounced();
     },
     togglePanel() {
-        if (this.panel.classList.contains("show")) {
+        if (this.panel.classList.contains("novel-show")) {
             this.hidePanel();
         } else {
             this.showPanel();
         }
     },
     showPanel() {
-        this.panel.classList.add("show");
+        this.panel.classList.add("novel-show");
         extension_settings[extensionName].floatBallState.isPanelOpen = true;
         saveSettingsDebounced();
     },
     hidePanel() {
-        this.panel.classList.remove("show");
+        this.panel.classList.remove("novel-show");
         extension_settings[extensionName].floatBallState.isPanelOpen = false;
         saveSettingsDebounced();
     },
     switchTab(tabId) {
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
-            tab.classList.toggle("active", tab.dataset.tab === tabId);
+        document.querySelectorAll(".novel-tab-item").forEach(tab => {
+            tab.classList.toggle("novel-active", tab.dataset.tab === tabId);
         });
-        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
-            panel.classList.toggle("active", panel.id === tabId);
+        document.querySelectorAll(".novel-tab-panel").forEach(panel => {
+            panel.classList.toggle("novel-active", panel.id === tabId);
         });
         extension_settings[extensionName].floatBallState.activeTab = tabId;
         saveSettingsDebounced();
@@ -543,8 +523,7 @@ const FloatBall = {
         if (state.isPanelOpen) this.showPanel();
     }
 };
-
-// ====================== 小说阅读器模块（原有100%保留）======================
+// ====================== 小说阅读器模块（原有100%保留，修正选择器）======================
 const NovelReader = {
     currentChapterId: null,
     currentChapterType: "original",
@@ -578,15 +557,15 @@ const NovelReader = {
         this.restoreState();
     },
     bindEvents() {
-        const fontMinus = document.getElementById("reader-font-minus");
-        const fontPlus = document.getElementById("reader-font-plus");
-        const chapterSelectBtn = document.getElementById("reader-chapter-select-btn");
-        const drawerClose = document.getElementById("reader-drawer-close");
-        const prevChapter = document.getElementById("reader-prev-chapter");
-        const nextChapter = document.getElementById("reader-next-chapter");
-        const contentWrap = document.querySelector(".reader-content-wrap");
-        const contentEl = document.getElementById("reader-content");
-        const drawerEl = document.getElementById("reader-chapter-drawer");
+        const fontMinus = document.getElementById("novel-reader-font-minus");
+        const fontPlus = document.getElementById("novel-reader-font-plus");
+        const chapterSelectBtn = document.getElementById("novel-reader-chapter-select-btn");
+        const drawerClose = document.getElementById("novel-reader-drawer-close");
+        const prevChapter = document.getElementById("novel-reader-prev-chapter");
+        const nextChapter = document.getElementById("novel-reader-next-chapter");
+        const contentWrap = document.querySelector(".novel-reader-content-wrap");
+        const contentEl = document.getElementById("novel-reader-content");
+        const drawerEl = document.getElementById("novel-reader-chapter-drawer");
         fontMinus.removeEventListener("click", this.setFontSize.bind(this, this.fontSize - 1));
         fontPlus.removeEventListener("click", this.setFontSize.bind(this, this.fontSize + 1));
         chapterSelectBtn.removeEventListener("click", this.showChapterDrawer.bind(this));
@@ -618,7 +597,7 @@ const NovelReader = {
             this.loadNextChapter();
         });
         contentWrap.addEventListener("click", (e) => {
-            if (e.target.closest(".reader-content") || e.target.closest(".reader-controls") || e.target.closest(".reader-footer") || e.target.closest(".reader-chapter-drawer") || e.target.closest(".btn")) {
+            if (e.target.closest(".novel-reader-content") || e.target.closest(".novel-reader-controls") || e.target.closest(".novel-reader-footer") || e.target.closest(".novel-reader-chapter-drawer") || e.target.closest(".novel-btn")) {
                 return;
             }
             this.toggleChapterDrawer();
@@ -647,9 +626,9 @@ const NovelReader = {
     },
     updateProgressOnly() {
         if (this.isPageTurning || this.isProgrammaticScroll) return;
-        const contentEl = document.getElementById("reader-content");
-        const progressEl = document.getElementById("reader-progress-fill");
-        const progressTextEl = document.getElementById("reader-progress-text");
+        const contentEl = document.getElementById("novel-reader-content");
+        const progressEl = document.getElementById("novel-reader-progress-fill");
+        const progressTextEl = document.getElementById("novel-reader-progress-text");
         const scrollTop = contentEl.scrollTop;
         const scrollHeight = contentEl.scrollHeight;
         const clientHeight = contentEl.clientHeight;
@@ -668,30 +647,32 @@ const NovelReader = {
         saveSettingsDebounced();
     },
     renderChapterList() {
-        const listContainer = document.getElementById("reader-chapter-list");
-        const chapterCountEl = document.getElementById("reader-chapter-count");
+        const listContainer = document.getElementById("novel-reader-chapter-list");
+        const chapterCountEl = document.getElementById("novel-reader-chapter-count");
+        const totalChapterEl = document.getElementById("novel-reader-total-chapter");
         const totalChapterCount = currentParsedChapters.length + continueWriteChain.length;
         chapterCountEl.textContent = `0/${totalChapterCount}`;
+        totalChapterEl.textContent = totalChapterCount;
         if (currentParsedChapters.length === 0) {
-            listContainer.innerHTML = '<p class="empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>';
+            listContainer.innerHTML = '<p class="novel-empty-tip">暂无解析的章节，请先在「章节管理」中解析小说</p>';
             return;
         }
         let listHtml = "";
         currentParsedChapters.forEach(chapter => {
             const continueChapters = continueWriteChain.filter(item => item.baseChapterId === chapter.id);
             const isActive = this.currentChapterType === 'original' && this.currentChapterId === chapter.id;
-            listHtml += `<div class="reader-chapter-item ${isActive ? 'active' : ''}" data-chapter-id="${chapter.id}" data-chapter-type="original">${chapter.title}</div>`;
+            listHtml += `<div class="novel-reader-chapter-item ${isActive ? 'novel-active' : ''}" data-chapter-id="${chapter.id}" data-chapter-type="original">${chapter.title}</div>`;
             if (continueChapters.length > 0) {
-                listHtml += `<div class="reader-chapter-branch">`;
+                listHtml += `<div class="novel-reader-chapter-branch">`;
                 continueChapters.forEach((continueChapter, index) => {
                     const isContinueActive = this.currentChapterType === 'continue' && this.currentChapterId === continueChapter.id;
-                    listHtml += `<div class="reader-continue-chapter-item ${isContinueActive ? 'active' : ''}" data-chapter-id="${continueChapter.id}" data-chapter-type="continue"><span>✒️</span>续写章节 ${index + 1}</div>`;
+                    listHtml += `<div class="novel-reader-continue-item ${isContinueActive ? 'novel-active' : ''}" data-chapter-id="${continueChapter.id}" data-chapter-type="continue"><span>✒️</span>续写章节 ${index + 1}</div>`;
                 });
                 listHtml += `</div>`;
             }
         });
         listContainer.innerHTML = listHtml;
-        document.querySelectorAll(".reader-chapter-item, .reader-continue-chapter-item").forEach(item => {
+        document.querySelectorAll(".novel-reader-chapter-item, .novel-reader-continue-item").forEach(item => {
             item.removeEventListener("click", this.chapterClickHandler.bind(this));
             item.addEventListener("click", this.chapterClickHandler.bind(this));
         });
@@ -709,9 +690,9 @@ const NovelReader = {
         this.isPageTurning = true;
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
-        const contentEl = document.getElementById("reader-content");
-        const titleEl = document.getElementById("reader-current-chapter-title");
-        const chapterCountEl = document.getElementById("reader-chapter-count");
+        const contentEl = document.getElementById("novel-reader-content");
+        const titleEl = document.getElementById("novel-reader-current-chapter-title");
+        const chapterCountEl = document.getElementById("novel-reader-chapter-count");
         const totalChapterCount = currentParsedChapters.length + continueWriteChain.length;
         let chapterData = null;
         let chapterTitle = "";
@@ -812,7 +793,7 @@ const NovelReader = {
         }
         this.loadChapter(nextChapterId, nextChapterType);
         setTimeout(() => {
-            const contentEl = document.getElementById("reader-content");
+            const contentEl = document.getElementById("novel-reader-content");
             this.isProgrammaticScroll = true;
             contentEl.scrollTop = this.safeScrollOffset;
             requestAnimationFrame(() => {
@@ -855,13 +836,9 @@ const NovelReader = {
                 prevChapterType = "original";
             }
         }
-        if (prevChapterId === null) {
-            this.resetAllLocks();
-            return;
-        }
-        this.loadChapter(prevChapterId, prevChapterType);
+        if (prevChapterId === null);
         setTimeout(() => {
-            const contentEl = document.getElementById("reader-content");
+            const contentEl = document.getElementById("novel-reader-content");
             const maxScrollTop = contentEl.scrollHeight - contentEl.clientHeight;
             const targetScrollTop = Math.max(0, maxScrollTop - this.safeScrollOffset);
             this.isProgrammaticScroll = true;
@@ -879,7 +856,7 @@ const NovelReader = {
         this.globalPageCooldown = true;
         this.isProgrammaticScroll = true;
         this.fontSize = size;
-        const contentEl = document.getElementById("reader-content");
+        const contentEl = document.getElementById("novel-reader-content");
         contentEl.style.setProperty("--novel-reader-font-size", `${size}px`);
         setTimeout(() => {
             this.isProgrammaticScroll = false;
@@ -892,14 +869,14 @@ const NovelReader = {
         saveSettingsDebounced();
     },
     toggleChapterDrawer() {
-        const drawer = document.getElementById("reader-chapter-drawer");
-        drawer.classList.toggle("show");
+        const drawer = document.getElementById("novel-reader-chapter-drawer");
+        drawer.classList.toggle("novel-show");
     },
     showChapterDrawer() {
-        document.getElementById("reader-chapter-drawer").classList.add("show");
+        document.getElementById("novel-reader-chapter-drawer").classList.add("novel-show");
     },
     hideChapterDrawer() {
-        document.getElementById("reader-chapter-drawer").classList.remove("show");
+        document.getElementById("novel-reader-chapter-drawer").classList.remove("novel-show");
     },
     restoreState() {
         const state = extension_settings[extensionName].readerState || defaultSettings.readerState;
@@ -908,8 +885,7 @@ const NovelReader = {
         this.currentChapterType = state.currentChapterType || "original";
     }
 };
-
-// ====================== 原有核心功能函数（100%保留，仅替换提示词调用为当前生效配置）======================
+// ====================== 原有核心功能函数（100%保留，修正选择器）======================
 function renderCommandTemplate(template, charName, chapterContent) {
     const escapedContent = chapterContent.replace(/"/g, '\\"').replace(/\|/g, '\\|');
     return template.replace(/{{char}}/g, charName || '角色').replace(/{{pipe}}/g, escapedContent);
@@ -993,12 +969,12 @@ async function importChapterGraphs(file) {
             console.error('单章节图谱导入失败:', error);
             toastr.error(`导入失败：${error.message}，请检查JSON文件格式是否正确`, "小说续写器");
         } finally {
-            $("#chapter-graph-file-upload").val('');
+            $("#novel-chapter-graph-file-upload").val('');
         }
     };
     reader.onerror = () => {
         toastr.error('文件读取失败，请检查文件', "小说续写器");
-        $("#chapter-graph-file-upload").val('');
+        $("#novel-chapter-graph-file-upload").val('');
     };
     reader.readAsText(file, 'UTF-8');
 }
@@ -1012,7 +988,7 @@ async function batchMergeGraphs() {
         return;
     }
     
-    const batchCount = parseInt($('#batch-merge-count').val()) || 50;
+    const batchCount = parseInt($('#novel-batch-merge-count').val()) || 50;
     if (batchCount < 10 || batchCount > 100) {
         toastr.error('每批合并章节数必须在10-100之间', "小说续写器");
         return;
@@ -1030,7 +1006,7 @@ async function batchMergeGraphs() {
     isGeneratingGraph = true;
     stopGenerateFlag = false;
     let successCount = 0;
-    setButtonDisabled('#graph-batch-merge-btn, #graph-merge-btn, #graph-batch-clear-btn', true);
+    setButtonDisabled('#novel-graph-batch-merge-btn, #novel-graph-merge-btn, #novel-graph-batch-clear-btn', true);
     
     try {
         toastr.info(`开始分批合并，共${batches.length}个批次，每批最多${batchCount}章`, "小说续写器");
@@ -1039,7 +1015,7 @@ async function batchMergeGraphs() {
             
             const batch = batches[i];
             const batchNum = i + 1;
-            updateProgress('batch-merge-progress', 'batch-merge-status', batchNum, batches.length, "分批合并进度");
+            updateProgress('novel-batch-merge-progress', 'novel-batch-merge-status', batchNum, batches.length, "分批合并进度");
             
             const systemPrompt = CURRENT_PROMPTS.BATCH_MERGE_GRAPH_SYSTEM_PROMPT;
             const userPrompt = `待合并的批次${batchNum}章节图谱列表：\n${JSON.stringify(batch, null, 2)}`;
@@ -1083,14 +1059,14 @@ async function batchMergeGraphs() {
     } finally {
         isGeneratingGraph = false;
         stopGenerateFlag = false;
-        updateProgress('batch-merge-progress', 'batch-merge-status', 0, 0);
-        setButtonDisabled('#graph-batch-merge-btn, #graph-merge-btn, #graph-batch-clear-btn', false);
+        updateProgress('novel-batch-merge-progress', 'novel-batch-merge-status', 0, 0);
+        setButtonDisabled('#novel-graph-batch-merge-btn, #novel-graph-merge-btn, #novel-graph-batch-clear-btn', false);
     }
 }
 function clearBatchMergedGraphs() {
     batchMergedGraphs = [];
     extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
-    updateProgress('batch-merge-progress', 'batch-merge-status', 0, 0);
+    updateProgress('novel-batch-merge-progress', 'novel-batch-merge-status', 0, 0);
     saveSettingsDebounced();
     toastr.success('已清空所有批次合并结果', "小说续写器");
 }
@@ -1104,38 +1080,34 @@ async function loadSettings() {
     }
     // 初始化当前生效提示词
     CURRENT_PROMPTS = { ...PromptConstants.DEFAULT_PROMPTS, ...extension_settings[extensionName].customPrompts };
-
     currentParsedChapters = extension_settings[extensionName].chapterList || [];
     continueWriteChain = extension_settings[extensionName].continueWriteChain || [];
     continueChapterIdCounter = extension_settings[extensionName].continueChapterIdCounter || 1;
     currentPrecheckResult = extension_settings[extensionName].precheckReport || null;
     batchMergedGraphs = extension_settings[extensionName].batchMergedGraphs || [];
     const settings = extension_settings[extensionName];
-
-    $("#example_setting").prop("checked", settings.example_setting).trigger("input");
-    $("#chapter-regex-input").val(settings.chapterRegex);
-    $("#send-template-input").val(settings.sendTemplate);
-    $("#send-delay-input").val(settings.sendDelay);
-    $("#quality-check-switch").prop("checked", settings.enableQualityCheck);
-    $("#write-word-count").val(settings.writeWordCount || 2000);
-    $("#auto-parent-preset-switch").prop("checked", settings.enableAutoParentPreset);
+    $("#novel-example_setting").prop("checked", settings.example_setting).trigger("input");
+    $("#novel-chapter-regex-input").val(settings.chapterRegex);
+    $("#novel-send-template-input").val(settings.sendTemplate);
+    $("#novel-send-delay-input").val(settings.sendDelay);
+    $("#novel-quality-check-switch").prop("checked", settings.enableQualityCheck);
+    $("#novel-write-word-count").val(settings.writeWordCount || 2000);
+    $("#novel-auto-parent-preset-switch").prop("checked", settings.enableAutoParentPreset);
     // 新增：API配置初始化
-    $("#api-call-interval").val(settings.apiConfig.callInterval);
-    $("#api-break-limit-switch").prop("checked", settings.apiConfig.enableBreakLimit);
+    $("#novel-api-call-interval").val(settings.apiConfig.callInterval);
+    $("#novel-api-break-limit-switch").prop("checked", settings.apiConfig.enableBreakLimit);
     // 新增：UI配置初始化
-    $("#ui-float-ball-size").val(settings.uiConfig.floatBallSize);
-    $("#ui-default-tab").val(settings.uiConfig.defaultActiveTab);
-    $("#ui-hover-switch").prop("checked", settings.uiConfig.enableHoverEffect);
-    $("#ui-draft-switch").prop("checked", settings.uiConfig.autoSaveDraft);
-
+    $("#novel-ui-float-ball-size").val(settings.uiConfig.floatBallSize);
+    $("#novel-ui-default-tab").val(settings.uiConfig.defaultActiveTab);
+    $("#novel-ui-hover-switch").prop("checked", settings.uiConfig.enableHoverEffect);
+    $("#novel-ui-draft-switch").prop("checked", settings.uiConfig.autoSaveDraft);
     const mergedGraph = settings.mergedGraph || {};
-    $("#merged-graph-preview").val(Object.keys(mergedGraph).length > 0 ? JSON.stringify(mergedGraph, null, 2) : "");
-    $("#write-content-preview").val(settings.writeContentPreview || "");
-    if (settings.graphValidateResultShow) $("#graph-validate-result").show();
-    if (settings.qualityResultShow) $("#quality-result-block").show();
-    $("#precheck-status").text(settings.precheckStatus || "未执行").removeClass("status-default status-success status-danger").addClass(settings.precheckStatus === "通过"?"status-success": settings.precheckStatus === "不通过"? "status-danger": "status-default");
-    $("#precheck-report").val(settings.precheckReportText || "");
-
+    $("#novel-merged-graph-preview").val(Object.keys(mergedGraph).length > 0 ? JSON.stringify(mergedGraph, null, 2) : "");
+    $("#novel-write-content-preview").val(settings.writeContentPreview || "");
+    if (settings.graphValidateResultShow) $("#novel-graph-validate-result").show();
+    if (settings.qualityResultShow) $("#novel-quality-result-block").show();
+    $("#novel-precheck-status").text(settings.precheckStatus || "未执行").removeClass("novel-status-default novel-status-success novel-status-danger").addClass(settings.precheckStatus === "通过"?"novel-status-success": settings.precheckStatus === "不通过"? "novel-status-danger": "novel-status-default");
+    $("#novel-precheck-report").val(settings.precheckReportText || "");
     renderChapterList(currentParsedChapters);
     renderChapterSelect(currentParsedChapters);
     renderContinueWriteChain(continueWriteChain);
@@ -1143,12 +1115,10 @@ async function loadSettings() {
     restoreDrawerState();
     // 新增：渲染提示词设置
     renderPromptSettings();
-
     if (settings.selectedBaseChapterId) {
-        $("#write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
+        $("#novel-write-chapter-select").val(settings.selectedBaseChapterId).trigger("change");
     }
     isInitialized = true;
-
     await new Promise(resolve => setTimeout(resolve, 200));
     updatePresetNameDisplay();
     setupPresetEventListeners();
@@ -1157,10 +1127,10 @@ async function loadSettings() {
 }
 function saveDrawerState() {
     const drawerState = {};
-    $('.novel-writer-extension .inline-drawer').each(function() {
+    $('.novel-writer-extension-root .novel-inline-drawer').each(function() {
         const drawerId = $(this).attr('id');
         if (drawerId) {
-            drawerState[drawerId] = $(this).hasClass('open');
+            drawerState[drawerId] = $(this).hasClass('novel-open');
         }
     });
     extension_settings[extensionName].drawerState = drawerState;
@@ -1168,19 +1138,19 @@ function saveDrawerState() {
 }
 function restoreDrawerState() {
     const savedState = extension_settings[extensionName].drawerState || defaultSettings.drawerState;
-    $('.novel-writer-extension .inline-drawer').each(function() {
+    $('.novel-writer-extension-root .novel-inline-drawer').each(function() {
         const drawerId = $(this).attr('id');
         if (drawerId && savedState[drawerId] !== undefined) {
-            $(this).toggleClass('open', savedState[drawerId]);
+            $(this).toggleClass('novel-open', savedState[drawerId]);
         }
     });
 }
 function initDrawerToggle() {
-    $('#novel-writer-panel').off('click', '.inline-drawer-header').on('click', '.inline-drawer-header', function(e) {
+    $('#novel-writer-panel').off('click', '.novel-inline-drawer-header').on('click', '.novel-inline-drawer-header', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        const $drawer = $(this).closest('.inline-drawer');
-        $drawer.toggleClass('open');
+        const $drawer = $(this).closest('.novel-inline-drawer');
+        $drawer.toggleClass('novel-open');
         saveDrawerState();
     });
 }
@@ -1213,22 +1183,22 @@ function initVisibilityListener() {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && isInitialized) {
             if (isGeneratingWrite) {
-                $('#write-status').text('生成状态异常，请重新点击生成');
+                $('#novel-write-status').text('生成状态异常，请重新点击生成');
                 isGeneratingWrite = false;
                 stopGenerateFlag = false;
-                setButtonDisabled('#write-generate-btn, .continue-write-btn, #write-stop-btn', false);
+                setButtonDisabled('#novel-write-generate-btn, .novel-continue-write-btn, #novel-write-stop-btn', false);
             }
             if (isGeneratingGraph) {
-                $('#graph-generate-status').text('图谱生成状态异常，请重新点击生成');
+                $('#novel-graph-generate-status').text('图谱生成状态异常，请重新点击生成');
                 isGeneratingGraph = false;
                 stopGenerateFlag = false;
-                setButtonDisabled('#graph-single-btn, #graph-batch-btn, #graph-merge-btn, #graph-batch-merge-btn', false);
+                setButtonDisabled('#novel-graph-single-btn, #novel-graph-batch-btn, #novel-graph-merge-btn, #novel-graph-batch-merge-btn', false);
             }
             if (isSending) {
                 $('#novel-import-status').text('发送状态异常，请重新点击导入');
                 isSending = false;
                 stopSending = false;
-                setButtonDisabled('#import-selected-btn, #import-all-btn, #stop-send-btn', false);
+                setButtonDisabled('#novel-import-selected-btn, #novel-import-all-btn, #novel-stop-send-btn', false);
             }
         }
     });
@@ -1316,8 +1286,8 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
         currentPrecheckResult = precheckResult;
         const reportText = `合规性校验结果：${precheckResult.isPass ? "通过": "不通过"} 人设红线清单：${precheckResult["人设红线清单"]} 设定禁区清单：${precheckResult["设定禁区清单"]} 可呼应伏笔清单：${precheckResult["可呼应伏笔清单"]} 潜在矛盾预警：${precheckResult["潜在矛盾预警"]} 可推进剧情方向：${precheckResult["可推进剧情方向"]} 详细报告：${precheckResult["合规性报告"]}`.trim();
         const statusText = precheckResult.isPass ? "通过": "不通过";
-        $("#precheck-status").text(statusText).removeClass("status-default status-success status-danger").addClass(precheckResult.isPass ? "status-success": "status-danger");
-        $("#precheck-report").val(reportText);
+        $("#novel-precheck-status").text(statusText).removeClass("novel-status-default novel-status-success novel-status-danger").addClass(precheckResult.isPass ? "novel-status-success": "novel-status-danger");
+        $("#novel-precheck-report").val(reportText);
         extension_settings[extensionName].precheckReport = precheckResult;
         extension_settings[extensionName].precheckStatus = statusText;
         extension_settings[extensionName].precheckReportText = reportText;
@@ -1416,7 +1386,7 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
         const graphData = JSON.parse(result.trim());
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
         graphMap[`continue_${continueId}`] = graphData;
-        extension_settings[extensionName].chapterGraphMap = graphData;
+        extension_settings[extensionName].chapterGraphMap = graphMap;
         saveSettingsDebounced();
         return graphData;
     } catch (error) {
@@ -1453,8 +1423,8 @@ async function validateGraphCompliance() {
         result = `图谱合规性校验通过，${graphType}所有必填字段完整，内容字数：${graphWordCount}字，全文本逻辑自洽性得分：${logicScore}/100`;
         isPass = true;
     }
-    $("#graph-validate-content").val(result);
-    $("#graph-validate-result").show();
+    $("#novel-graph-validate-content").val(result);
+    $("#novel-graph-validate-result").show();
     extension_settings[extensionName].graphValidateResultShow = true;
     saveSettingsDebounced();
     if (isPass) {
@@ -1541,31 +1511,31 @@ function renderChapterList(chapters) {
     const $listContainer = $('#novel-chapter-list');
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     if (chapters.length === 0) {
-        $listContainer.html('请上传小说文件并点击「解析章节」');
+        $listContainer.html('<p class="novel-empty-tip">请上传小说文件并点击「解析章节」</p>');
         return;
     }
     chapters.forEach(chapter => {
         chapter.hasGraph = !!graphMap[chapter.id];
     });
     const listHtml = chapters.map((chapter) => `
-        <div class="chapter-item">
-            <label class="chapter-checkbox">
-                <input type="checkbox" class="chapter-select" data-index="${chapter.id}">
-                <span class="chapter-title">${chapter.title}</span>
+        <div class="novel-chapter-item">
+            <label class="novel-chapter-checkbox">
+                <input type="checkbox" class="novel-chapter-select" data-index="${chapter.id}">
+                <span class="novel-chapter-title">${chapter.title}</span>
             </label>
-            <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'}</span>
+            <span class="novel-input-tip ${chapter.hasGraph ? 'novel-status-success' : 'novel-text-secondary'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'}</span>
         </div>
     `).join('');
     $listContainer.html(listHtml);
 }
 function renderChapterSelect(chapters) {
-    const $select = $('#write-chapter-select');
-    $('#write-chapter-content').val('').prop('readonly', true);
-    $('#precheck-status').text("未执行").removeClass("status-success status-danger").addClass("status-default");
-    $('#precheck-report').val('');
-    $('#quality-result-block').hide();
+    const $select = $('#novel-write-chapter-select');
+    $('#novel-write-chapter-content').val('').prop('readonly', true);
+    $('#novel-precheck-status').text("未执行").removeClass("novel-status-success novel-status-danger").addClass("novel-status-default");
+    $('#novel-precheck-report').val('');
+    $('#novel-quality-result-block').hide();
     if (chapters.length === 0) {
-        $select.html('请先解析章节');
+        $select.html('<option value="">请先解析章节</option>');
         return;
     }
     const optionHtml = chapters.map(chapter => `<option value="${chapter.id}">${chapter.title}</option>`).join('');
@@ -1590,8 +1560,8 @@ async function sendChaptersBatch(chapters) {
     isSending = true;
     stopSending = false;
     let successCount = 0;
-    setButtonDisabled('#import-selected-btn, #import-all-btn', true);
-    setButtonDisabled('#stop-send-btn', false);
+    setButtonDisabled('#novel-import-selected-btn, #novel-import-all-btn', true);
+    setButtonDisabled('#novel-stop-send-btn', false);
     try {
         for (let i = 0; i < chapters.length; i++) {
             if (stopSending) break;
@@ -1612,11 +1582,11 @@ async function sendChaptersBatch(chapters) {
         isSending = false;
         stopSending = false;
         updateProgress('novel-import-progress', 'novel-import-status', 0, 0);
-        setButtonDisabled('#import-selected-btn, #import-all-btn, #stop-send-btn', false);
+        setButtonDisabled('#novel-import-selected-btn, #novel-import-all-btn, #novel-stop-send-btn', false);
     }
 }
 function getSelectedChapters() {
-    const checkedInputs = document.querySelectorAll('.chapter-select:checked');
+    const checkedInputs = document.querySelectorAll('.novel-chapter-select:checked');
     const selectedIndexes = [...checkedInputs].map(input => parseInt(input.dataset.index));
     return selectedIndexes.map(index => currentParsedChapters.find(item => item.id === index)).filter(Boolean);
 }
@@ -1651,12 +1621,12 @@ async function generateChapterGraphBatch(chapters) {
     stopGenerateFlag = false;
     let successCount = 0;
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
-    setButtonDisabled('#graph-single-btn, #graph-batch-btn, #graph-merge-btn, #graph-batch-merge-btn', true);
+    setButtonDisabled('#novel-graph-single-btn, #novel-graph-batch-btn, #novel-graph-merge-btn, #novel-graph-batch-merge-btn', true);
     try {
         for (let i = 0; i < chapters.length; i++) {
             if (stopGenerateFlag) break;
             const chapter = chapters[i];
-            updateProgress('graph-progress', 'graph-generate-status', i + 1, chapters.length, "图谱生成进度");
+            updateProgress('novel-graph-progress', 'novel-graph-generate-status', i + 1, chapters.length, "图谱生成进度");
             if (graphMap[chapter.id]) {
                 successCount++;
                 continue;
@@ -1679,8 +1649,8 @@ async function generateChapterGraphBatch(chapters) {
     } finally {
         isGeneratingGraph = false;
         stopGenerateFlag = false;
-        updateProgress('graph-progress', 'graph-generate-status', 0, 0);
-        setButtonDisabled('#graph-single-btn, #graph-batch-btn, #graph-merge-btn, #graph-batch-merge-btn', false);
+        updateProgress('novel-graph-progress', 'novel-graph-generate-status', 0, 0);
+        setButtonDisabled('#novel-graph-single-btn, #novel-graph-batch-btn, #novel-graph-merge-btn, #novel-graph-batch-merge-btn', false);
     }
 }
 async function mergeAllGraphs() {
@@ -1702,7 +1672,7 @@ async function mergeAllGraphs() {
         return;
     }
     
-    setButtonDisabled('#graph-merge-btn, #graph-batch-merge-btn', true);
+    setButtonDisabled('#novel-graph-merge-btn, #novel-graph-batch-merge-btn', true);
     const systemPrompt = CURRENT_PROMPTS.MERGE_ALL_GRAPH_SYSTEM_PROMPT;
     const userPrompt = `待合并的${mergeType}图谱列表：\n${JSON.stringify(graphList, null, 2)}`;
     
@@ -1717,7 +1687,7 @@ async function mergeAllGraphs() {
         const mergedGraph = JSON.parse(result.trim());
         extension_settings[extensionName].mergedGraph = mergedGraph;
         saveSettingsDebounced();
-        $('#merged-graph-preview').val(JSON.stringify(mergedGraph, null, 2));
+        $('#novel-merged-graph-preview').val(JSON.stringify(mergedGraph, null, 2));
         toastr.success(`全量知识图谱合并完成！基于${mergeType}生成`, "小说续写器");
         return mergedGraph;
     } catch (error) {
@@ -1725,25 +1695,25 @@ async function mergeAllGraphs() {
         toastr.error(`图谱合并失败: ${error.message}`, "小说续写器");
         return null;
     } finally {
-        setButtonDisabled('#graph-merge-btn, #graph-batch-merge-btn', false);
+        setButtonDisabled('#novel-graph-merge-btn, #novel-graph-batch-merge-btn', false);
     }
 }
 function renderContinueWriteChain(chain) {
-    const $chainContainer = $('#continue-write-chain');
+    const $chainContainer = $('#novel-continue-write-chain');
     const scrollTop = $chainContainer.scrollTop();
     if (chain.length === 0) {
-        $chainContainer.html('暂无续写章节，生成续写内容后自动添加到此处');
+        $chainContainer.html('<p class="novel-empty-tip">暂无续写章节，生成续写内容后自动添加到此处</p>');
         return;
     }
     const chainHtml = chain.map((chapter, index) => `
-        <div class="continue-chapter-item">
-            <div class="continue-chapter-title">续写章节 ${index + 1}</div>
-            <textarea class="continue-chapter-content" data-chain-id="${chapter.id}" rows="8" placeholder="续写内容">${chapter.content}</textarea>
-            <div class="btn-group-row btn-group-wrap">
-                <button class="btn btn-sm btn-primary continue-write-btn" data-chain-id="${chapter.id}">基于此章继续续写</button>
-                <button class="btn btn-sm btn-secondary continue-copy-btn" data-chain-id="${chapter.id}">复制内容</button>
-                <button class="btn btn-sm btn-outline continue-send-btn" data-chain-id="${chapter.id}">发送到对话框</button>
-                <button class="btn btn-sm btn-danger continue-delete-btn" data-chain-id="${chapter.id}">删除章节</button>
+        <div class="novel-continue-item">
+            <div class="novel-continue-title">续写章节 ${index + 1}</div>
+            <textarea class="novel-continue-content" data-chain-id="${chapter.id}" rows="8" placeholder="续写内容">${chapter.content}</textarea>
+            <div class="novel-btn-group novel-btn-group-wrap">
+                <button class="novel-btn novel-btn-sm novel-btn-primary novel-continue-write-btn" data-chain-id="${chapter.id}">基于此章继续续写</button>
+                <button class="novel-btn novel-btn-sm novel-btn-secondary novel-continue-copy-btn" data-chain-id="${chapter.id}">复制内容</button>
+                <button class="novel-btn novel-btn-sm novel-btn-outline novel-continue-send-btn" data-chain-id="${chapter.id}">发送到对话框</button>
+                <button class="novel-btn novel-btn-sm novel-btn-danger novel-continue-delete-btn" data-chain-id="${chapter.id}">删除章节</button>
             </div>
         </div>
     `).join('');
@@ -1752,7 +1722,7 @@ function renderContinueWriteChain(chain) {
 }
 function initContinueChainEvents() {
     const $root = $('#novel-writer-panel');
-    $root.off('input', '.continue-chapter-content').on('input', '.continue-chapter-content', function(e) {
+    $root.off('input', '.novel-continue-content').on('input', '.novel-continue-content', function(e) {
         const chainId = parseInt($(e.target).data('chain-id'));
         const newContent = $(e.target).val();
         const chapterIndex = continueWriteChain.findIndex(item => item.id === chainId);
@@ -1762,12 +1732,12 @@ function initContinueChainEvents() {
             saveSettingsDebounced();
         }
     });
-    $root.off('click', '.continue-write-btn').on('click', '.continue-write-btn', function(e) {
+    $root.off('click', '.novel-continue-write-btn').on('click', '.novel-continue-write-btn', function(e) {
         e.stopPropagation();
         const chainId = parseInt($(e.target).data('chain-id'));
         generateContinueWrite(chainId);
     });
-    $root.off('click', '.continue-copy-btn').on('click', '.continue-copy-btn', async function(e) {
+    $root.off('click', '.novel-continue-copy-btn').on('click', '.novel-continue-copy-btn', async function(e) {
         e.stopPropagation();
         const chainId = parseInt($(e.target).data('chain-id'));
         const chapter = continueWriteChain.find(item => item.id === chainId);
@@ -1782,7 +1752,7 @@ function initContinueChainEvents() {
             toastr.error('复制失败', "小说续写器");
         }
     });
-    $root.off('click', '.continue-send-btn').on('click', '.continue-send-btn', function(e) {
+    $root.off('click', '.novel-continue-send-btn').on('click', '.novel-continue-send-btn', function(e) {
         e.stopPropagation();
         const context = getContext();
         const chainId = parseInt($(e.target).data('chain-id'));
@@ -1803,7 +1773,7 @@ function initContinueChainEvents() {
             toastr.error(`发送失败: ${error.message}`, "小说续写器");
         });
     });
-    $root.off('click', '.continue-delete-btn').on('click', '.continue-delete-btn', function(e) {
+    $root.off('click', '.novel-continue-delete-btn').on('click', '.novel-continue-delete-btn', function(e) {
         e.stopPropagation();
         const chainId = parseInt($(e.target).data('chain-id'));
         const chapterIndex = continueWriteChain.findIndex(item => item.id === chainId);
@@ -1820,9 +1790,9 @@ function initContinueChainEvents() {
     });
 }
 async function generateContinueWrite(targetChainId) {
-    const selectedBaseChapterId = $('#write-chapter-select').val();
-    const editedBaseChapterContent = $('#write-chapter-content').val().trim();
-    const wordCount = parseInt($('#write-word-count').val()) || 2000;
+    const selectedBaseChapterId = $('#novel-write-chapter-select').val();
+    const editedBaseChapterContent = $('#novel-write-chapter-content').val().trim();
+    const wordCount = parseInt($('#novel-write-word-count').val()) || 2000;
     const mergedGraph = extension_settings[extensionName].mergedGraph || {};
     const enableQualityCheck = extension_settings[extensionName].enableQualityCheck;
     if (isGeneratingWrite) {
@@ -1855,7 +1825,7 @@ async function generateContinueWrite(targetChainId) {
     });
     const baseChapterTitle = currentParsedChapters.find(c => c.id === baseChapterId)?.title || '基准章节';
     fullContextContent += `${baseChapterTitle}\n${editedBaseChapterContent}\n\n`;
-    const targetBeforeChapters = continueWriteChain.slice(0, targetChainId + 1);
+    const targetBeforeChapters = continueWriteChain.slice(0, continueWriteChain.findIndex(item => item.id === targetChainId) + 1);
     targetBeforeChapters.forEach((chapter, index) => {
         fullContextContent += `续写章节 ${index + 1}\n${chapter.content}\n\n`;
     });
@@ -1871,13 +1841,13 @@ async function generateContinueWrite(targetChainId) {
     const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)} 完整前文上下文：${fullContextContent} 请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
     isGeneratingWrite = true;
     stopGenerateFlag = false;
-    setButtonDisabled('#write-generate-btn, .continue-write-btn', true);
-    setButtonDisabled('#write-stop-btn', false);
+    setButtonDisabled('#novel-write-generate-btn, .novel-continue-write-btn', true);
+    setButtonDisabled('#novel-write-stop-btn', false);
     toastr.info('正在生成续写章节，请稍候...', "小说续写器");
     try {
         let continueContent = await generateRawWithBreakLimit({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
-            $('#write-status').text('已停止生成，丢弃本次生成结果');
+            $('#novel-write-status').text('已停止生成，丢弃本次生成结果');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
@@ -1892,9 +1862,9 @@ async function generateContinueWrite(targetChainId) {
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，请手动点击重新生成`, "小说续写器");
             }
-            $("#quality-score").text(qualityResult.总分);
-            $("#quality-report").val(qualityResult.评估报告);
-            $("#quality-result-block").show();
+            $("#novel-quality-score").text(qualityResult.总分);
+            $("#novel-quality-report").val(qualityResult.评估报告);
+            $("#novel-quality-result-block").show();
             extension_settings[extensionName].qualityResultShow = true;
             saveSettingsDebounced();
         }
@@ -1920,13 +1890,13 @@ async function generateContinueWrite(targetChainId) {
     } finally {
         isGeneratingWrite = false;
         stopGenerateFlag = false;
-        setButtonDisabled('#write-generate-btn, .continue-write-btn, #write-stop-btn', false);
+        setButtonDisabled('#novel-write-generate-btn, .novel-continue-write-btn, #novel-write-stop-btn', false);
     }
 }
 async function generateNovelWrite() {
-    const selectedChapterId = $('#write-chapter-select').val();
-    const editedChapterContent = $('#write-chapter-content').val().trim();
-    const wordCount = parseInt($('#write-word-count').val()) || 2000;
+    const selectedChapterId = $('#novel-write-chapter-select').val();
+    const editedChapterContent = $('#novel-write-chapter-content').val().trim();
+    const wordCount = parseInt($('#novel-write-word-count').val()) || 2000;
     const mergedGraph = extension_settings[extensionName].mergedGraph || {};
     const enableQualityCheck = extension_settings[extensionName].enableQualityCheck;
     if (isGeneratingWrite) {
@@ -1945,14 +1915,14 @@ async function generateNovelWrite() {
     const baseLastParagraph = baseParagraphs.length > 0 ? baseParagraphs[baseParagraphs.length - 1].trim() : '';
     isGeneratingWrite = true;
     stopGenerateFlag = false;
-    setButtonDisabled('#write-generate-btn', true);
-    setButtonDisabled('#write-stop-btn', false);
-    $('#write-status').text('正在执行续写前置校验...');
+    setButtonDisabled('#novel-write-generate-btn', true);
+    setButtonDisabled('#novel-write-stop-btn', false);
+    $('#novel-write-status').text('正在执行续写前置校验...');
     try {
         const precheckResult = await validateContinuePrecondition(selectedChapterId, editedChapterContent);
         const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
         if (stopGenerateFlag) {
-            $('#write-status').text('已停止生成');
+            $('#novel-write-status').text('已停止生成');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
@@ -1965,10 +1935,10 @@ async function generateNovelWrite() {
             conflictWarning: precheckResult.conflictWarning
         }, CURRENT_PROMPTS.NOVEL_WRITE_TEMPLATE);
         const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}基准章节内容：${editedChapterContent}请基于以上内容，按照规则续写后续的章节正文。`;
-        $('#write-status').text('正在生成续写章节，请稍候...');
+        $('#novel-write-status').text('正在生成续写章节，请稍候...');
         let continueContent = await generateRawWithBreakLimit({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
         if (stopGenerateFlag) {
-            $('#write-status').text('已停止生成');
+            $('#novel-write-status').text('已停止生成');
             toastr.info('已停止生成，丢弃本次生成结果', "小说续写器");
             return;
         }
@@ -1978,19 +1948,19 @@ async function generateNovelWrite() {
         continueContent = continueContent.trim();
         let qualityResult = null;
         if (enableQualityCheck && !stopGenerateFlag) {
-            $('#write-status').text('正在执行续写内容质量校验，请稍候...');
+            $('#novel-write-status').text('正在执行续写内容质量校验，请稍候...');
             qualityResult = await evaluateContinueQuality(continueContent, precheckResult, useGraph, editedChapterContent, wordCount);
             if (!qualityResult.是否合格 && !stopGenerateFlag) {
                 toastr.warning(`续写内容质量不合格，总分${qualityResult.总分}，请手动点击重新生成`, "小说续写器");
             }
-            $("#quality-score").text(qualityResult.总分);
-            $("#quality-report").val(qualityResult.评估报告);
-            $("#quality-result-block").show();
+            $("#novel-quality-score").text(qualityResult.总分);
+            $("#novel-quality-report").val(qualityResult.评估报告);
+            $("#novel-quality-result-block").show();
             extension_settings[extensionName].qualityResultShow = true;
             saveSettingsDebounced();
         }
-        $('#write-content-preview').val(continueContent);
-        $('#write-status').text('续写章节生成完成！');
+        $('#novel-write-content-preview').val(continueContent);
+        $('#novel-write-status').text('续写章节生成完成！');
         extension_settings[extensionName].writeContentPreview = continueContent;
         saveSettingsDebounced();
         const newChapter = {
@@ -2010,17 +1980,16 @@ async function generateNovelWrite() {
     } catch (error) {
         if (!stopGenerateFlag) {
             console.error('续写生成失败:', error);
-            $('#write-status').text(`生成失败: ${error.message}`);
+            $('#novel-write-status').text(`生成失败: ${error.message}`);
             toastr.error(`续写生成失败: ${error.message}`, "小说续写器");
         }
     } finally {
         isGeneratingWrite = false;
         stopGenerateFlag = false;
-        setButtonDisabled('#write-generate-btn, #write-stop-btn', false);
+        setButtonDisabled('#novel-write-generate-btn, #novel-write-stop-btn', false);
     }
 }
-
-// ====================== 扩展入口（原有100%保留，新增设置事件绑定）======================
+// ====================== 扩展入口（原有100%保留，修正选择器）======================
 jQuery(async () => {
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
@@ -2036,25 +2005,24 @@ jQuery(async () => {
     initContinueChainEvents();
     initVisibilityListener();
     await loadSettings();
-
     // 原有基础事件绑定
-    $("#my_button").off("click").on("click", onButtonClick);
-    $("#example_setting").off("input").on("input", onExampleInput);
-    $("#select-file-btn").off("click").on("click", () => {
+    $("#novel-my_button").off("click").on("click", onButtonClick);
+    $("#novel-example_setting").off("input").on("input", onExampleInput);
+    $("#novel-select-file-btn").off("click").on("click", () => {
         $("#novel-file-upload").click();
     });
     $("#novel-file-upload").off("change").on("change", (e) => {
         const file = e.target.files[0];
         if (file) {
-            $("#file-name-text").text(file.name);
+            $("#novel-file-name-text").text(file.name);
             lastParsedText = "";
             currentRegexIndex = 0;
-            $("#parse-chapter-btn").val("解析章节");
+            $("#novel-parse-chapter-btn").val("解析章节");
         }
     });
-    $("#parse-chapter-btn").off("click").on("click", () => {
+    $("#novel-parse-chapter-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
-        const customRegex = $("#chapter-regex-input").val().trim();
+        const customRegex = $("#novel-chapter-regex-input").val().trim();
         if (!file) {
             toastr.warning('请先选择小说TXT文件', "小说续写器");
             return;
@@ -2076,7 +2044,7 @@ jQuery(async () => {
                     lastParsedText = novelText;
                     sortedRegexList = getSortedRegexList(novelText);
                     currentRegexIndex = 0;
-                    $("#parse-chapter-btn").val("再次解析");
+                    $("#novel-parse-chapter-btn").val("再次解析");
                 } else {
                     currentRegexIndex = (currentRegexIndex + 1) % sortedRegexList.length;
                 }
@@ -2096,8 +2064,8 @@ jQuery(async () => {
             extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
             extension_settings[extensionName].batchMergedGraphs = [];
             batchMergedGraphs = [];
-            $('#merged-graph-preview').val('');
-            $('#write-content-preview').val('');
+            $('#novel-merged-graph-preview').val('');
+            $('#novel-write-content-preview').val('');
             continueWriteChain = [];
             continueChapterIdCounter = 1;
             saveSettingsDebounced();
@@ -2111,9 +2079,9 @@ jQuery(async () => {
         };
         reader.readAsText(file, 'UTF-8');
     });
-    $("#split-by-word-btn").off("click").on("click", () => {
+    $("#novel-split-by-word-btn").off("click").on("click", () => {
         const file = $("#novel-file-upload")[0].files[0];
-        const wordCount = parseInt($("#split-word-count").val()) || 3000;
+        const wordCount = parseInt($("#novel-split-word-count").val()) || 3000;
         if (!file) {
             toastr.warning('请先选择小说TXT文件', "小说续写器");
             return;
@@ -2136,13 +2104,13 @@ jQuery(async () => {
             extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
             extension_settings[extensionName].batchMergedGraphs = [];
             batchMergedGraphs = [];
-            $('#merged-graph-preview').val('');
-            $('#write-content-preview').val('');
+            $('#novel-merged-graph-preview').val('');
+            $('#novel-write-content-preview').val('');
             continueWriteChain = [];
             continueChapterIdCounter = 1;
             lastParsedText = "";
             currentRegexIndex = 0;
-            $("#parse-chapter-btn").val("解析章节");
+            $("#novel-parse-chapter-btn").val("解析章节");
             saveSettingsDebounced();
             renderChapterList(currentParsedChapters);
             renderChapterSelect(currentParsedChapters);
@@ -2154,65 +2122,65 @@ jQuery(async () => {
         };
         reader.readAsText(file, 'UTF-8');
     });
-    $("#auto-parent-preset-switch").off("change").on("change", (e) => {
+    $("#novel-auto-parent-preset-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableAutoParentPreset = isChecked;
         saveSettingsDebounced();
         updatePresetNameDisplay();
     });
-    $("#select-all-btn").off("click").on("click", () => {
-        $(".chapter-select").prop("checked", true);
+    $("#novel-select-all-btn").off("click").on("click", () => {
+        $(".novel-chapter-select").prop("checked", true);
     });
-    $("#unselect-all-btn").off("click").on("click", () => {
-        $(".chapter-select").prop("checked", false);
+    $("#novel-unselect-all-btn").off("click").on("click", () => {
+        $(".novel-chapter-select").prop("checked", false);
     });
-    $("#send-template-input").off("change").on("change", (e) => {
+    $("#novel-send-template-input").off("change").on("change", (e) => {
         extension_settings[extensionName].sendTemplate = $(e.target).val().trim();
         saveSettingsDebounced();
     });
-    $("#send-delay-input").off("change").on("change", (e) => {
+    $("#novel-send-delay-input").off("change").on("change", (e) => {
         extension_settings[extensionName].sendDelay = parseInt($(e.target).val()) || 100;
         saveSettingsDebounced();
     });
-    $("#write-word-count").off("change").on("change", (e) => {
+    $("#novel-write-word-count").off("change").on("change", (e) => {
         extension_settings[extensionName].writeWordCount = parseInt($(e.target).val()) || 2000;
         saveSettingsDebounced();
     });
-    $("#import-selected-btn").off("click").on("click", () => {
+    $("#novel-import-selected-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         sendChaptersBatch(selectedChapters);
     });
-    $("#import-all-btn").off("click").on("click", () => {
+    $("#novel-import-all-btn").off("click").on("click", () => {
         sendChaptersBatch(currentParsedChapters);
     });
-    $("#stop-send-btn").off("click").on("click", () => {
+    $("#novel-stop-send-btn").off("click").on("click", () => {
         if (isSending) {
             stopSending = true;
             toastr.info('已停止发送', "小说续写器");
         }
     });
-    $("#chapter-graph-export-btn").off("click").on("click", exportChapterGraphs);
-    $("#chapter-graph-import-btn").off("click").on("click", () => {
-        $("#chapter-graph-file-upload").click();
+    $("#novel-chapter-graph-export-btn").off("click").on("click", exportChapterGraphs);
+    $("#novel-chapter-graph-import-btn").off("click").on("click", () => {
+        $("#novel-chapter-graph-file-upload").click();
     });
-    $("#chapter-graph-file-upload").off("change").on("change", (e) => {
+    $("#novel-chapter-graph-file-upload").off("change").on("change", (e) => {
         const file = e.target.files[0];
         if (file) importChapterGraphs(file);
     });
-    $("#validate-chapter-graph-btn").off("click").on("click", validateChapterGraphStatus);
-    $("#graph-single-btn").off("click").on("click", () => {
+    $("#novel-validate-chapter-graph-btn").off("click").on("click", validateChapterGraphStatus);
+    $("#novel-graph-single-btn").off("click").on("click", () => {
         const selectedChapters = getSelectedChapters();
         generateChapterGraphBatch(selectedChapters);
     });
-    $("#graph-batch-btn").off("click").on("click", () => {
+    $("#novel-graph-batch-btn").off("click").on("click", () => {
         generateChapterGraphBatch(currentParsedChapters);
     });
-    $("#graph-merge-btn").off("click").on("click", mergeAllGraphs);
-    $("#graph-validate-btn").off("click").on("click", validateGraphCompliance);
-    $("#graph-import-btn").off("click").on("click", () => {
-        $("#graph-file-upload").click();
+    $("#novel-graph-merge-btn").off("click").on("click", mergeAllGraphs);
+    $("#novel-graph-validate-btn").off("click").on("click", validateGraphCompliance);
+    $("#novel-graph-import-btn").off("click").on("click", () => {
+        $("#novel-graph-file-upload").click();
     });
-    $("#graph-file-upload").off("change").on("change", (e) => {
+    $("#novel-graph-file-upload").off("change").on("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -2228,23 +2196,23 @@ jQuery(async () => {
                 }
                 extension_settings[extensionName].mergedGraph = graphData;
                 saveSettingsDebounced();
-                $('#merged-graph-preview').val(JSON.stringify(graphData, null, 2));
+                $('#novel-merged-graph-preview').val(JSON.stringify(graphData, null, 2));
                 toastr.success('知识图谱导入完成！', "小说续写器");
             } catch (error) {
                 console.error('图谱导入失败:', error);
                 toastr.error(`导入失败：${error.message}，请检查JSON文件格式是否正确`, "小说续写器");
             } finally {
-                $("#graph-file-upload").val('');
+                $("#novel-graph-file-upload").val('');
             }
         };
         reader.onerror = () => {
             toastr.error('文件读取失败，请检查文件', "小说续写器");
-            $("#graph-file-upload").val('');
+            $("#novel-graph-file-upload").val('');
         };
         reader.readAsText(file, 'UTF-8');
     });
-    $("#graph-copy-btn").off("click").on("click", async () => {
-        const graphText = $('#merged-graph-preview').val();
+    $("#novel-graph-copy-btn").off("click").on("click", async () => {
+        const graphText = $('#novel-merged-graph-preview').val();
         if (!graphText) {
             toastr.warning('没有可复制的图谱内容', "小说续写器");
             return;
@@ -2256,8 +2224,8 @@ jQuery(async () => {
             toastr.error('复制失败', "小说续写器");
         }
     });
-    $("#graph-export-btn").off("click").on("click", () => {
-        const graphText = $('#merged-graph-preview').val();
+    $("#novel-graph-export-btn").off("click").on("click", () => {
+        const graphText = $('#novel-merged-graph-preview').val();
         if (!graphText) {
             toastr.warning('没有可导出的图谱内容', "小说续写器");
             return;
@@ -2271,24 +2239,24 @@ jQuery(async () => {
         URL.revokeObjectURL(url);
         toastr.success('图谱JSON已导出', "小说续写器");
     });
-    $("#graph-clear-btn").off("click").on("click", () => {
+    $("#novel-graph-clear-btn").off("click").on("click", () => {
         extension_settings[extensionName].mergedGraph = {};
         extension_settings[extensionName].graphValidateResultShow = false;
-        $('#merged-graph-preview').val('');
-        $('#graph-validate-result').hide();
+        $('#novel-merged-graph-preview').val('');
+        $('#novel-graph-validate-result').hide();
         saveSettingsDebounced();
         toastr.success('已清空合并图谱', "小说续写器");
     });
-    $("#graph-batch-merge-btn").off("click").on("click", batchMergeGraphs);
-    $("#graph-batch-clear-btn").off("click").on("click", clearBatchMergedGraphs);
-    $("#write-chapter-select").off("change").on("change", function(e) {
+    $("#novel-graph-batch-merge-btn").off("click").on("click", batchMergeGraphs);
+    $("#novel-graph-batch-clear-btn").off("click").on("click", clearBatchMergedGraphs);
+    $("#novel-write-chapter-select").off("change").on("change", function(e) {
         const selectedChapterId = $(e.target).val();
         currentPrecheckResult = null;
-        $("#precheck-status").text("未执行").removeClass("status-success status-danger").addClass("status-default");
-        $("#precheck-report").val("");
-        $("#write-content-preview").val("");
-        $("#write-status").text("");
-        $("#quality-result-block").hide();
+        $("#novel-precheck-status").text("未执行").removeClass("novel-status-default novel-status-success novel-status-danger").addClass("novel-status-default");
+        $("#novel-precheck-report").val("");
+        $("#novel-write-content-preview").val("");
+        $("#novel-write-status").text("");
+        $("#novel-quality-result-block").hide();
         extension_settings[extensionName].selectedBaseChapterId = selectedChapterId;
         extension_settings[extensionName].precheckStatus = "未执行";
         extension_settings[extensionName].precheckReportText = "";
@@ -2296,17 +2264,17 @@ jQuery(async () => {
         extension_settings[extensionName].qualityResultShow = false;
         saveSettingsDebounced();
         if (!selectedChapterId) {
-            $('#write-chapter-content').val('').prop('readonly', true);
+            $('#novel-write-chapter-content').val('').prop('readonly', true);
             return;
         }
         const targetChapter = currentParsedChapters.find(item => item.id == selectedChapterId);
         if (targetChapter) {
-            $('#write-chapter-content').val(targetChapter.content).prop('readonly', false);
+            $('#novel-write-chapter-content').val(targetChapter.content).prop('readonly', false);
         }
     });
-    $("#graph-update-modified-btn").off("click").on("click", () => {
-        const selectedChapterId = $('#write-chapter-select').val();
-        const modifiedContent = $('#write-chapter-content').val().trim();
+    $("#novel-graph-update-modified-btn").off("click").on("click", () => {
+        const selectedChapterId = $('#novel-write-chapter-select').val();
+        const modifiedContent = $('#novel-write-chapter-content').val().trim();
         if (!selectedChapterId) {
             toastr.error('请先选择基准章节', "小说续写器");
             return;
@@ -2317,32 +2285,32 @@ jQuery(async () => {
         }
         updateModifiedChapterGraph(selectedChapterId, modifiedContent);
     });
-    $("#precheck-run-btn").off("click").on("click", () => {
-        const selectedChapterId = $('#write-chapter-select').val();
-        const modifiedContent = $('#write-chapter-content').val().trim();
+    $("#novel-precheck-run-btn").off("click").on("click", () => {
+        const selectedChapterId = $('#novel-write-chapter-select').val();
+        const modifiedContent = $('#novel-write-chapter-content').val().trim();
         if (!selectedChapterId) {
             toastr.error('请先选择基准章节', "小说续写器");
             return;
         }
         validateContinuePrecondition(selectedChapterId, modifiedContent);
     });
-    $("#quality-check-switch").off("change").on("change", (e) => {
+    $("#novel-quality-check-switch").off("change").on("change", (e) => {
         const isChecked = Boolean($(e.target).prop("checked"));
         extension_settings[extensionName].enableQualityCheck = isChecked;
         saveSettingsDebounced();
     });
-    $("#write-generate-btn").off("click").on("click", generateNovelWrite);
-    $("#write-stop-btn").off("click").on("click", () => {
+    $("#novel-write-generate-btn").off("click").on("click", generateNovelWrite);
+    $("#novel-write-stop-btn").off("click").on("click", () => {
         if (isGeneratingWrite) {
             stopGenerateFlag = true;
             isGeneratingWrite = false;
-            $('#write-status').text('已停止生成');
-            setButtonDisabled('#write-generate-btn, #write-stop-btn', false);
+            $('#novel-write-status').text('已停止生成');
+            setButtonDisabled('#novel-write-generate-btn, #novel-write-stop-btn', false);
             toastr.info('已停止生成续写内容', "小说续写器");
         }
     });
-    $("#write-copy-btn").off("click").on("click", async () => {
-        const writeText = $('#write-content-preview').val();
+    $("#novel-write-copy-btn").off("click").on("click", async () => {
+        const writeText = $('#novel-write-content-preview').val();
         if (!writeText) {
             toastr.warning('没有可复制的续写内容', "小说续写器");
             return;
@@ -2354,9 +2322,9 @@ jQuery(async () => {
             toastr.error('复制失败', "小说续写器");
         }
     });
-    $("#write-send-btn").off("click").on("click", () => {
+    $("#novel-write-send-btn").off("click").on("click", () => {
         const context = getContext();
-        const writeText = $('#write-content-preview').val();
+        const writeText = $('#novel-write-content-preview').val();
         const currentCharName = context.characters[context.characterId]?.name;
         if (!writeText) {
             toastr.warning('没有可发送的续写内容', "小说续写器");
@@ -2373,16 +2341,16 @@ jQuery(async () => {
             toastr.error(`发送失败: ${error.message}`, "小说续写器");
         });
     });
-    $("#write-clear-btn").off("click").on("click", () => {
-        $('#write-content-preview').val('');
-        $('#write-status').text('');
-        $('#quality-result-block').hide();
+    $("#novel-write-clear-btn").off("click").on("click", () => {
+        $('#novel-write-content-preview').val('');
+        $('#novel-write-status').text('');
+        $('#novel-quality-result-block').hide();
         extension_settings[extensionName].writeContentPreview = "";
         extension_settings[extensionName].qualityResultShow = false;
         saveSettingsDebounced();
         toastr.success('已清空续写内容', "小说续写器");
     });
-    $("#clear-chain-btn").off("click").on("click", () => {
+    $("#novel-clear-chain-btn").off("click").on("click", () => {
         continueWriteChain = [];
         continueChapterIdCounter = 1;
         extension_settings[extensionName].continueWriteChain = continueWriteChain;
@@ -2392,14 +2360,13 @@ jQuery(async () => {
         NovelReader.renderChapterList();
         toastr.success('已清空所有续写章节', "小说续写器");
     });
-
     // ====================== 新增：设置面板事件绑定 ======================
     // API设置保存
-    $("#api-settings-save-btn").off("click").on("click", () => {
-        const callInterval = parseInt($("#api-call-interval").val()) || 2000;
-        const enableBreakLimit = Boolean($("#api-break-limit-switch").prop("checked"));
-        if (callInterval < 500 || callInterval > 10000) {
-            toastr.error('API调用间隔必须在500-10000ms之间', "小说续写器");
+    $("#novel-api-settings-save-btn").off("click").on("click", () => {
+        const callInterval = parseInt($("#novel-api-call-interval").val()) || 2000;
+        const enableBreakLimit = Boolean($("#novel-api-break-limit-switch").prop("checked"));
+        if (callInterval < 500 || callInterval > 30000) {
+            toastr.error('API调用间隔必须在500-30000ms之间', "小说续写器");
             return;
         }
         extension_settings[extensionName].apiConfig = { callInterval, enableBreakLimit };
@@ -2407,11 +2374,11 @@ jQuery(async () => {
         toastr.success('API设置已保存', "小说续写器");
     });
     // UI设置保存
-    $("#ui-settings-save-btn").off("click").on("click", () => {
-        const floatBallSize = parseInt($("#ui-float-ball-size").val()) || 70;
-        const defaultActiveTab = $("#ui-default-tab").val();
-        const enableHoverEffect = Boolean($("#ui-hover-switch").prop("checked"));
-        const autoSaveDraft = Boolean($("#ui-draft-switch").prop("checked"));
+    $("#novel-ui-settings-save-btn").off("click").on("click", () => {
+        const floatBallSize = parseInt($("#novel-ui-float-ball-size").val()) || 70;
+        const defaultActiveTab = $("#novel-ui-default-tab").val();
+        const enableHoverEffect = Boolean($("#novel-ui-hover-switch").prop("checked"));
+        const autoSaveDraft = Boolean($("#novel-ui-draft-switch").prop("checked"));
         if (floatBallSize < 50 || floatBallSize > 100) {
             toastr.error('悬浮球大小必须在50-100px之间', "小说续写器");
             return;
@@ -2427,7 +2394,7 @@ jQuery(async () => {
         toastr.success('UI设置已保存', "小说续写器");
     });
     // 提示词保存
-    $("#prompt-save-btn").off("click").on("click", saveCustomPrompts);
+    $("#novel-prompt-save-btn").off("click").on("click", saveCustomPrompts);
     // 提示词重置
-    $("#prompt-reset-btn").off("click").on("click", resetPromptsToDefault);
+    $("#novel-prompt-reset-btn").off("click").on("click", resetPromptsToDefault);
 });
