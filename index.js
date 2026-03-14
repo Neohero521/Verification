@@ -5,7 +5,7 @@ import { saveSettingsDebounced, eventSource, event_types } from "../../../../scr
 import * as PromptConstants from './prompt-constants.js';
 
 // ====================== 新增：破限与防空回核心配置 ======================
-const extensionName = "Always_remember_me";
+const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // ====================== 新增：API调用限流核心配置 ======================
