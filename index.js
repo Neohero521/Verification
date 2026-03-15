@@ -84,10 +84,12 @@ async function generateRawWithBreakLimit(params) {
         // 小说正文模式，追加创作破限规则
         finalSystemPrompt += BREAK_LIMIT_PROMPT;
     }
+    // 【修复】保存初始系统提示，避免重试时无限追加导致tokens爆炸
+    const initialSystemPrompt = finalSystemPrompt;
     // 合并最终参数，完整保留原有所有配置，仅替换systemPrompt
     const finalParams = {
         ...params,
-        systemPrompt: finalSystemPrompt
+        systemPrompt: initialSystemPrompt
     };
     // 重试循环
     while (retryCount < MAX_RETRY_TIMES) {
@@ -148,8 +150,8 @@ async function generateRawWithBreakLimit(params) {
             
             // 重试前优化参数，避免重复错误
             if (retryCount < MAX_RETRY_TIMES) {
-                // 追加重试强制要求
-                finalParams.systemPrompt += `\n\n【重试强制修正要求】
+                // 【修复】基于初始系统提示追加重试要求，避免无限叠加导致tokens爆炸
+                finalParams.systemPrompt = `${initialSystemPrompt}\n\n【重试强制修正要求】
 上一次生成不符合要求，错误原因：${error.message}。本次必须严格遵守所有强制规则，完整输出符合要求的内容，禁止再次出现相同错误，否则将视为生成失败。`;
                 // 微调温度参数，避免重复生成相同错误内容
                 finalParams.temperature = Math.min((finalParams.temperature || 0.7) + 0.12, 1.2);
@@ -288,6 +290,7 @@ function getActivePresetParams() {
             presetParams = { ...window.generation_params };
         }
     }
+    // 【修复】修正参数名错误，system_prompt改为systemPrompt，对齐ST官方generateRaw参数规范
     // 修复：完整对齐ST官方generateRaw支持的所有参数字段（确保所有预设配置100%生效）
     // 字段来源：SillyTavern官方源码script.js中generateRaw函数的完整参数定义
     const validParams = [
@@ -300,7 +303,7 @@ function getActivePresetParams() {
         // 高级采样参数
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale', 'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta', 'smoothing_factor', 'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
         // 特殊控制参数
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'system_prompt', 'logit_bias', 'stream'
+        'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'encoder_repetition_penalty', 'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'custom_token_bans', 'sampler_priority', 'systemPrompt', 'logit_bias', 'stream'
     ];
     // 过滤有效参数，确保只传递generateRaw支持的字段，避免无效参数导致的接口报错
     const filteredParams = {};
@@ -1102,7 +1105,8 @@ async function batchMergeGraphs() {
             
             // 合并当前批次图谱
             const systemPrompt = PromptConstants.BATCH_MERGE_GRAPH_SYSTEM_PROMPT;
-            const userPrompt = `待合并的批次${batchNum}章节图谱列表：\n${JSON.stringify(batch, null, 2)}`;
+            // 【优化】压缩JSON，减少tokens占用
+            const userPrompt = `待合并的批次${batchNum}章节图谱列表：\n${JSON.stringify(batch)}`;
             
             // 替换为带破限的API调用
             const result = await generateRawWithBreakLimit({
@@ -1166,7 +1170,7 @@ async function loadSettings() {
     extension_settings[extensionName] = deepMerge(defaultSettings, extension_settings[extensionName]);
     for (const key of Object.keys(defaultSettings)) {
         if (!Object.hasOwn(extension_settings[extensionName], key)) {
-            extension_settings[extensionName][key] = structuredClone(defaultSettings[key]);
+            extension_settings[extensionName][key] = deepMerge({}, defaultSettings[key]);
         }
     }
     currentParsedChapters = extension_settings[extensionName].chapterList || [];
@@ -1323,8 +1327,11 @@ function removeBOM(text) {
 async function validateContinuePrecondition(baseChapterId, modifiedChapterContent = null) {
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     const baseId = parseInt(baseChapterId);
+    // 【优化】仅取基准章节及前5章的图谱，避免全量图谱导致tokens爆炸，同时保证剧情连贯性
     const preChapters = currentParsedChapters.filter(chapter => chapter.id <= baseId);
-    const preGraphList = preChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
+    // 取最近的6章（前5章+本章），不足则取全部
+    const recentPreChapters = preChapters.slice(-6);
+    const preGraphList = recentPreChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
     if (preGraphList.length === 0 && modifiedChapterContent) {
         toastr.info('基准章节无可用图谱，正在生成临时图谱用于前置校验...', "小说续写器");
         const tempChapter = { id: baseId, title: `临时基准章节${baseId}`, content: modifiedChapterContent };
@@ -1345,7 +1352,8 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
         return result;
     }
     const systemPrompt = PromptConstants.getPrecheckSystemPrompt(baseId);
-    const userPrompt = `续写基准章节ID：${baseId} 基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList, null, 2)} 用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"} 请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
+    // 【优化】压缩JSON，减少tokens占用
+    const userPrompt = `续写基准章节ID：${baseId} 基准章节及前置章节的知识图谱列表：${JSON.stringify(preGraphList)} 用户魔改后的基准章节内容：${modifiedChapterContent || "无魔改，沿用原章节内容"} 请执行续写节点逆向分析与前置合规性校验，输出符合要求的JSON内容。`;
     try {
         // 替换为带破限的API调用
         const result = await generateRawWithBreakLimit({ 
@@ -1393,6 +1401,7 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
     const actualWordCount = continueContent.length;
     const wordErrorRate = Math.abs(actualWordCount - targetWordCount) / targetWordCount;
     const systemPrompt = PromptConstants.getQualityEvaluateSystemPrompt(targetWordCount, actualWordCount, wordErrorRate);
+    // 【优化】压缩JSON，减少tokens占用
     const userPrompt = `待评估续写内容：${continueContent} 前置校验合规边界：${JSON.stringify(precheckResult)} 小说核心设定知识图谱：${JSON.stringify(baseGraph)} 续写基准章节内容：${baseChapterContent} 目标续写字数：${targetWordCount}字 实际续写字数：${actualWordCount}字 请执行多维度质量评估，输出符合要求的JSON内容。`;
     try {
         // 替换为带破限的API调用
@@ -1448,6 +1457,7 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
         return null;
     }
 }
+// 【修复】修复续写章节图谱覆盖全量图谱的致命bug
 async function updateGraphWithContinueContent(continueChapter, continueId) {
     const systemPrompt = PromptConstants.CONTINUE_CHAPTER_GRAPH_SYSTEM_PROMPT;
     const userPrompt = `小说章节标题：续写章节${continueId}\n小说章节内容：${continueChapter.content}`;
@@ -1462,7 +1472,8 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
         const graphData = JSON.parse(result.trim());
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
         graphMap[`continue_${continueId}`] = graphData;
-        extension_settings[extensionName].chapterGraphMap = graphData;
+        // 【修复】正确赋值整个图谱对象，而非单条数据覆盖
+        extension_settings[extensionName].chapterGraphMap = graphMap;
         saveSettingsDebounced();
         return graphData;
     } catch (error) {
@@ -1620,7 +1631,7 @@ function renderChapterList(chapters) {
 function renderChapterSelect(chapters) {
     const $select = $('#write-chapter-select');
     $('#write-chapter-content').val('').prop('readonly', true);
-    $('#precheck-status').text("未执行").removeClass("status-success status-danger").addClass("status-default");
+    $('#precheck-status').text("未执行").removeClass("status-default status-success status-danger").addClass("status-default");
     $('#precheck-report').val('');
     $('#quality-result-block').hide();
     if (chapters.length === 0) {
@@ -1773,7 +1784,8 @@ async function mergeAllGraphs() {
     
     setButtonDisabled('#graph-merge-btn, #graph-batch-merge-btn', true);
     const systemPrompt = PromptConstants.MERGE_ALL_GRAPH_SYSTEM_PROMPT;
-    const userPrompt = `待合并的${mergeType}图谱列表：\n${JSON.stringify(graphList, null, 2)}`;
+    // 【优化】压缩JSON，减少tokens占用
+    const userPrompt = `待合并的${mergeType}图谱列表：\n${JSON.stringify(graphList)}`;
     
     try {
         toastr.info(`开始合并${mergeType}，生成最终全量知识图谱，请稍候...`, "小说续写器");
@@ -1892,6 +1904,7 @@ function initContinueChainEvents() {
         toastr.success('已删除该续写章节', "小说续写器");
     });
 }
+// 【优化】无限续写上下文tokens优化，仅取最近2章续写内容，避免tokens爆炸
 async function generateContinueWrite(targetChainId) {
     const selectedBaseChapterId = $('#write-chapter-select').val();
     const editedBaseChapterContent = $('#write-chapter-content').val().trim();
@@ -1920,17 +1933,23 @@ async function generateContinueWrite(targetChainId) {
     const targetLastParagraph = targetParagraphs.length > 0 ? targetParagraphs[targetParagraphs.length - 1].trim() : '';
     const precheckResult = await validateContinuePrecondition(selectedBaseChapterId, editedBaseChapterContent);
     const useGraph = Object.keys(precheckResult.preGraph).length > 0 ? precheckResult.preGraph : mergedGraph;
+    // 【优化】仅取基准章节前2章+本章内容，避免全量前文导致tokens爆炸
     let fullContextContent = '';
     const baseChapterId = parseInt(selectedBaseChapterId);
-    const preBaseChapters = currentParsedChapters.filter(chapter => chapter.id < baseChapterId);
-    preBaseChapters.forEach(chapter => {
+    const allPreChapters = currentParsedChapters.filter(chapter => chapter.id < baseChapterId);
+    // 取最近的2章前置内容，不足则取全部
+    const recentPreChapters = allPreChapters.slice(-2);
+    recentPreChapters.forEach(chapter => {
         fullContextContent += `${chapter.title}\n${chapter.content}\n\n`;
     });
     const baseChapterTitle = currentParsedChapters.find(c => c.id === baseChapterId)?.title || '基准章节';
     fullContextContent += `${baseChapterTitle}\n${editedBaseChapterContent}\n\n`;
+    // 【优化】仅取当前续写链条的最近2章续写内容，避免续写多了之后tokens爆炸
     const targetBeforeChapters = continueWriteChain.slice(0, targetChainId + 1);
-    targetBeforeChapters.forEach((chapter, index) => {
-        fullContextContent += `续写章节 ${index + 1}\n${chapter.content}\n\n`;
+    const recentContinueChapters = targetBeforeChapters.slice(-2);
+    recentContinueChapters.forEach((chapter, index) => {
+        const originalIndex = targetBeforeChapters.indexOf(chapter);
+        fullContextContent += `续写章节 ${originalIndex + 1}\n${chapter.content}\n\n`;
     });
     const systemPrompt = PromptConstants.getContinueWriteSystemPrompt({
         redLines: precheckResult.redLines,
@@ -1941,6 +1960,7 @@ async function generateContinueWrite(targetChainId) {
         conflictWarning: precheckResult.conflictWarning,
         targetChapterTitle: targetChapter.title
     });
+    // 【优化】压缩JSON，减少tokens占用
     const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)} 完整前文上下文：${fullContextContent} 请基于以上完整的前文内容和知识图谱，按照规则续写后续的新章节正文，确保和前文最后一段内容完美衔接，不重复前文情节。`;
     isGeneratingWrite = true;
     stopGenerateFlag = false;
@@ -2007,7 +2027,7 @@ async function generateContinueWrite(targetChainId) {
     }
 }
 // ==============================================
-// 原有小说续写核心函数（100%完整保留，状态重置优化）
+// 【优化】核心续写函数tokens优化，仅取前2章+本章内容，解决长篇报错问题
 // ==============================================
 async function generateNovelWrite() {
     const selectedChapterId = $('#write-chapter-select').val();
@@ -2050,7 +2070,19 @@ async function generateNovelWrite() {
             wordCount: wordCount,
             conflictWarning: precheckResult.conflictWarning
         });
-        const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}基准章节内容：${editedChapterContent}请基于以上内容，按照规则续写后续的章节正文。`;
+        // 【优化】仅取基准章节前2章+本章内容，彻底解决长篇全量前文导致的tokens爆炸问题
+        let fullContextContent = '';
+        const baseChapterId = parseInt(selectedChapterId);
+        const allPreChapters = currentParsedChapters.filter(chapter => chapter.id < baseChapterId);
+        // 取最近的2章前置内容，不足则取全部，完全符合用户需求
+        const recentPreChapters = allPreChapters.slice(-2);
+        recentPreChapters.forEach(chapter => {
+            fullContextContent += `${chapter.title}\n${chapter.content}\n\n`;
+        });
+        const baseChapterTitle = currentParsedChapters.find(c => c.id === baseChapterId)?.title || '基准章节';
+        fullContextContent += `${baseChapterTitle}\n${editedChapterContent}\n\n`;
+        // 【优化】压缩JSON，减少tokens占用
+        const userPrompt = `小说核心设定知识图谱：${JSON.stringify(useGraph)}基准章节内容：${fullContextContent}请基于以上内容，按照规则续写后续的章节正文。`;
         $('#write-status').text('正在生成续写章节，请稍候...');
         // 替换为带破限的API调用
         let continueContent = await generateRawWithBreakLimit({ systemPrompt, prompt: userPrompt, ...getActivePresetParams()});
@@ -2200,7 +2232,8 @@ jQuery(async () => {
             extension_settings[extensionName].continueChapterIdCounter = 1;
             extension_settings[extensionName].selectedBaseChapterId = "";
             extension_settings[extensionName].writeContentPreview = "";
-            extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
+            // 【修复】使用deepMerge替代structuredClone，解决兼容性问题
+            extension_settings[extensionName].readerState = deepMerge({}, defaultSettings.readerState);
             // 新增：重置分批合并状态
             extension_settings[extensionName].batchMergedGraphs = [];
             batchMergedGraphs = [];
@@ -2244,7 +2277,8 @@ jQuery(async () => {
             extension_settings[extensionName].continueChapterIdCounter = 1;
             extension_settings[extensionName].selectedBaseChapterId = "";
             extension_settings[extensionName].writeContentPreview = "";
-            extension_settings[extensionName].readerState = structuredClone(defaultSettings.readerState);
+            // 【修复】使用deepMerge替代structuredClone，解决兼容性问题
+            extension_settings[extensionName].readerState = deepMerge({}, defaultSettings.readerState);
             // 新增：重置分批合并状态
             extension_settings[extensionName].batchMergedGraphs = [];
             batchMergedGraphs = [];
@@ -2405,7 +2439,7 @@ jQuery(async () => {
     $("#write-chapter-select").off("change").on("change", function(e) {
         const selectedChapterId = $(e.target).val();
         currentPrecheckResult = null;
-        $("#precheck-status").text("未执行").removeClass("status-success status-danger").addClass("status-default");
+        $("#precheck-status").text("未执行").removeClass("status-default status-success status-danger").addClass("status-default");
         $("#precheck-report").val("");
         $("#write-content-preview").val("");
         $("#write-status").text("");
