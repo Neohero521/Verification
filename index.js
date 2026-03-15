@@ -3,161 +3,6 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 // 导入抽离的提示词模块
 import * as PromptConstants from './prompt-constants.js';
-
-// ====================== 新增：章节内容查看弹窗核心配置 ======================
-// 弹窗HTML结构
-const CHAPTER_CONTENT_MODAL_HTML = `
-<div id="chapter-content-modal" class="chapter-content-modal-overlay">
-    <div class="chapter-content-modal">
-        <div class="modal-header">
-            <h3 id="modal-chapter-title">章节内容查看</h3>
-            <button id="modal-close-btn" class="modal-close-btn">✕</button>
-        </div>
-        <div class="modal-body">
-            <textarea id="modal-chapter-content" class="modal-content-textarea" rows="22" placeholder="章节内容加载中..." wrap="soft" resize="vertical"></textarea>
-        </div>
-        <div class="modal-footer">
-            <button id="modal-save-btn" class="btn btn-primary">保存章节修改</button>
-            <button id="modal-cancel-btn" class="btn btn-outline">关闭窗口</button>
-        </div>
-    </div>
-</div>
-`;
-// 弹窗专属CSS样式（动态注入，不修改原CSS文件）
-const CHAPTER_MODAL_CSS = `
-.chapter-content-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000001;
-    animation: fadeIn 0.2s ease;
-}
-.chapter-content-modal {
-    width: 900px;
-    max-width: 95vw;
-    max-height: 95vh;
-    background: #151528;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideUp 0.3s ease;
-}
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: linear-gradient(90deg, #121224 0%, transparent 100%);
-    border-bottom: 1px solid #334155;
-    flex-shrink: 0;
-}
-.modal-header h3 {
-    color: #f8fafc;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.modal-close-btn {
-    width: 38px;
-    height: 38px;
-    border: none;
-    border-radius: 6px;
-    background: #121224;
-    color: #cbd5e1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    font-size: 1rem;
-    font-weight: bold;
-}
-.modal-close-btn:hover {
-    background: #ef4444;
-    color: white;
-    transform: scale(1.05);
-}
-.modal-body {
-    flex: 1;
-    padding: 20px 24px;
-    overflow-y: auto;
-}
-.modal-content-textarea {
-    width: 100%;
-    min-height: 100%;
-    background: #121224;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    padding: 14px 16px;
-    color: #e2e8f0;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    outline: none;
-    transition: all 0.2s ease;
-}
-.modal-content-textarea:focus {
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid #334155;
-    flex-shrink: 0;
-}
-.chapter-item .clickable-title {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-    color: #e2e8f0;
-}
-.chapter-item .clickable-title:hover {
-    color: #7c3aed;
-    text-decoration: underline;
-}
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@media (max-width: 768px) {
-    .chapter-content-modal {
-        width: 100vw !important;
-        height: 100vh !important;
-        border-radius: 0;
-    }
-    .modal-footer {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    .modal-footer .btn {
-        flex: 1;
-        justify-content: center;
-    }
-}
-`;
-// 当前编辑的章节ID
-let currentEditingChapterId = null;
-// ====================== 弹窗配置结束 ======================
-
 // ====================== 新增：破限与防空回核心配置 ======================
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
@@ -420,93 +265,6 @@ function deepMerge(target, source) {
     }
     return merged;
 }
-
-// ====================== 新增：章节内容弹窗核心函数 ======================
-// 初始化弹窗样式与结构
-function initChapterContentModal() {
-    // 注入样式
-    const styleElement = document.createElement('style');
-    styleElement.textContent = CHAPTER_MODAL_CSS;
-    document.head.appendChild(styleElement);
-    // 注入弹窗HTML
-    $('body').append(CHAPTER_CONTENT_MODAL_HTML);
-    // 绑定弹窗事件
-    bindModalEvents();
-    console.log("[小说续写插件] 章节内容查看弹窗初始化完成");
-}
-// 绑定弹窗事件
-function bindModalEvents() {
-    // 关闭按钮
-    $('#modal-close-btn, #modal-cancel-btn').off('click').on('click', closeChapterContentModal);
-    // 保存按钮
-    $('#modal-save-btn').off('click').on('click', saveChapterContent);
-    // 点击遮罩关闭弹窗
-    $('#chapter-content-modal').off('click').on('click', function(e) {
-        if (e.target.id === 'chapter-content-modal') {
-            closeChapterContentModal();
-        }
-    });
-    // 阻止弹窗内部点击冒泡
-    $('.chapter-content-modal').off('click').on('click', function(e) {
-        e.stopPropagation();
-    });
-}
-// 显示章节内容弹窗
-function showChapterContentModal(chapterId) {
-    const targetChapter = currentParsedChapters.find(item => item.id === parseInt(chapterId));
-    if (!targetChapter) {
-        toastr.error('章节不存在，无法查看内容', "小说续写器");
-        return;
-    }
-    currentEditingChapterId = parseInt(chapterId);
-    // 填充弹窗内容
-    $('#modal-chapter-title').text(`章节内容查看：${targetChapter.title}`);
-    $('#modal-chapter-content').val(targetChapter.content);
-    // 显示弹窗
-    $('#chapter-content-modal').show();
-    // 自动聚焦到文本框
-    setTimeout(() => {
-        $('#modal-chapter-content').focus();
-    }, 100);
-}
-// 保存章节修改
-function saveChapterContent() {
-    if (currentEditingChapterId === null) return;
-    const newContent = $('#modal-chapter-content').val().trim();
-    if (!newContent) {
-        toastr.error('章节内容不能为空', "小说续写器");
-        return;
-    }
-    // 更新章节数据
-    const chapterIndex = currentParsedChapters.findIndex(item => item.id === currentEditingChapterId);
-    if (chapterIndex === -1) return;
-    currentParsedChapters[chapterIndex].content = newContent;
-    // 同步更新到本地存储
-    extension_settings[extensionName].chapterList = currentParsedChapters;
-    saveSettingsDebounced();
-    // 同步更新续写模块的基准章节内容（如果当前选中的是该章节）
-    const selectedBaseId = $('#write-chapter-select').val();
-    if (selectedBaseId && parseInt(selectedBaseId) === currentEditingChapterId) {
-        $('#write-chapter-content').val(newContent);
-    }
-    // 同步更新章节选择器
-    renderChapterSelect(currentParsedChapters);
-    // 同步更新阅读器章节列表
-    NovelReader.renderChapterList();
-    // 提示用户
-    toastr.success('章节内容修改已保存！若修改了内容，建议重新生成该章节图谱', "小说续写器");
-    // 关闭弹窗
-    closeChapterContentModal();
-}
-// 关闭弹窗
-function closeChapterContentModal() {
-    $('#chapter-content-modal').hide();
-    currentEditingChapterId = null;
-    $('#modal-chapter-content').val('');
-    $('#modal-chapter-title').text('章节内容查看');
-}
-// ====================== 弹窗函数结束 ======================
-
 // ==============================================
 // 核心修复：父级预设参数获取函数（100%对齐SillyTavern官方源码，彻底解决预设获取失败问题）
 // ==============================================
@@ -972,19 +730,17 @@ const NovelReader = {
             }
         });
         listContainer.innerHTML = listHtml;
-        // 修复：绑定章节点击事件，确保this指向正确
-        const self = this;
         document.querySelectorAll(".reader-chapter-item, .reader-continue-chapter-item").forEach(item => {
-            item.removeEventListener("click", self.chapterClickHandler.bind(self));
-            item.addEventListener("click", self.chapterClickHandler.bind(self));
+            item.removeEventListener("click", this.chapterClickHandler.bind(this));
+            item.addEventListener("click", this.chapterClickHandler.bind(this));
         });
     },
     chapterClickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        const chapterId = parseInt(e.currentTarget.dataset.chapterId);
-        const chapterType = e.currentTarget.dataset.chapterType;
+        const chapterId = parseInt(e.currentTarget.dataset.chapter-id);
+        const chapterType = e.currentTarget.dataset.chapter-type;
         this.loadChapter(chapterId, chapterType);
         this.hideChapterDrawer();
     },
@@ -1840,7 +1596,7 @@ function getSortedRegexList(novelText) {
     // 按章节数降序排序，0章节的排最后
     return regexWithCount.sort((a, b) => b.count - a.count);
 }
-// 修复：章节列表渲染，分离复选框与标题，新增点击查看内容功能
+// 修复：章节列表渲染，新增点击展开查看章节内容功能
 function renderChapterList(chapters) {
     const $listContainer = $('#novel-chapter-list');
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -1851,22 +1607,29 @@ function renderChapterList(chapters) {
     chapters.forEach(chapter => {
         chapter.hasGraph = !!graphMap[chapter.id];
     });
-    // 修复：分离复选框与标题，新增可点击标题查看内容
     const listHtml = chapters.map((chapter) => `
-        <div class="chapter-item">
-            <label class="chapter-checkbox" for="chapter-select-${chapter.id}">
-                <input type="checkbox" class="chapter-select" id="chapter-select-${chapter.id}" data-index="${chapter.id}">
-            </label>
-            <span class="chapter-title clickable-title" data-chapter-id="${chapter.id}">${chapter.title}</span>
-            <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'}</span>
+        <div class="chapter-item" data-chapter-id="${chapter.id}">
+            <div class="chapter-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; cursor: pointer;">
+                <label class="chapter-checkbox">
+                    <input type="checkbox" class="chapter-select" data-index="${chapter.id}" onclick="event.stopPropagation();">
+                    <span class="chapter-title">${chapter.title}</span>
+                </label>
+                <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'}</span>
+            </div>
+            <div class="chapter-content-wrap" style="display: none; margin-top: 10px; padding: 12px; background: #121224; border-radius: 6px; border: 1px solid #334155;">
+                <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #e2e8f0; font-size: 0.9rem; line-height: 1.6; max-height: 300px; overflow-y: auto;">${chapter.content}</pre>
+            </div>
         </div>
     `).join('');
     $listContainer.html(listHtml);
-    // 新增：绑定章节标题点击事件，查看章节内容
-    $('.clickable-title').off('click').on('click', function(e) {
-        e.stopPropagation();
-        const chapterId = $(this).data('chapter-id');
-        showChapterContentModal(chapterId);
+
+    // 绑定章节点击展开/收起事件
+    $('#novel-chapter-list').off('click', '.chapter-header').on('click', '.chapter-header', function(e) {
+        // 阻止复选框点击冒泡
+        if ($(e.target).hasClass('chapter-select')) return;
+        const $chapterItem = $(this).closest('.chapter-item');
+        const $contentWrap = $chapterItem.find('.chapter-content-wrap');
+        $contentWrap.slideToggle(200);
     });
 }
 function renderChapterSelect(chapters) {
@@ -2394,8 +2157,6 @@ jQuery(async () => {
         toastr.error('小说续写插件加载失败：HTML文件加载异常，请检查文件路径', "插件错误");
         return;
     }
-    // 新增：初始化章节内容查看弹窗
-    initChapterContentModal();
     initDrawerToggle();
     initContinueChainEvents();
     initVisibilityListener();
