@@ -1,1080 +1,1744 @@
-/* ==============================================插件根容器（零布局影响，完全隔离原生页面）============================================== */
+/* ==============================================
+   小说智能续写系统 - 现代化UI样式
+   Modern UI Design for Novel Writer Extension
+   ============================================== */
+
+/* ==============================================插件根容器============================================== */
 .novel-writer-extension-root {
-  /* 插件专属CSS变量，完全避免与原生变量冲突 */
-  --novel-bg-main: #0c0c18;
-  --novel-bg-card: #151528;
-  --novel-bg-card-hover: #1e1e3a;
-  --novel-bg-input: #121224;
-  --novel-bg-drawer: #101020;
-  --novel-bg-overlay: rgba(0, 0, 0, 0.7);
-  --novel-primary: #7c3aed;
-  --novel-primary-light: #a78bfa;
-  --novel-primary-dark: #6d28d9;
-  --novel-primary-glow: rgba(124, 58, 237, 0.6);
-  --novel-secondary: #06b6d4;
-  --novel-success: #10b981;
-  --novel-danger: #ef4444;
-  --novel-warning: #f59e0b;
-  --novel-text-white: #f8fafc;
-  --novel-text-primary: #e2e8f0;
-  --novel-text-secondary: #cbd5e1;
-  --novel-text-muted: #94a3b8;
-  --novel-border-color: #334155;
-  --novel-border-light: #475569;
-  --novel-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --novel-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --novel-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --novel-shadow-glow: 0 0 20px var(--novel-primary-glow);
-  --novel-shadow-ball: 0 0 25px rgba(124, 58, 237, 0.7);
-  --novel-radius-sm: 6px;
-  --novel-radius-md: 10px;
-  --novel-radius-lg: 16px;
-  --novel-radius-full: 999px;
-  --novel-transition-fast: 0.2s ease;
-  --novel-transition-normal: 0.3s ease;
-  --novel-transition-slow: 0.5s ease;
-  --novel-reader-bg: #0f0f1a;
-  --novel-reader-text: #e2e8f0;
-  --novel-reader-font-size: 16px;
-  --novel-reader-line-height: 1.8;
-
-  /* 核心：不占用任何页面空间，不影响原生布局 */
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  padding: 0;
-  margin: 0;
-  border: none;
-  overflow: visible;
-  z-index: 999998;
-  background: transparent;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    overflow: visible;
+    z-index: 999998;
+    background: transparent;
+    --novel-primary: #6366f1;
+    --novel-primary-light: #818cf8;
+    --novel-primary-dark: #4f46e5;
+    --novel-primary-glow: rgba(99, 102, 241, 0.5);
+    --novel-secondary: #06b6d4;
+    --novel-secondary-light: #22d3ee;
+    --novel-success: #10b981;
+    --novel-success-light: #34d399;
+    --novel-danger: #ef4444;
+    --novel-danger-light: #f87171;
+    --novel-warning: #f59e0b;
+    --novel-bg-dark: #0f0f23;
+    --novel-bg-card: #1a1a2e;
+    --novel-bg-card-hover: #24243e;
+    --novel-bg-input: #16162a;
+    --novel-bg-elevated: #2d2d4a;
+    --novel-text-white: #f8fafc;
+    --novel-text-primary: #e2e8f0;
+    --novel-text-secondary: #94a3b8;
+    --novel-text-muted: #64748b;
+    --novel-border-color: #334155;
+    --novel-border-light: #475569;
+    --novel-border-glow: rgba(99, 102, 241, 0.3);
+    --novel-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --novel-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --novel-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --novel-shadow-glow: 0 0 30px var(--novel-primary-glow);
+    --novel-radius-sm: 8px;
+    --novel-radius-md: 12px;
+    --novel-radius-lg: 16px;
+    --novel-radius-xl: 24px;
+    --novel-radius-full: 999px;
+    --novel-transition-fast: 0.15s ease;
+    --novel-transition-normal: 0.25s ease;
+    --novel-transition-slow: 0.4s ease;
+    --novel-reader-bg: #0a0a14;
+    --novel-reader-text: #d1d5db;
+    --novel-reader-font-size: 16px;
+    --novel-reader-line-height: 1.9;
+    --novel-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --novel-font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-/* 插件内部元素全局重置，不影响外部原生元素 */
 .novel-writer-extension-root * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: inherit;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--novel-font-sans);
 }
 
-/* 插件内部滚动条美化，加!important防止被主题覆盖 */
 .novel-writer-extension-root ::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
+    width: 6px;
+    height: 6px;
 }
 .novel-writer-extension-root ::-webkit-scrollbar-track {
-  background: var(--novel-bg-input) !important;
-  border-radius: var(--novel-radius-full) !important;
+    background: transparent;
 }
 .novel-writer-extension-root ::-webkit-scrollbar-thumb {
-  background: var(--novel-border-color) !important;
-  border-radius: var(--novel-radius-full) !important;
-  transition: background var(--novel-transition-fast) !important;
+    background: var(--novel-border-color);
+    border-radius: var(--novel-radius-full);
 }
 .novel-writer-extension-root ::-webkit-scrollbar-thumb:hover {
-  background: var(--novel-primary) !important;
+    background: var(--novel-primary);
 }
 
-/* ==============================================可移动悬浮球核心样式（图标适配+显示修复）============================================== */
+/* ==============================================悬浮球样式============================================== */
 .novel-writer-extension-root .float-ball {
-  position: fixed;
-  /* 核心修复：初始固定在右侧20px，不会溢出屏幕 */
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 70px;
-  height: 70px;
-  border-radius: var(--novel-radius-full);
-  /* 核心修复：兜底背景色，防止CSS变量失效导致透明 */
-  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #06b6d4 100%);
-  background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
-  box-shadow: var(--novel-shadow-ball), 0 4px 15px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  /* 核心修复：提高z-index，确保在最上层 */
-  z-index: 999999;
-  transition: all var(--novel-transition-normal);
-  user-select: none;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  /* 核心修复：强制显示，防止被原生样式隐藏 */
-  visibility: visible !important;
-  opacity: 1 !important;
-  display: flex !important;
-  /* 核心修复：防止拖动时触发页面滚动 */
-  touch-action: none !important;
-}
-/* 悬浮球拖动状态 */
-.novel-writer-extension-root .float-ball.dragging {
-  opacity: 0.85;
-  transform: scale(1.05);
-  transition: none;
-  z-index: 1000000;
-}
-/* 悬浮球hover效果 */
-.novel-writer-extension-root .float-ball:hover {
-  transform: translateY(-50%) scale(1.1);
-  box-shadow: var(--novel-shadow-ball), 0 6px 20px rgba(0, 0, 0, 0.6);
-}
-/* 悬浮球图标（适配Unicode） */
-.novel-writer-extension-root .ball-icon {
-  font-size: 1.5rem;
-  color: white;
-  margin-bottom: 2px;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-  line-height: 1;
-}
-/* 悬浮球文字 */
-.novel-writer-extension-root .ball-tip {
-  font-size: 0.7rem;
-  color: white;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1;
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 64px;
+    height: 64px;
+    border-radius: var(--novel-radius-full);
+    background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
+    box-shadow: 0 0 20px var(--novel-primary-glow), 0 4px 15px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999999;
+    transition: all var(--novel-transition-normal);
+    user-select: none;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    touch-action: none;
+    animation: ballFloat 3s ease-in-out infinite;
 }
 
-/* ==============================================功能面板核心样式============================================== */
-.novel-writer-extension-root .writer-panel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
-  width: 900px;
-  height: 850px;
-  max-width: 95vw;
-  max-height: 95vh;
-  background: linear-gradient(135deg, var(--novel-bg-main) 0%, #101022 100%);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-lg);
-  box-shadow: var(--novel-shadow-lg), 0 0 60px rgba(0, 0, 0, 0.8);
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 999998;
-  opacity: 0;
-  transition: all var(--novel-transition-normal);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+@keyframes ballFloat {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-52%) translateX(0); }
 }
+
+.novel-writer-extension-root .float-ball:hover {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 0 40px var(--novel-primary-glow), 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.novel-writer-extension-root .float-ball.dragging {
+    animation: none;
+    transform: scale(1.15);
+    opacity: 0.9;
+    z-index: 1000000;
+}
+
+.novel-writer-extension-root .ball-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.novel-writer-extension-root .ball-icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.novel-writer-extension-root .ball-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+    animation: ballGlow 2s ease-in-out infinite;
+}
+
+@keyframes ballGlow {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+.novel-writer-extension-root .ball-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--novel-radius-full);
+    border: 2px solid var(--novel-primary);
+    animation: ballPulse 2s ease-out infinite;
+}
+
+@keyframes ballPulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ==============================================主面板样式============================================== */
+.novel-writer-extension-root .writer-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    width: 960px;
+    height: 880px;
+    max-width: 98vw;
+    max-height: 96vh;
+    background: linear-gradient(180deg, var(--novel-bg-card) 0%, var(--novel-bg-dark) 100%);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-xl);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(99, 102, 241, 0.1);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 999998;
+    opacity: 0;
+    transition: all var(--novel-transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(20px);
+}
+
 .novel-writer-extension-root .writer-panel.show {
-  display: flex;
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+    display: flex;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
 }
 
 /* ==============================================面板头部样式============================================== */
 .novel-writer-extension-root .panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: linear-gradient(90deg, var(--novel-bg-card) 0%, var(--novel-bg-main) 100%);
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 28px;
+    background: linear-gradient(90deg, var(--novel-bg-elevated) 0%, var(--novel-bg-card) 100%);
+    border-bottom: 1px solid var(--novel-border-color);
+    flex-shrink: 0;
 }
+
 .novel-writer-extension-root .panel-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--novel-text-white);
-  letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
-.novel-writer-extension-root .panel-title span:first-child {
-  color: var(--novel-primary);
-  font-size: 1.3rem;
-  text-shadow: 0 0 10px var(--novel-primary-glow);
+
+.novel-writer-extension-root .title-icon {
+    position: relative;
+    font-size: 2rem;
 }
-/* 关闭按钮 */
+
+.novel-writer-extension-root .title-icon-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, var(--novel-primary-glow) 0%, transparent 70%);
+    animation: iconGlow 3s ease-in-out infinite;
+}
+
+@keyframes iconGlow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.novel-writer-extension-root .title-text h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--novel-text-white);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.novel-writer-extension-root .title-subtitle {
+    font-size: 0.75rem;
+    color: var(--novel-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
 .novel-writer-extension-root .panel-close-btn {
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: var(--novel-radius-sm);
-  background: var(--novel-bg-input);
-  color: var(--novel-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--novel-transition-fast);
-  font-size: 1rem;
-  font-weight: bold;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--novel-radius-md);
+    background: var(--novel-bg-input);
+    color: var(--novel-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--novel-transition-fast);
+    position: relative;
+    overflow: hidden;
 }
+
 .novel-writer-extension-root .panel-close-btn:hover {
-  background: var(--novel-danger);
-  color: white;
-  transform: scale(1.05);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    background: var(--novel-danger);
+    color: white;
+    transform: rotate(90deg);
+}
+
+.novel-writer-extension-root .panel-close-btn .btn-hover-effect {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.1) 100%);
 }
 
 /* ==============================================选项卡导航样式============================================== */
 .novel-writer-extension-root .panel-tab-nav {
-  display: flex;
-  background: var(--novel-bg-card);
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
-  padding: 0 16px;
-  gap: 4px;
+    background: var(--novel-bg-card);
+    border-bottom: 1px solid var(--novel-border-color);
+    flex-shrink: 0;
+    padding: 0 20px;
 }
+
+.novel-writer-extension-root .tab-nav-container {
+    display: flex;
+    gap: 4px;
+    position: relative;
+}
+
+.novel-writer-extension-root .tab-nav-indicator {
+    position: absolute;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--novel-primary), var(--novel-secondary));
+    border-radius: var(--novel-radius-full);
+    transition: all var(--novel-transition-normal);
+}
+
 .novel-writer-extension-root .panel-tab-item {
-  padding: 14px 20px;
-  border: none;
-  background: transparent;
-  color: var(--novel-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: var(--novel-radius-sm) var(--novel-radius-sm) 0 0;
-  transition: all var(--novel-transition-fast);
-  font-weight: 600;
-  font-size: 0.9rem;
-  position: relative;
+    padding: 16px 24px;
+    border: none;
+    background: transparent;
+    color: var(--novel-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all var(--novel-transition-fast);
+    position: relative;
+    overflow: hidden;
 }
-.novel-writer-extension-root .panel-tab-item span:first-child {
-  font-size: 1rem;
+
+.novel-writer-extension-root .panel-tab-item::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--novel-primary), var(--novel-secondary));
+    transition: all var(--novel-transition-normal);
+    transform: translateX(-50%);
+    border-radius: var(--novel-radius-full);
 }
+
 .novel-writer-extension-root .panel-tab-item:hover {
-  color: var(--novel-text-primary);
-  background: var(--novel-bg-input);
+    color: var(--novel-text-primary);
+    background: rgba(99, 102, 241, 0.05);
 }
+
 .novel-writer-extension-root .panel-tab-item.active {
-  color: var(--novel-text-white);
-  background: linear-gradient(180deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  box-shadow: 0 -2px 12px var(--novel-primary-glow);
+    color: var(--novel-text-white);
+}
+
+.novel-writer-extension-root .panel-tab-item.active::before {
+    width: 60%;
+}
+
+.novel-writer-extension-root .tab-icon {
+    font-size: 1.2rem;
+}
+
+.novel-writer-extension-root .tab-text {
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
 /* ==============================================选项卡内容容器============================================== */
 .novel-writer-extension-root .panel-tab-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px 24px;
-  background: var(--novel-bg-main);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px;
+    background: var(--novel-bg-dark);
 }
+
 .novel-writer-extension-root .panel-tab-panel {
-  display: none;
-  animation: fadeInUp var(--novel-transition-normal);
-  height: 100%;
+    display: none;
+    animation: fadeInUp 0.3s ease;
 }
+
 .novel-writer-extension-root .panel-tab-panel.active {
-  display: block;
+    display: block;
 }
+
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* ==============================================内容卡片样式（核心布局单元）============================================== */
+/* ==============================================内容卡片样式============================================== */
 .novel-writer-extension-root .content-card {
-  background: var(--novel-bg-card);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  box-shadow: var(--novel-shadow-sm);
-  margin-bottom: 16px;
-  overflow: hidden;
-  transition: all var(--novel-transition-fast);
+    background: var(--novel-bg-card);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    box-shadow: var(--novel-shadow-sm);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: all var(--novel-transition-normal);
+    position: relative;
 }
+
 .novel-writer-extension-root .content-card:hover {
-  border-color: var(--novel-border-light);
-  box-shadow: var(--novel-shadow-md);
+    border-color: var(--novel-border-light);
+    box-shadow: var(--novel-shadow-md);
+    transform: translateY(-2px);
 }
-.novel-writer-extension-root .card-main {
-  border-left: 3px solid var(--novel-primary);
+
+.novel-writer-extension-root .card-highlight {
+    border-left: 4px solid var(--novel-primary);
 }
-.novel-writer-extension-root .card-mini {
-  padding: 16px 20px;
+
+.novel-writer-extension-root .card-accent-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--novel-primary) 0%, var(--novel-secondary) 50%, transparent 100%);
 }
-/* 卡片头部 */
+
 .novel-writer-extension-root .card-header {
-  padding: 14px 20px;
-  background: linear-gradient(90deg, var(--novel-bg-input) 0%, transparent 100%);
-  border-bottom: 1px solid var(--novel-border-color);
+    padding: 18px 24px;
+    background: linear-gradient(90deg, var(--novel-bg-elevated) 0%, transparent 100%);
+    border-bottom: 1px solid var(--novel-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.novel-writer-extension-root .card-header-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+
+.novel-writer-extension-root .card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
-.novel-writer-extension-root .card-header h4 {
-  color: var(--novel-text-white);
-  font-size: 1.05rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
+
+.novel-writer-extension-root .card-icon {
+    font-size: 1.5rem;
 }
-.novel-writer-extension-root .card-header h4 span:first-child {
-  color: var(--novel-primary);
+
+.novel-writer-extension-root .card-title-text h4 {
+    color: var(--novel-text-white);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 2px;
 }
-/* 卡片内容 */
+
+.novel-writer-extension-root .card-subtitle {
+    font-size: 0.75rem;
+    color: var(--novel-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.novel-writer-extension-root .card-badge {
+    padding: 4px 12px;
+    background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--novel-radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .novel-writer-extension-root .card-body {
-  padding: 20px;
-}
-/* 网格布局 */
-.novel-writer-extension-root .grid-row {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.novel-writer-extension-root .grid-row:last-child {
-  margin-bottom: 0;
-}
-.novel-writer-extension-root .grid-2 {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-/* 分割线 */
-.novel-writer-extension-root .divider-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--novel-border-color) 50%, transparent 100%);
-  margin: 20px 0;
+    padding: 24px;
 }
 
-/* ==============================================表单元素美化============================================== */
+/* ==============================================表单元素样式============================================== */
 .novel-writer-extension-root .form-group {
-  width: 100%;
-}
-.novel-writer-extension-root .form-group-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .form-label-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.novel-writer-extension-root .form-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-}
-/* 输入框 */
-.novel-writer-extension-root .form-input {
-  width: 100%;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.95rem;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-}
-.novel-writer-extension-root .form-input:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.novel-writer-extension-root .form-input::placeholder {
-  color: var(--novel-text-muted);
-}
-/* 下拉选择框 */
-.novel-writer-extension-root .form-select {
-  width: 100%;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.95rem;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-  cursor: pointer;
-}
-.novel-writer-extension-root .form-select:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-/* 文本域 */
-.novel-writer-extension-root .form-textarea {
-  width: 100%;
-  min-height: 60px;
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  transition: all var(--novel-transition-fast);
-  outline: none;
-  resize: vertical;
-}
-.novel-writer-extension-root .form-textarea:focus {
-  border-color: var(--novel-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-.novel-writer-extension-root .form-textarea::placeholder {
-  color: var(--novel-text-muted);
-}
-.novel-writer-extension-root .form-textarea[readonly] {
-  background: var(--novel-bg-main);
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-/* 输入框附带提示 */
-.novel-writer-extension-root .input-with-tip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.novel-writer-extension-root .input-with-tip .form-input {
-  flex: 1;
-}
-.novel-writer-extension-root .input-tip {
-  color: var(--novel-text-muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-/* 复选框美化 */
-.novel-writer-extension-root input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--novel-primary);
-  cursor: pointer;
+    width: 100%;
+    margin-bottom: 20px;
 }
 
-/* ==============================================按钮组件美化============================================== */
+.novel-writer-extension-root .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.novel-writer-extension-root .form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--novel-text-primary);
+    font-size: 0.9rem;
+}
+
+.novel-writer-extension-root .label-icon {
+    font-size: 1rem;
+}
+
+.novel-writer-extension-root .label-badge {
+    padding: 2px 8px;
+    background: var(--novel-primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--novel-radius-full);
+    margin-left: auto;
+}
+
+.novel-writer-extension-root .form-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.novel-writer-extension-root .label-hint {
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+    font-weight: 400;
+}
+
+.novel-writer-extension-root .form-input {
+    width: 100%;
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 12px 16px;
+    color: var(--novel-text-primary);
+    font-size: 0.95rem;
+    transition: all var(--novel-transition-fast);
+    outline: none;
+}
+
+.novel-writer-extension-root .form-input:focus {
+    border-color: var(--novel-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background: var(--novel-bg-dark);
+}
+
+.novel-writer-extension-root .form-input::placeholder {
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .form-select {
+    width: 100%;
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 12px 16px;
+    color: var(--novel-text-primary);
+    font-size: 0.95rem;
+    transition: all var(--novel-transition-fast);
+    outline: none;
+    cursor: pointer;
+}
+
+.novel-writer-extension-root .form-select:focus {
+    border-color: var(--novel-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.novel-writer-extension-root .form-textarea {
+    width: 100%;
+    min-height: 80px;
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 14px 16px;
+    color: var(--novel-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    transition: all var(--novel-transition-fast);
+    outline: none;
+    resize: vertical;
+    font-family: var(--novel-font-sans);
+}
+
+.novel-writer-extension-root .form-textarea:focus {
+    border-color: var(--novel-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.novel-writer-extension-root .form-textarea::placeholder {
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .form-textarea[readonly] {
+    background: var(--novel-bg-dark);
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+/* ==============================================上传区域样式============================================== */
+.novel-writer-extension-root .upload-zone {
+    border: 2px dashed var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    padding: 32px;
+    text-align: center;
+    transition: all var(--novel-transition-normal);
+    cursor: pointer;
+    margin-bottom: 24px;
+    position: relative;
+    background: linear-gradient(135deg, var(--novel-bg-input) 0%, var(--novel-bg-dark) 100%);
+}
+
+.novel-writer-extension-root .upload-zone:hover {
+    border-color: var(--novel-primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--novel-bg-dark) 100%);
+    transform: scale(1.01);
+}
+
+.novel-writer-extension-root .upload-zone.dragover {
+    border-color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.novel-writer-extension-root .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    animation: uploadBounce 2s ease-in-out infinite;
+}
+
+@keyframes uploadBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.novel-writer-extension-root .upload-text {
+    margin-bottom: 12px;
+}
+
+.novel-writer-extension-root .upload-main {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--novel-text-white);
+    margin-bottom: 4px;
+}
+
+.novel-writer-extension-root .upload-sub {
+    font-size: 0.85rem;
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .upload-hint {
+    font-size: 0.9rem;
+    color: var(--novel-secondary);
+    font-weight: 500;
+}
+
+/* ==============================================表单网格布局============================================== */
+.novel-writer-extension-root .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.novel-writer-extension-root .input-suffix-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.novel-writer-extension-root .input-suffix-wrapper .form-input {
+    flex: 1;
+}
+
+.novel-writer-extension-root .input-suffix {
+    padding: 10px 16px;
+    background: var(--novel-bg-elevated);
+    color: var(--novel-text-secondary);
+    border-radius: var(--novel-radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.novel-writer-extension-root .input-hint {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.novel-writer-extension-root .hint-tag {
+    padding: 3px 10px;
+    background: var(--novel-bg-elevated);
+    border-radius: var(--novel-radius-full);
+    font-size: 0.75rem;
+}
+
+/* ==============================================滑块样式============================================== */
+.novel-writer-extension-root .slider-container {
+    margin-top: 12px;
+}
+
+.novel-writer-extension-root .slider {
+    width: 100%;
+    height: 6px;
+    border-radius: var(--novel-radius-full);
+    background: var(--novel-bg-input);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.novel-writer-extension-root .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--novel-primary-glow);
+    transition: all var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.novel-writer-extension-root .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.75rem;
+    color: var(--novel-text-muted);
+}
+
+/* ==============================================开关切换样式============================================== */
+.novel-writer-extension-root .toggle-setting {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-md);
+    margin-bottom: 16px;
+}
+
+.novel-writer-extension-root .toggle-info {
+    flex: 1;
+}
+
+.novel-writer-extension-root .toggle-label {
+    display: block;
+    font-weight: 600;
+    color: var(--novel-text-primary);
+    margin-bottom: 4px;
+}
+
+.novel-writer-extension-root .toggle-hint {
+    font-size: 0.85rem;
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .toggle-switch {
+    position: relative;
+    width: 52px;
+    height: 28px;
+}
+
+.novel-writer-extension-root .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.novel-writer-extension-root .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--novel-border-color);
+    transition: var(--novel-transition-normal);
+    border-radius: var(--novel-radius-full);
+}
+
+.novel-writer-extension-root .toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: var(--novel-transition-normal);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.novel-writer-extension-root .toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
+}
+
+.novel-writer-extension-root .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(24px);
+}
+
+/* ==============================================按钮样式============================================== */
 .novel-writer-extension-root .btn {
-  border: none;
-  border-radius: var(--novel-radius-sm);
-  padding: 10px 18px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all var(--novel-transition-fast);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
+    border: none;
+    border-radius: var(--novel-radius-md);
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all var(--novel-transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
 }
+
 .novel-writer-extension-root .btn-sm {
-  padding: 7px 14px;
-  font-size: 0.85rem;
+    padding: 8px 16px;
+    font-size: 0.85rem;
 }
+
 .novel-writer-extension-root .btn-lg {
-  padding: 12px 32px;
-  font-size: 1rem;
+    padding: 14px 28px;
+    font-size: 1rem;
 }
-/* 主按钮 */
+
+.novel-writer-extension-root .btn-xl {
+    padding: 16px 36px;
+    font-size: 1.1rem;
+}
+
 .novel-writer-extension-root .btn-primary {
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+    background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
+
 .novel-writer-extension-root .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--novel-primary-glow);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(99, 102, 241, 0.5);
 }
+
 .novel-writer-extension-root .btn-primary:active {
-  transform: translateY(0);
+    transform: translateY(0);
 }
-/* 次要按钮 */
+
 .novel-writer-extension-root .btn-secondary {
-  background: linear-gradient(90deg, #0891b2 0%, var(--novel-secondary) 100%);
-  color: var(--novel-bg-main);
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+    background: linear-gradient(135deg, var(--novel-secondary) 0%, #0891b2 100%);
+    color: var(--novel-bg-dark);
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
 }
+
 .novel-writer-extension-root .btn-secondary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(6, 182, 212, 0.4);
 }
-/* 描边按钮 */
+
 .novel-writer-extension-root .btn-outline {
-  background: transparent;
-  border: 1px solid var(--novel-border-light);
-  color: var(--novel-text-secondary);
+    background: transparent;
+    border: 2px solid var(--novel-border-light);
+    color: var(--novel-text-secondary);
 }
+
 .novel-writer-extension-root .btn-outline:hover {
-  border-color: var(--novel-primary);
-  color: var(--novel-primary);
-  background: rgba(124, 58, 237, 0.1);
+    border-color: var(--novel-primary);
+    color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.05);
 }
-/* 危险按钮 */
+
 .novel-writer-extension-root .btn-danger {
-  background: var(--novel-danger);
-  color: white;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    background: linear-gradient(135deg, var(--novel-danger) 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
 }
+
 .novel-writer-extension-root .btn-danger:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
 }
-/* 禁用状态 */
+
 .novel-writer-extension-root .btn:disabled,
 .novel-writer-extension-root .menu_button--disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-  pointer-events: none !important;
-  transform: none !important;
-}
-/* 按钮组 */
-.novel-writer-extension-root .btn-group-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .btn-group-wrap {
-  margin-top: 12px;
-}
-.novel-writer-extension-root .btn-group-fixed {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.novel-writer-extension-root .btn-center {
-  justify-content: center;
-}
-/* 文件选择组 */
-.novel-writer-extension-root .file-select-group {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.novel-writer-extension-root .file-name {
-  color: var(--novel-text-secondary);
-  font-size: 0.95rem;
-  word-break: break-all;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    transform: none !important;
 }
 
-/* ==============================================进度条美化============================================== */
-.novel-writer-extension-root .progress-wrap {
-  padding: 0 20px 12px;
-}
-.novel-writer-extension-root .progress-text {
-  color: var(--novel-text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 6px;
-}
-.novel-writer-extension-root .progress-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--novel-bg-input);
-  border-radius: var(--novel-radius-full);
-  overflow: hidden;
-}
-.novel-writer-extension-root .progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  border-radius: var(--novel-radius-full);
-  transition: width var(--novel-transition-normal);
-  box-shadow: 0 0 8px var(--novel-primary-glow);
-}
-/* 质量评分 */
-.novel-writer-extension-root .quality-score {
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.novel-writer-extension-root .quality-score span {
-  color: var(--novel-primary);
-  font-size: 1.1rem;
-}
-/* 状态文本 */
-.novel-writer-extension-root .status-text {
-  font-weight: 600;
-}
-.novel-writer-extension-root .status-default {
-  color: var(--novel-text-muted);
-}
-.novel-writer-extension-root .status-success {
-  color: var(--novel-success);
-}
-.novel-writer-extension-root .status-danger {
-  color: var(--novel-danger);
-}
-/* 空状态提示 */
-.novel-writer-extension-root .empty-tip {
-  text-align: center;
-  color: var(--novel-text-muted);
-  padding: 40px 20px;
-  font-size: 0.95rem;
+.novel-writer-extension-root .btn-icon-only {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--novel-radius-sm);
 }
 
-/* ==============================================章节列表美化============================================== */
+.novel-writer-extension-root .btn-shine {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: btnShine 3s ease-in-out infinite;
+}
+
+@keyframes btnShine {
+    0% { left: -100%; }
+    50%, 100% { left: 100%; }
+}
+
+.novel-writer-extension-root .btn-block {
+    width: 100%;
+}
+
+/* ==============================================操作按钮组============================================== */
+.novel-writer-extension-root .action-buttons {
+    display: flex;
+    gap: 16px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.novel-writer-extension-root .action-hints {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.novel-writer-extension-root .hint-card {
+    padding: 8px 16px;
+    background: var(--novel-bg-elevated);
+    border-radius: var(--novel-radius-md);
+    font-size: 0.85rem;
+    color: var(--novel-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ==============================================章节列表样式============================================== */
+.novel-writer-extension-root .card-list .card-header {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.novel-writer-extension-root .card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.novel-writer-extension-root .card-footer {
+    padding: 16px 24px;
+    background: var(--novel-bg-input);
+    border-top: 1px solid var(--novel-border-color);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .novel-writer-extension-root .chapter-list {
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
+
 .novel-writer-extension-root .chapter-item {
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all var(--novel-transition-fast);
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--novel-transition-fast);
+    cursor: pointer;
 }
+
 .novel-writer-extension-root .chapter-item:hover {
-  border-color: var(--novel-primary);
-  background: var(--novel-bg-card-hover);
+    border-color: var(--novel-primary);
+    background: var(--novel-bg-card-hover);
+    transform: translateX(4px);
 }
+
 .novel-writer-extension-root .chapter-checkbox {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--novel-text-primary);
-  font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
 }
+
 .novel-writer-extension-root .chapter-title {
-  font-size: 0.95rem;
+    color: var(--novel-text-primary);
+    font-weight: 500;
+    font-size: 0.95rem;
 }
+
 .novel-writer-extension-root .chapter-item .text-sm {
-  font-size: 0.8rem;
+    font-size: 0.8rem;
 }
+
 .novel-writer-extension-root .chapter-item .text-success {
-  color: var(--novel-success);
+    color: var(--novel-success);
 }
+
 .novel-writer-extension-root .chapter-item .text-muted {
-  color: var(--novel-text-muted);
+    color: var(--novel-text-muted);
 }
 
-/* ==============================================抽屉组件美化============================================== */
+/* ==============================================进度条样式============================================== */
+.novel-writer-extension-root .progress-wrapper {
+    padding: 0 24px 16px;
+}
+
+.novel-writer-extension-root .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.novel-writer-extension-root .progress-text {
+    color: var(--novel-text-secondary);
+    font-size: 0.85rem;
+}
+
+.novel-writer-extension-root .progress-percent {
+    color: var(--novel-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.novel-writer-extension-root .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-full);
+    overflow: hidden;
+}
+
+.novel-writer-extension-root .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--novel-primary) 0%, var(--novel-secondary) 100%);
+    border-radius: var(--novel-radius-full);
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.novel-writer-extension-root .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progressShine 2s ease-in-out infinite;
+}
+
+@keyframes progressShine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.novel-writer-extension-root .progress-animated .progress-fill {
+    background: linear-gradient(90deg, var(--novel-primary) 0%, var(--novel-primary-light) 50%, var(--novel-secondary) 100%);
+    background-size: 200% 100%;
+    animation: progressGradient 2s linear infinite;
+}
+
+@keyframes progressGradient {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* ==============================================抽屉组件样式============================================== */
 .novel-writer-extension-root .inline-drawer {
-  background: var(--novel-bg-card);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  overflow: hidden;
-  margin-bottom: 16px;
-  transition: all var(--novel-transition-fast);
+    background: var(--novel-bg-card);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    overflow: hidden;
+    margin-bottom: 20px;
 }
+
 .novel-writer-extension-root .inline-drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-  background: linear-gradient(90deg, var(--novel-bg-input) 0%, transparent 100%);
-  cursor: pointer;
-  user-select: none;
-  transition: all var(--novel-transition-fast);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: linear-gradient(90deg, var(--novel-bg-elevated) 0%, transparent 100%);
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--novel-transition-fast);
 }
+
 .novel-writer-extension-root .inline-drawer-header:hover {
-  background: var(--novel-bg-card-hover);
+    background: var(--novel-bg-card-hover);
 }
-.novel-writer-extension-root .inline-drawer-header b {
-  color: var(--novel-text-white);
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+.novel-writer-extension-root .drawer-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
-.novel-writer-extension-root .inline-drawer-header b span:first-child {
-  color: var(--novel-secondary);
+
+.novel-writer-extension-root .drawer-icon {
+    font-size: 1.2rem;
 }
+
+.novel-writer-extension-root .drawer-text {
+    font-weight: 600;
+    color: var(--novel-text-white);
+    font-size: 1rem;
+}
+
+.novel-writer-extension-root .drawer-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.novel-writer-extension-root .status-badge {
+    padding: 4px 12px;
+    border-radius: var(--novel-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.novel-writer-extension-root .status-badge.status-default {
+    background: var(--novel-bg-input);
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .status-badge.status-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--novel-success);
+}
+
+.novel-writer-extension-root .status-badge.status-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--novel-danger);
+}
+
 .novel-writer-extension-root .inline-drawer-icon {
-  color: var(--novel-text-secondary);
-  transition: transform var(--novel-transition-fast);
-  font-size: 1rem;
-  font-weight: bold;
+    color: var(--novel-text-secondary);
+    transition: transform var(--novel-transition-fast);
+    font-size: 1rem;
 }
-.novel-writer-extension-root .inline-drawer-content {
-  padding: 20px;
-  border-top: 1px solid var(--novel-border-color);
-  background: var(--novel-bg-main);
-  display: none;
-  animation: slideDown var(--novel-transition-normal);
-}
-.novel-writer-extension-root .inline-drawer.open .inline-drawer-content {
-  display: block;
-}
+
 .novel-writer-extension-root .inline-drawer.open .inline-drawer-icon.down {
-  transform: rotate(180deg);
-  color: var(--novel-primary);
+    transform: rotate(180deg);
 }
+
+.novel-writer-extension-root .inline-drawer-content {
+    padding: 24px;
+    border-top: 1px solid var(--novel-border-color);
+    background: var(--novel-bg-dark);
+    display: none;
+}
+
+.novel-writer-extension-root .inline-drawer.open .inline-drawer-content {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 1000px;
-  }
-}
-.novel-writer-extension-root .drawer-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* ==============================================续写链条美化============================================== */
+.novel-writer-extension-root .precheck-header {
+    margin-bottom: 20px;
+}
+
+/* ==============================================合并配置样式============================================== */
+.novel-writer-extension-root .merge-config {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.novel-writer-extension-root .merge-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.novel-writer-extension-root .stat-item {
+    flex: 1;
+    padding: 16px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-md);
+    text-align: center;
+}
+
+.novel-writer-extension-root .stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--novel-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.novel-writer-extension-root .stat-label {
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ==============================================代码预览样式============================================== */
+.novel-writer-extension-root .code-preview {
+    position: relative;
+    border-radius: var(--novel-radius-md);
+    overflow: hidden;
+    background: var(--novel-bg-dark);
+    border: 1px solid var(--novel-border-color);
+}
+
+.novel-writer-extension-root .code-editor {
+    font-family: var(--novel-font-mono);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    min-height: 200px;
+    background: transparent;
+    border: none;
+    padding: 16px;
+}
+
+.novel-writer-extension-root .card-meta {
+    padding: 6px 12px;
+    background: var(--novel-bg-elevated);
+    border-radius: var(--novel-radius-full);
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+}
+
+/* ==============================================校验结果样式============================================== */
+.novel-writer-extension-root .validation-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--novel-radius-full);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.novel-writer-extension-root .validation-badge.pass {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--novel-success);
+}
+
+.novel-writer-extension-root .validation-badge.fail {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--novel-danger);
+}
+
+/* ==============================================续写配置样式============================================== */
+.novel-writer-extension-root .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: center;
+}
+
+/* ==============================================生成控制样式============================================== */
+.novel-writer-extension-root .generate-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.novel-writer-extension-root .quality-result {
+    padding: 20px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-lg);
+    margin-top: 20px;
+}
+
+.novel-writer-extension-root .quality-score-display {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.novel-writer-extension-root .score-circle {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.novel-writer-extension-root .score-circle svg {
+    transform: rotate(-90deg);
+}
+
+.novel-writer-extension-root .score-circle .score-bg {
+    fill: none;
+    stroke: var(--novel-border-color);
+    stroke-width: 8;
+}
+
+.novel-writer-extension-root .score-circle .score-fill {
+    fill: none;
+    stroke: url(#scoreGradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 1s ease;
+}
+
+.novel-writer-extension-root .score-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--novel-primary);
+}
+
+.novel-writer-extension-root .score-label {
+    font-size: 0.9rem;
+    color: var(--novel-text-muted);
+}
+
+/* ==============================================结果统计样式============================================== */
+.novel-writer-extension-root .result-stats {
+    padding: 6px 14px;
+    background: var(--novel-bg-elevated);
+    border-radius: var(--novel-radius-full);
+    font-size: 0.85rem;
+    color: var(--novel-secondary);
+    font-weight: 600;
+}
+
+/* ==============================================续写链条样式============================================== */
 .novel-writer-extension-root .chain-container {
-  max-height: 650px;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.novel-writer-extension-root .continue-chapter-item {
-  background: var(--novel-bg-input);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-md);
-  padding: 16px;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .continue-chapter-item:hover {
-  border-color: var(--novel-primary);
-  box-shadow: var(--novel-shadow-sm);
-}
-.novel-writer-extension-root .continue-chapter-title {
-  color: var(--novel-text-white);
-  font-size: 1rem;
-  font-weight: 600;
-}
-.novel-writer-extension-root .continue-chapter-content {
-  margin-top: 12px;
-  min-height: 100px;
-  background: var(--novel-bg-main);
-  border: 1px solid var(--novel-border-color);
-  border-radius: var(--novel-radius-sm);
-  padding: 12px 14px;
-  color: var(--novel-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  resize: vertical;
-  width: 100%;
-  outline: none;
-  transition: all var(--novel-transition-fast);
-}
-.novel-writer-extension-root .continue-chapter-content:focus {
-  border-color: var(--novel-primary);
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
-/* ==============================================小说阅读器完整样式============================================== */
+.novel-writer-extension-root .continue-chapter-item {
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    padding: 20px;
+    transition: all var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .continue-chapter-item:hover {
+    border-color: var(--novel-primary);
+    box-shadow: var(--novel-shadow-md);
+}
+
+.novel-writer-extension-root .continue-chapter-title {
+    color: var(--novel-text-white);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.novel-writer-extension-root .continue-chapter-content {
+    min-height: 120px;
+    background: var(--novel-bg-dark);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 14px 16px;
+    color: var(--novel-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    resize: vertical;
+    width: 100%;
+    outline: none;
+    transition: all var(--novel-transition-fast);
+    font-family: var(--novel-font-sans);
+}
+
+.novel-writer-extension-root .continue-chapter-content:focus {
+    border-color: var(--novel-primary);
+}
+
+/* ==============================================空状态样式============================================== */
+.novel-writer-extension-root .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--novel-text-muted);
+}
+
+.novel-writer-extension-root .empty-icon {
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.novel-writer-extension-root .empty-text {
+    font-size: 0.95rem;
+}
+
+/* ==============================================小说阅读器样式============================================== */
 .novel-writer-extension-root #tab-reader {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
 }
+
 .novel-writer-extension-root #tab-reader.active {
-  display: flex;
+    display: flex;
 }
+
 .novel-writer-extension-root .reader-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 12px;
 }
+
 .novel-writer-extension-root .reader-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--novel-text-white);
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
-.novel-writer-extension-root .reader-title span:first-child {
-  color: var(--novel-primary);
+
+.novel-writer-extension-root .reader-icon {
+    font-size: 1.8rem;
 }
+
+.novel-writer-extension-root .reader-title-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.novel-writer-extension-root .reader-title-text > span:first-child {
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--novel-text-white);
+}
+
+.novel-writer-extension-root .reader-chapter-info {
+    font-size: 0.85rem;
+    color: var(--novel-text-muted);
+}
+
 .novel-writer-extension-root .reader-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
-.novel-writer-extension-root .reader-font-btn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  gap: 2px;
+
+.novel-writer-extension-root .font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-md);
 }
+
+.novel-writer-extension-root .font-size-display {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--novel-primary);
+}
+
 .novel-writer-extension-root .reader-content-wrap {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--novel-radius-md);
-  background: var(--novel-reader-bg);
-  border: 1px solid var(--novel-border-color);
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--novel-radius-lg);
+    background: var(--novel-reader-bg);
+    border: 1px solid var(--novel-border-color);
 }
+
 .novel-writer-extension-root .reader-content {
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  padding: 30px 40px;
-  font-size: var(--novel-reader-font-size);
-  line-height: var(--novel-reader-line-height);
-  color: var(--novel-reader-text);
-  word-break: break-word;
-  white-space: pre-wrap;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: auto;
-  overflow-anchor: none;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 32px 40px;
+    font-size: var(--novel-reader-font-size);
+    line-height: var(--novel-reader-line-height);
+    color: var(--novel-reader-text);
+    word-break: break-word;
+    white-space: pre-wrap;
 }
-.novel-writer-extension-root .reader-empty-tip {
-  text-align: center;
-  color: var(--novel-text-muted);
-  padding: 60px 20px;
-  font-size: 1rem;
+
+.novel-writer-extension-root .reader-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    color: var(--novel-text-muted);
 }
-.novel-writer-extension-root .reader-click-mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  z-index: 1;
-  pointer-events: none;
+
+.novel-writer-extension-root .reader-empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
 }
+
+.novel-writer-extension-root .reader-empty-text {
+    font-size: 1rem;
+    max-width: 300px;
+}
+
 .novel-writer-extension-root .reader-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  margin-top: 12px;
-  flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0;
+    margin-top: 16px;
+    flex-shrink: 0;
 }
-.novel-writer-extension-root .reader-footer span {
-  color: var(--novel-text-secondary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-width: 35px;
+
+.novel-writer-extension-root .reader-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
+
+.novel-writer-extension-root .nav-icon {
+    font-size: 0.9rem;
+}
+
+.novel-writer-extension-root .reader-progress-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.novel-writer-extension-root .reader-progress-text {
+    min-width: 40px;
+    color: var(--novel-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
 .novel-writer-extension-root .reader-progress-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--novel-bg-input);
-  border-radius: var(--novel-radius-full);
-  overflow: hidden;
+    flex: 1;
+    height: 6px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-full);
+    overflow: hidden;
 }
+
 .novel-writer-extension-root .reader-progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--novel-primary-dark) 0%, var(--novel-primary) 100%);
-  border-radius: var(--novel-radius-full);
-  transition: width var(--novel-transition-fast);
-  box-shadow: 0 0 6px var(--novel-primary-glow);
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--novel-primary) 0%, var(--novel-secondary) 100%);
+    border-radius: var(--novel-radius-full);
+    transition: width 0.2s ease;
 }
-.novel-writer-extension-root .reader-footer .btn {
-  white-space: nowrap;
-  min-width: 80px;
-}
+
+/* ==============================================阅读器抽屉样式============================================== */
 .novel-writer-extension-root .reader-chapter-drawer {
-  position: absolute;
-  top: 0;
-  left: -320px;
-  width: 320px;
-  height: 100%;
-  background: var(--novel-bg-card);
-  border-right: 1px solid var(--novel-border-color);
-  box-shadow: var(--novel-shadow-lg);
-  transition: left var(--novel-transition-normal);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+    position: absolute;
+    top: 0;
+    left: -340px;
+    width: 340px;
+    height: 100%;
+    background: var(--novel-bg-card);
+    border-right: 1px solid var(--novel-border-color);
+    box-shadow: var(--novel-shadow-lg);
+    transition: left var(--novel-transition-normal);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
 }
+
 .novel-writer-extension-root .reader-chapter-drawer.show {
-  left: 0;
+    left: 0;
 }
+
 .novel-writer-extension-root .reader-drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--novel-border-color);
-  flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--novel-border-color);
+    flex-shrink: 0;
 }
-.novel-writer-extension-root .reader-drawer-header h3 {
-  color: var(--novel-text-white);
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-.novel-writer-extension-root .reader-drawer-header h3 span:first-child {
-  color: var(--novel-primary);
-}
+
 .novel-writer-extension-root .reader-chapter-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 0;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
 }
+
 .novel-writer-extension-root .reader-chapter-item {
-  padding: 12px 20px;
-  color: var(--novel-text-secondary);
-  cursor: pointer;
-  transition: all var(--novel-transition-fast);
-  border-left: 3px solid transparent;
-  user-select: none;
+    padding: 12px 20px;
+    color: var(--novel-text-secondary);
+    cursor: pointer;
+    transition: all var(--novel-transition-fast);
+    border-left: 3px solid transparent;
 }
+
 .novel-writer-extension-root .reader-chapter-item:hover {
-  background: var(--novel-bg-input);
-  color: var(--novel-text-white);
-  border-left-color: var(--novel-primary-light);
+    background: var(--novel-bg-input);
+    color: var(--novel-text-white);
+    border-left-color: var(--novel-primary-light);
 }
+
 .novel-writer-extension-root .reader-chapter-item.active {
-  background: rgba(124, 58, 237, 0.1);
-  color: var(--novel-primary-light);
-  border-left-color: var(--novel-primary);
-  font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--novel-primary-light);
+    border-left-color: var(--novel-primary);
+    font-weight: 600;
 }
+
 .novel-writer-extension-root .reader-chapter-branch {
-  margin-left: 20px;
-  padding-left: 15px;
-  border-left: 2px solid var(--novel-border-color);
-  margin-top: 4px;
-  margin-bottom: 8px;
+    margin-left: 20px;
+    padding-left: 16px;
+    border-left: 2px solid var(--novel-border-color);
 }
+
 .novel-writer-extension-root .reader-continue-chapter-item {
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  color: var(--novel-text-muted);
-  cursor: pointer;
-  border-radius: var(--novel-radius-sm);
-  transition: all var(--novel-transition-fast);
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    color: var(--novel-text-muted);
+    cursor: pointer;
+    border-radius: var(--novel-radius-sm);
+    transition: all var(--novel-transition-fast);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
+
 .novel-writer-extension-root .reader-continue-chapter-item::before {
-  content: "└─";
-  color: var(--novel-border-color);
-  font-size: 0.8rem;
-  flex-shrink: 0;
+    content: "└";
+    color: var(--novel-border-color);
+    font-size: 0.85rem;
 }
+
 .novel-writer-extension-root .reader-continue-chapter-item:hover {
-  background: var(--novel-bg-input);
-  color: var(--novel-primary-light);
+    background: var(--novel-bg-input);
+    color: var(--novel-primary-light);
 }
+
 .novel-writer-extension-root .reader-continue-chapter-item.active {
-  background: rgba(124, 58, 237, 0.1);
-  color: var(--novel-primary-light);
-  font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--novel-primary-light);
+    font-weight: 600;
 }
-.novel-writer-extension-root .reader-continue-chapter-item span {
-  font-size: 0.75rem;
-  color: var(--novel-secondary);
-  flex-shrink: 0;
+
+/* ==============================================预设名称显示============================================== */
+.novel-writer-extension-root .preset-name-display {
+    padding: 10px 16px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-md);
+    font-size: 0.9rem;
+    color: var(--novel-secondary);
+    margin-top: 12px;
 }
 
 /* ==============================================响应式适配============================================== */
 @media (max-width: 768px) {
-  .novel-writer-extension-root .float-ball {
-    width: 60px;
-    height: 60px;
-    right: 15px;
-  }
-  .novel-writer-extension-root .ball-icon {
-    font-size: 1.3rem;
-  }
-  .novel-writer-extension-root .ball-tip {
-    font-size: 0.6rem;
-  }
-  .novel-writer-extension-root .writer-panel {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
-    top: 0 !important;
-    left: 0 !important;
-    transform: none !important;
-  }
-  .novel-writer-extension-root .panel-tab-item span:last-child {
-    display: none;
-  }
-  .novel-writer-extension-root .panel-tab-item {
-    padding: 14px;
-    flex: 1;
-    justify-content: center;
-  }
-  .novel-writer-extension-root .panel-tab-content {
-    padding: 12px 16px;
-  }
-  .novel-writer-extension-root .grid-2 {
-    grid-template-columns: 1fr;
-  }
-  .novel-writer-extension-root .card-header-inline {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .novel-writer-extension-root .btn-group-row {
-    width: 100%;
-  }
-  .novel-writer-extension-root .btn {
-    flex: 1;
-    justify-content: center;
-  }
-  .novel-writer-extension-root .reader-content {
-    padding: 20px 16px;
-    --novel-reader-font-size: 15px;
-  }
-  .novel-writer-extension-root .reader-chapter-drawer {
-    width: 80vw;
-    left: -80vw;
-  }
-  .novel-writer-extension-root .reader-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .novel-writer-extension-root .reader-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .novel-writer-extension-root .reader-chapter-branch {
-    margin-left: 12px;
-    padding-left: 10px;
-  }
-  .novel-writer-extension-root .reader-footer .btn {
-    min-width: 60px;
-    padding: 7px 10px;
-  }
+    .novel-writer-extension-root .writer-panel {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw;
+        max-height: 100vh;
+        border-radius: 0;
+        top: 0 !important;
+        left: 0 !important;
+        transform: none !important;
+    }
+
+    .novel-writer-extension-root .float-ball {
+        width: 56px;
+        height: 56px;
+        right: 12px;
+    }
+
+    .novel-writer-extension-root .panel-tab-item .tab-text {
+        display: none;
+    }
+
+    .novel-writer-extension-root .panel-tab-item {
+        padding: 16px;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .novel-writer-extension-root .panel-tab-content {
+        padding: 16px;
+    }
+
+    .novel-writer-extension-root .form-grid,
+    .novel-writer-extension-root .merge-config,
+    .novel-writer-extension-root .config-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .novel-writer-extension-root .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .novel-writer-extension-root .action-buttons {
+        flex-direction: column;
+    }
+
+    .novel-writer-extension-root .action-buttons .btn {
+        width: 100%;
+    }
+
+    .novel-writer-extension-root .reader-content {
+        padding: 20px 16px;
+    }
+
+    .novel-writer-extension-root .reader-chapter-drawer {
+        width: 85vw;
+        left: -85vw;
+    }
+
+    .novel-writer-extension-root .reader-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .novel-writer-extension-root .reader-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
