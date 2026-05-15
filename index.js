@@ -6,6 +6,64 @@
  * @license MIT
  */
 
+// ==============================================加载状态管理工具函数==============================================
+
+/**
+ * 设置按钮加载状态
+ * @param {string|HTMLElement} selector - 选择器或元素
+ * @param {boolean} isLoading - 是否加载中
+ * @param {string} [loadingText="加载中..."] - 加载时显示的文本
+ */
+function setButtonLoading(selector, isLoading, loadingText = "加载中...") {
+    const $btn = typeof selector === 'string' ? document.querySelector(selector) : selector;
+    if (!$btn) return;
+    
+    if (isLoading) {
+        const $btnElement = $btn instanceof Element ? $btn : $btn[0];
+        $btnElement.dataset.originalText = $btnElement.textContent || $btnElement.querySelector('.btn-text')?.textContent || '';
+        $btnElement.dataset.originalIcon = $btnElement.querySelector('.btn-icon')?.innerHTML || '';
+        
+        const $textEl = $btnElement.querySelector('.btn-text');
+        const $iconEl = $btnElement.querySelector('.btn-icon');
+        
+        if ($textEl) $textEl.textContent = loadingText;
+        if ($iconEl) $iconEl.innerHTML = '<span class="loading-spinner"></span>';
+        
+        $btnElement.disabled = true;
+        $btnElement.classList.add('loading');
+        $btnElement.setAttribute('aria-busy', 'true');
+    } else {
+        const $btnElement = $btn instanceof Element ? $btn : $btn[0];
+        
+        const $textEl = $btnElement.querySelector('.btn-text');
+        const $iconEl = $btnElement.querySelector('.btn-icon');
+        
+        if ($textEl && $btnElement.dataset.originalText) $textEl.textContent = $btnElement.dataset.originalText;
+        if ($iconEl && $btnElement.dataset.originalIcon) $iconEl.innerHTML = $btnElement.dataset.originalIcon;
+        
+        $btnElement.disabled = false;
+        $btnElement.classList.remove('loading');
+        $btnElement.removeAttribute('aria-busy');
+    }
+}
+
+/**
+ * 显示操作状态（成功/失败提示）
+ * @param {string} message - 提示消息
+ * @param {string} type - 类型 (success|error|warning|info)
+ */
+function showOperationStatus(message, type = 'info') {
+    // 使用 toastr 显示状态，增强版
+    if (typeof toastr !== 'undefined') {
+        const toastType = type === 'success' ? toastr.success :
+                         type === 'error' ? toastr.error :
+                         type === 'warning' ? toastr.warning : toastr.info;
+        toastType(message, '操作状态', { timeOut: 3000 });
+    }
+}
+
+// ==============================================主程序开始==============================================
+
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 import * as PromptConstants from './prompt-constants.js';
