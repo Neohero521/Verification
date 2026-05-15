@@ -105,20 +105,46 @@
 }
 
 @keyframes ballFloat {
-    0%, 100% { transform: translateY(-50%) translateX(0); }
-    50% { transform: translateY(-52%) translateX(0); }
+    0%, 100% { 
+        transform: translateY(-50%) translateX(0) scale(1); 
+        box-shadow: 0 0 20px var(--novel-primary-glow), 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+    25% { 
+        transform: translateY(-51%) translateX(2px) scale(1.02); 
+        box-shadow: 0 0 30px var(--novel-primary-glow), 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    50% { 
+        transform: translateY(-52%) translateX(0) scale(1); 
+        box-shadow: 0 0 25px var(--novel-primary-glow), 0 4px 18px rgba(0, 0, 0, 0.45);
+    }
+    75% { 
+        transform: translateY(-51%) translateX(-2px) scale(1.02); 
+        box-shadow: 0 0 30px var(--novel-primary-glow), 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
 }
 
 .novel-writer-extension-root .float-ball:hover {
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 0 40px var(--novel-primary-glow), 0 6px 20px rgba(0, 0, 0, 0.5);
+    transform: translateY(-50%) scale(1.15);
+    box-shadow: 0 0 50px var(--novel-primary-glow), 0 8px 30px rgba(0, 0, 0, 0.6);
+    animation: ballPulseHover 0.6s ease-in-out infinite;
+}
+
+@keyframes ballPulseHover {
+    0%, 100% { transform: translateY(-50%) scale(1.15); }
+    50% { transform: translateY(-50%) scale(1.2); }
 }
 
 .novel-writer-extension-root .float-ball.dragging {
     animation: none;
-    transform: scale(1.15);
+    transform: scale(1.25);
     opacity: 0.9;
     z-index: 1000000;
+    box-shadow: 0 0 60px var(--novel-primary-glow), 0 12px 40px rgba(0, 0, 0, 0.7);
+    cursor: grabbing;
+}
+
+.novel-writer-extension-root .float-ball:active {
+    transform: translateY(-50%) scale(1.05);
 }
 
 .novel-writer-extension-root .ball-inner {
@@ -189,6 +215,41 @@
     display: flex;
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.9), 0 0 80px rgba(99, 102, 241, 0.15);
+    animation: panelOpen 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes panelOpen {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8) translateY(20px);
+        filter: blur(10px);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.02) translateY(-5px);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) translateY(0);
+    }
+}
+
+.novel-writer-extension-root .writer-panel.hide {
+    animation: panelClose 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes panelClose {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9) translateY(20px);
+        filter: blur(5px);
+    }
 }
 
 /* ==============================================面板头部样式============================================== */
@@ -381,12 +442,37 @@
     overflow: hidden;
     transition: all var(--novel-transition-normal);
     position: relative;
+    animation: cardSlideIn 0.4s ease-out;
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .novel-writer-extension-root .content-card:hover {
     border-color: var(--novel-border-light);
     box-shadow: var(--novel-shadow-md);
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    animation: cardHoverGlow 0.3s ease-out;
+}
+
+@keyframes cardHoverGlow {
+    0% {
+        box-shadow: var(--novel-shadow-md);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+    }
+    100% {
+        box-shadow: var(--novel-shadow-md);
+    }
 }
 
 .novel-writer-extension-root .card-highlight {
@@ -507,12 +593,18 @@
     font-size: 0.95rem;
     transition: all var(--novel-transition-fast);
     outline: none;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.novel-writer-extension-root .form-input:hover {
+    border-color: var(--novel-border-light);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .novel-writer-extension-root .form-input:focus {
     border-color: var(--novel-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-    background: var(--novel-bg-dark);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: scale(1.01);
 }
 
 .novel-writer-extension-root .form-input::placeholder {
@@ -584,12 +676,32 @@
 .novel-writer-extension-root .upload-zone:hover {
     border-color: var(--novel-primary);
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--novel-bg-dark) 100%);
-    transform: scale(1.01);
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
 }
 
 .novel-writer-extension-root .upload-zone.dragover {
     border-color: var(--novel-primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(99, 102, 241, 0.15);
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
+}
+
+.novel-writer-extension-root .upload-zone.dragover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid var(--novel-primary);
+    border-radius: inherit;
+    animation: uploadDragPulse 1s ease-in-out infinite;
+}
+
+@keyframes uploadDragPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.01); }
 }
 
 .novel-writer-extension-root .upload-icon {
@@ -796,6 +908,22 @@
     white-space: nowrap;
     position: relative;
     overflow: hidden;
+    letter-spacing: 0.3px;
+}
+
+.novel-writer-extension-root .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.novel-writer-extension-root .btn:hover::before {
+    left: 100%;
 }
 
 .novel-writer-extension-root .btn-sm {
@@ -811,6 +939,7 @@
 .novel-writer-extension-root .btn-xl {
     padding: 16px 36px;
     font-size: 1.1rem;
+    letter-spacing: 0.5px;
 }
 
 .novel-writer-extension-root .btn-primary {
@@ -820,12 +949,12 @@
 }
 
 .novel-writer-extension-root .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
 }
 
 .novel-writer-extension-root .btn-primary:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
 }
 
 .novel-writer-extension-root .btn-secondary {
@@ -835,8 +964,12 @@
 }
 
 .novel-writer-extension-root .btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(6, 182, 212, 0.4);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(6, 182, 212, 0.4);
+}
+
+.novel-writer-extension-root .btn-secondary:active {
+    transform: translateY(0) scale(0.98);
 }
 
 .novel-writer-extension-root .btn-outline {
@@ -849,6 +982,7 @@
     border-color: var(--novel-primary);
     color: var(--novel-primary);
     background: rgba(99, 102, 241, 0.05);
+    transform: translateY(-1px);
 }
 
 .novel-writer-extension-root .btn-danger {
@@ -858,8 +992,12 @@
 }
 
 .novel-writer-extension-root .btn-danger:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
+}
+
+.novel-writer-extension-root .btn-danger:active {
+    transform: translateY(0) scale(0.98);
 }
 
 .novel-writer-extension-root .btn:disabled,
