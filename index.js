@@ -400,6 +400,17 @@ function isEmptyContent(text) {
 const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起', '无法提供', '请调整', '违规', '敏感', '不予生成'];
 
 /**
+ * 时间常量配置
+ */
+const TIME_CONSTANTS = {
+    RETRY_DELAY: 1200,
+    BATCH_MERGE_DELAY: 1500,
+    INITIALIZATION_DELAY: 500,
+    ANIMATION_DURATION: 300,
+    TOAST_DURATION: 3000
+};
+
+/**
  * 撤销管理器 - 实现操作的撤销和重做
  */
 const UndoManager = {
@@ -752,7 +763,7 @@ async function generateRawWithBreakLimit(params) {
                 finalParams.systemPrompt = params.systemPrompt + `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
                 finalParams.temperature = retryTemperature;
                 
-                await new Promise(resolve => setTimeout(resolve, 1200));
+                await new Promise(resolve => setTimeout(resolve, TIME_CONSTANTS.RETRY_DELAY));
                 
                 if (stopGenerateFlag || stopSending) {
                     lastError = new Error('用户手动停止生成');
