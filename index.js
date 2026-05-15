@@ -689,16 +689,37 @@ async function generateRawWithBreakLimit(params) {
     }
     
     const settings = extension_settings[extensionName];
+    
+    // 获取预设参数并合并到 params 中
+    let finalParams = { ...params };
+    
     if (settings.enableAutoParentPreset) {
-        console.log('[小说续写器] 准备调用 generateRaw，将使用父级预设');
+        console.log('[小说续写器] 预设开关已开启，正在获取当前预设参数...');
+        const presetParams = getActivePresetParams();
+        
+        // 将预设参数合并到最终参数中（但保留传入的 systemPrompt 和 prompt 等特定参数）
+        finalParams = {
+            ...presetParams,
+            ...params
+        };
+        
+        console.log('[小说续写器] 最终传递给 generateRaw 的完整参数:', {
+            预设参数: presetParams,
+            传入参数: params,
+            最终参数: finalParams
+        });
+    } else {
+        console.log('[小说续写器] 预设开关未开启，使用传入的参数:', finalParams);
     }
     
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
     
-    let finalSystemPrompt = params.systemPrompt || '';
-    const isJsonMode = !!params.jsonSchema;
+    // 保存原始的 systemPrompt 用于重试
+    const originalSystemPrompt = finalParams.systemPrompt || '';
+    let finalSystemPrompt = originalSystemPrompt;
+    const isJsonMode = !!finalParams.jsonSchema;
     
     if (isJsonMode) {
         finalSystemPrompt += `\n\n【强制输出规则】\n1. 必须严格输出符合给定JSON Schema要求的纯JSON格式内容，禁止任何前置/后置文本。\n2. 必须以{开头，以}结尾，无任何其他字符。\n3. 所有内容仅基于用户提供的文本分析，禁止引入外部内容。`;
@@ -706,12 +727,10 @@ async function generateRawWithBreakLimit(params) {
         finalSystemPrompt += BREAK_LIMIT_PROMPT;
     }
     
-    const finalParams = {
-        ...params,
-        systemPrompt: finalSystemPrompt
-    };
+    // 更新 finalParams 中的 systemPrompt
+    finalParams.systemPrompt = finalSystemPrompt;
     
-    const originalTemperature = params.temperature || 0.7;
+    const originalTemperature = finalParams.temperature || 0.7;
     
     while (retryCount < MAX_RETRY_TIMES) {
         if (stopGenerateFlag || stopSending) {
@@ -765,7 +784,7 @@ async function generateRawWithBreakLimit(params) {
             
             if (retryCount < MAX_RETRY_TIMES) {
                 const retryTemperature = Math.min(originalTemperature + 0.12 * retryCount, 1.2);
-                finalParams.systemPrompt = params.systemPrompt + `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
+                finalParams.systemPrompt = originalSystemPrompt + `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
                 finalParams.temperature = retryTemperature;
                 
                 await new Promise(resolve => setTimeout(resolve, TIME_CONSTANTS.RETRY_DELAY));
@@ -789,47 +808,119 @@ function getActivePresetParams() {
     const settings = extension_settings[extensionName];
     const context = getContext();
     
+    console.log('[小说续写器] ========== 开始获取预设参数 ==========');
+    console.log('[小说续写器] 预设开关状态:', settings.enableAutoParentPreset);
+    
     let presetParams = {};
+    let presetSource = '默认值';
     
     if (settings.enableAutoParentPreset) {
-        // 优先使用 getPresetManager API 获取当前预设
+        console.log('[小说续写器] 预设开关已开启，正在尝试多种方式获取预设...');
+        
+        // 方案1: 优先使用 getPresetManager API
         if (context?.getPresetManager) {
             try {
+                console.log('[小说续写器] 尝试方案1: 使用 getPresetManager()');
                 const presetManager = context.getPresetManager();
                 if (presetManager) {
                     const presetName = presetManager.getSelectedPresetName();
                     const presetData = presetManager.getPresetSettings(presetName);
-                    if (presetData && typeof presetData === 'object') {
+                    console.log('[小说续写器] getPresetManager 结果:', {
+                        presetName,
+                        presetDataKeys: presetData ? Object.keys(presetData) : [],
+                        presetData
+                    });
+                    if (presetData && typeof presetData === 'object' && Object.keys(presetData).length > 0) {
                         presetParams = { ...presetData };
-                        console.log('[小说续写器] 使用 getPresetManager() 预设参数:', presetName);
+                        presetSource = `getPresetManager(${presetName})`;
+                        console.log('[小说续写器] ✅ 方案1成功！');
+                    } else {
+                        console.log('[小说续写器] ❌ getPresetManager 返回空数据');
                     }
                 }
             } catch (e) {
-                console.warn('[小说续写器] 使用 getPresetManager 失败:', e);
+                console.warn('[小说续写器] ⚠️ 方案1失败:', e);
+            }
+        } else {
+            console.log('[小说续写器] 跳过方案1: getPresetManager 不存在');
+        }
+        
+        // 方案2: context.generation_settings
+        if (Object.keys(presetParams).length === 0) {
+            console.log('[小说续写器] 尝试方案2: 使用 context.generation_settings');
+            if (context?.generation_settings && typeof context.generation_settings === 'object') {
+                presetParams = { ...context.generation_settings };
+                presetSource = 'context.generation_settings';
+                console.log('[小说续写器] ✅ 方案2成功！', { keys: Object.keys(presetParams), data: presetParams });
+            } else {
+                console.log('[小说续写器] ❌ context.generation_settings 不存在或为空');
             }
         }
         
-        // 备用方案
+        // 方案3: context.textCompletionSettings
         if (Object.keys(presetParams).length === 0) {
-            if (context?.generation_settings && typeof context.generation_settings === 'object') {
-                presetParams = { ...context.generation_settings };
-                console.log('[小说续写器] 使用 context.generation_settings 预设参数');
-            } else if (context?.textCompletionSettings && typeof context.textCompletionSettings === 'object') {
+            console.log('[小说续写器] 尝试方案3: 使用 context.textCompletionSettings');
+            if (context?.textCompletionSettings && typeof context.textCompletionSettings === 'object') {
                 presetParams = { ...context.textCompletionSettings };
-                console.log('[小说续写器] 使用 context.textCompletionSettings 预设参数');
-            } else if (window.generation_params && typeof window.generation_params === 'object') {
+                presetSource = 'context.textCompletionSettings';
+                console.log('[小说续写器] ✅ 方案3成功！', { keys: Object.keys(presetParams), data: presetParams });
+            } else {
+                console.log('[小说续写器] ❌ context.textCompletionSettings 不存在或为空');
+            }
+        }
+        
+        // 方案4: window.generation_params
+        if (Object.keys(presetParams).length === 0) {
+            console.log('[小说续写器] 尝试方案4: 使用 window.generation_params');
+            if (window.generation_params && typeof window.generation_params === 'object') {
                 presetParams = { ...window.generation_params };
-                console.log('[小说续写器] 使用 window.generation_params 预设参数');
-            } else if (window.SillyTavern?.presetManager?.currentPreset?.data) {
+                presetSource = 'window.generation_params';
+                console.log('[小说续写器] ✅ 方案4成功！', { keys: Object.keys(presetParams), data: presetParams });
+            } else {
+                console.log('[小说续写器] ❌ window.generation_params 不存在或为空');
+            }
+        }
+        
+        // 方案5: window.SillyTavern.presetManager
+        if (Object.keys(presetParams).length === 0) {
+            console.log('[小说续写器] 尝试方案5: 使用 window.SillyTavern.presetManager');
+            if (window.SillyTavern?.presetManager?.currentPreset?.data) {
                 presetParams = { ...window.SillyTavern.presetManager.currentPreset.data };
-                console.log('[小说续写器] 使用 window.SillyTavern.presetManager.currentPreset.data 预设参数');
+                presetSource = `window.SillyTavern.presetManager(${window.SillyTavern.presetManager.currentPreset.name || 'unknown'})`;
+                console.log('[小说续写器] ✅ 方案5成功！', { keys: Object.keys(presetParams), data: presetParams });
+            } else {
+                console.log('[小说续写器] ❌ window.SillyTavern.presetManager 不存在或为空');
+            }
+        }
+        
+        // 方案6: 遍历 context 对象查找可能的预设字段
+        if (Object.keys(presetParams).length === 0) {
+            console.log('[小说续写器] 尝试方案6: 遍历 context 查找可能的预设字段');
+            console.log('[小说续写器] context 对象的所有字段:', Object.keys(context || {}));
+            // 查找可能包含预设的字段
+            const possibleFields = ['preset', 'settings', 'params', 'options', 'config'];
+            for (const field of possibleFields) {
+                if (context?.[field] && typeof context[field] === 'object') {
+                    console.log('[小说续写器] 找到可能的字段:', field, context[field]);
+                    if (Object.keys(context[field]).length > 0) {
+                        presetParams = { ...context[field] };
+                        presetSource = `context.${field}`;
+                        console.log('[小说续写器] ✅ 方案6成功！');
+                        break;
+                    }
+                }
             }
         }
     } else {
+        console.log('[小说续写器] 预设开关未开启，使用 window.generation_params');
         if (window.generation_params && typeof window.generation_params === 'object') {
             presetParams = { ...window.generation_params };
+            presetSource = 'window.generation_params (开关关闭)';
         }
     }
+    
+    console.log('[小说续写器] 最终预设来源:', presetSource);
+    console.log('[小说续写器] 原始预设参数:', presetParams);
     
     // 扩展的有效参数列表，兼容不同 API 类型
     const validParams = [
@@ -876,6 +967,8 @@ function getActivePresetParams() {
         }
     }
     
+    console.log('[小说续写器] 过滤后的有效参数:', filteredParams);
+    
     const defaultFallbackParams = {
         temperature: 0.7,
         top_p: 0.9,
@@ -891,9 +984,12 @@ function getActivePresetParams() {
         }
     }
     
-    if (settings.enableAutoParentPreset) {
-        console.log('[小说续写器] 最终使用的预设参数:', filteredParams);
-    }
+    console.log('[小说续写器] ========== 预设参数获取完成 ==========');
+    console.log('[小说续写器] 最终使用的预设参数:', {
+        来源: presetSource,
+        参数: filteredParams,
+        参数列表: Object.keys(filteredParams)
+    });
     
     return filteredParams;
 }
@@ -1889,8 +1985,7 @@ async function batchMergeGraphs() {
             const result = await generateRawWithBreakLimit({
                 systemPrompt,
                 prompt: userPrompt,
-                jsonSchema: PromptConstants.mergeGraphJsonSchema,
-                ...getActivePresetParams()
+                jsonSchema: PromptConstants.mergeGraphJsonSchema
             });
             
             try {
@@ -2159,8 +2254,7 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
         const result = await generateRawWithBreakLimit({ 
             systemPrompt, 
             prompt: userPrompt, 
-            jsonSchema: PromptConstants.PRECHECK_JSON_SCHEMA,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.PRECHECK_JSON_SCHEMA
         });
         
         let precheckResult;
@@ -2233,8 +2327,7 @@ async function evaluateContinueQuality(continueContent, precheckResult, baseGrap
         const result = await generateRawWithBreakLimit({ 
             systemPrompt, 
             prompt: userPrompt, 
-            jsonSchema: PromptConstants.qualityEvaluateSchema,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.qualityEvaluateSchema
         });
         return JSON.parse(result.trim());
     } catch (error) {
@@ -2271,8 +2364,7 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
         const result = await generateRawWithBreakLimit({ 
             systemPrompt, 
             prompt: userPrompt, 
-            jsonSchema: PromptConstants.graphJsonSchema,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.graphJsonSchema
         });
         
         let graphData;
@@ -2310,8 +2402,7 @@ async function updateGraphWithContinueContent(continueChapter, continueId) {
         const result = await generateRawWithBreakLimit({ 
             systemPrompt, 
             prompt: userPrompt, 
-            jsonSchema: PromptConstants.graphJsonSchema,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.graphJsonSchema
         });
         const graphData = JSON.parse(result.trim());
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
@@ -2570,8 +2661,7 @@ async function generateSingleChapterGraph(chapter) {
         const result = await generateRawWithBreakLimit({
             systemPrompt,
             prompt: userPrompt,
-            jsonSchema: PromptConstants.graphJsonSchema,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.graphJsonSchema
         });
         return JSON.parse(result.trim());
     } catch (error) {
@@ -2666,8 +2756,7 @@ async function mergeAllGraphs() {
         const result = await generateRawWithBreakLimit({
             systemPrompt,
             prompt: userPrompt,
-            jsonSchema: PromptConstants.mergeGraphJsonSchema,
-            ...getActivePresetParams()
+            jsonSchema: PromptConstants.mergeGraphJsonSchema
         });
         
         const mergedGraph = JSON.parse(result.trim());
