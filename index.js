@@ -411,6 +411,721 @@ const TIME_CONSTANTS = {
 };
 
 /**
+ * 加载状态管理器
+ */
+const LoadingManager = {
+    states: new Map(),
+    
+    /**
+     * 开始加载
+     * @param {string} operationId - 操作ID
+     * @param {jQuery} $element - 关联的DOM元素
+     */
+    start(operationId, $element = null) {
+        this.states.set(operationId, {
+            startTime: Date.now(),
+            $element
+        });
+        
+        if ($element) {
+            $element.prop('disabled', true).addClass('loading');
+        }
+    },
+    
+    /**
+     * 结束加载
+     * @param {string} operationId - 操作ID
+     */
+    end(operationId) {
+        const state = this.states.get(operationId);
+        if (state && state.$element) {
+            state.$element.prop('disabled', false).removeClass('loading');
+        }
+        this.states.delete(operationId);
+    },
+    
+    /**
+     * 检查是否加载中
+     * @param {string} operationId - 操作ID
+     * @returns {boolean}
+     */
+    isLoading(operationId) {
+        return this.states.has(operationId);
+    },
+    
+    /**
+     * 清除所有加载状态
+     */
+    clear() {
+        this.states.forEach((state, id) => {
+            if (state.$element) {
+                state.$element.prop('disabled', false).removeClass('loading');
+            }
+        });
+        this.states.clear();
+    }
+};
+
+/**
+ * 通用错误处理包装器
+ * @param {Function} asyncFn - 异步函数
+ * @param {Object} options - 配置选项
+ * @returns {Promise<any>}
+ */
+async function withErrorHandler(asyncFn, options = {}) {
+    const {
+        errorTitle = '操作失败',
+        fallbackValue = null,
+        showToast = true,
+        logError = true
+    } = options;
+    
+    try {
+        return await asyncFn();
+    } catch (error) {
+        if (logError) {
+            console.error(`[小说续写插件] ${errorTitle}:`, error);
+        }
+        if (showToast) {
+            toastr.error(`${errorTitle}: ${error.message}`, '小说续写器');
+        }
+        return fallbackValue;
+    }
+}
+
+/**
+ * 批量操作管理器
+ */
+const BatchOperations = {
+    /**
+     * 批量删除章节
+     */
+    async deleteChapters(chapterIds) {
+        if (!chapterIds || chapterIds.length === 0) {
+            toastr.info('没有选择章节', '小说续写器');
+            return;
+        }
+        
+        const confirmed = await ConfirmDialog.danger(
+            `确定要删除 ${chapterIds.length} 个章节吗？此操作不可撤销。`
+        );
+        
+        if (!confirmed) return;
+        
+        LoadingManager.start('batch-delete');
+        
+        try {
+            for (const id of chapterIds) {
+                // 删除章节逻辑
+                currentParsedChapters = currentParsedChapters.filter(c => c.id !== id);
+                const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+                delete graphMap[id];
+                extension_settings[extensionName].chapterGraphMap = graphMap;
+                OperationLogger.log('删除章节', { chapterId: id });
+            }
+            
+            saveSettingsDebounced();
+            renderChapterList();
+            toastr.success(`成功删除 ${chapterIds.length} 个章节`, '小说续写器');
+        } finally {
+            LoadingManager.end('batch-delete');
+        }
+    }
+};
+
+/**
+ * 操作确认对话框 - 统一的确认交互
+ */
+const ConfirmDialog = {
+    /**
+     * 显示确认对话框
+     * @param {string} message - 确认消息
+     * @param {Object} options - 配置选项
+     * @returns {Promise<boolean>}
+     */
+    show(message, options = {}) {
+        const {
+            title = '确认操作',
+            confirmText = '确定',
+            cancelText = '取消',
+            confirmClass = 'btn-primary',
+            danger = false
+        } = options;
+        
+        return new Promise((resolve) => {
+            const $dialog = $(`
+                <div class="confirm-dialog-overlay" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                    animation: fadeIn 0.2s ease-out;
+                ">
+                    <div class="confirm-dialog" style="
+                        background: white;
+                        border-radius: 12px;
+                        padding: 24px;
+                        max-width: 420px;
+                        width: 90%;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                        animation: slideUp 0.3s ease-out;
+                    ">
+                        <h3 style="
+                            margin: 0 0 16px;
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: #1a1a1a;
+                        ">${title}</h3>
+                        <p style="
+                            margin: 0 0 24px;
+                            font-size: 14px;
+                            color: #4a4a4a;
+                            line-height: 1.6;
+                        ">${message}</p>
+                        <div class="confirm-dialog-buttons" style="
+                            display: flex;
+                            gap: 12px;
+                            justify-content: flex-end;
+                        ">
+                            <button class="btn confirm-no" style="
+                                padding: 10px 20px;
+                                border: 1px solid #ddd;
+                                background: white;
+                                color: #4a4a4a;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            ">
+                                ${cancelText}
+                            </button>
+                            <button class="btn confirm-yes" style="
+                                padding: 10px 20px;
+                                border: none;
+                                background: ${danger ? '#e53e3e' : '#3182ce'};
+                                color: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            ">
+                                ${confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { 
+                            opacity: 0;
+                            transform: translateY(20px);
+                        }
+                        to { 
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                    @keyframes fadeOut {
+                        from { opacity: 1; }
+                        to { opacity: 0; }
+                    }
+                </style>
+            `);
+            
+            $dialog.find('.confirm-yes').on('click', () => {
+                $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                setTimeout(() => {
+                    $dialog.remove();
+                    resolve(true);
+                }, 200);
+            });
+            
+            $dialog.find('.confirm-no, .confirm-dialog-overlay').on('click', (e) => {
+                if (e.target === $dialog[0] || e.target.classList.contains('confirm-no')) {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(false);
+                    }, 200);
+                }
+            });
+            
+            $dialog.on('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(false);
+                    }, 200);
+                } else if (e.key === 'Enter') {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(true);
+                    }, 200);
+                }
+            });
+            
+            $('body').append($dialog);
+            $dialog.find('.confirm-no').focus();
+        });
+    },
+    
+    /**
+     * 快捷危险操作确认方法
+     * @param {string} message - 确认消息
+     * @returns {Promise<boolean>}
+     */
+    danger(message) {
+        return this.show(message, {
+            title: '⚠️ 危险操作',
+            confirmText: '确认删除',
+            danger: true
+        });
+    }
+};
+
+/**
+ * 快捷键帮助面板 - 显示快捷键说明
+ */
+const KeyboardShortcuts = {
+    shortcuts: [
+        { key: 'Ctrl+Shift+N', desc: '打开/关闭面板' },
+        { key: 'Ctrl+Z', desc: '撤销' },
+        { key: 'Ctrl+Shift+Z / Ctrl+Y', desc: '重做' },
+        { key: 'Escape', desc: '关闭面板' },
+        { key: '?', desc: '显示快捷键帮助' }
+    ],
+    
+    /**
+     * 显示快捷键帮助面板
+     */
+    showHelp() {
+        const content = this.shortcuts
+            .map(s => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px 16px;">
+                        <kbd style="
+                            background: #f7fafc;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 4px;
+                            padding: 2px 8px;
+                            font-family: monospace;
+                            font-size: 13px;
+                            color: #2d3748;
+                        ">${s.key}</kbd>
+                    </td>
+                    <td style="padding: 12px 16px; color: #4a5568;">${s.desc}</td>
+                </tr>
+            `)
+            .join('');
+        
+        const html = `
+            <div style="position: relative;">
+                <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #1a202c;">⌨️ 快捷键</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tbody>
+                        ${content}
+                    </tbody>
+                </table>
+                <p style="margin-top: 16px; font-size: 12px; color: #a0aec0;">按 ? 或 Escape 关闭此帮助</p>
+            </div>
+        `;
+        
+        toastr.info(html, '快捷键帮助', {
+            timeOut: 0,
+            extendedTimeOut: 0,
+            closeButton: true,
+            positionClass: 'toast-top-right'
+        });
+    }
+};
+
+/**
+ * 进度通知组件 - 显示操作进度
+ */
+const ProgressNotifier = {
+    activeNotifications: new Map(),
+    
+    /**
+     * 开始一个进度通知
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 初始消息
+     * @returns {Object} 进度控制对象
+     */
+    start(operationId, message = '处理中...') {
+        const $notification = $(`
+            <div class="progress-notification" data-id="${operationId}" style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border-radius: 8px;
+                padding: 16px 20px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+                z-index: 100000;
+                min-width: 300px;
+            ">
+                <div class="progress-notification-message" style="
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #2d3748;
+                    margin-bottom: 8px;
+                ">${message}</div>
+                <div class="progress-notification-bar" style="
+                    height: 6px;
+                    background: #e2e8f0;
+                    border-radius: 3px;
+                    overflow: hidden;
+                ">
+                    <div class="progress-notification-fill" style="
+                        height: 100%;
+                        background: linear-gradient(90deg, #3182ce, #63b3ed);
+                        width: 0%;
+                        transition: width 0.3s ease;
+                        border-radius: 3px;
+                    "></div>
+                </div>
+                <div class="progress-notification-percent" style="
+                    text-align: right;
+                    font-size: 12px;
+                    color: #718096;
+                    margin-top: 4px;
+                ">0%</div>
+            </div>
+        `);
+        
+        $('body').append($notification);
+        this.activeNotifications.set(operationId, $notification);
+        
+        return {
+            update: (percent, message) => {
+                this.update(operationId, percent, message);
+            },
+            complete: (message) => {
+                this.complete(operationId, message);
+            },
+            error: (message) => {
+                this.error(operationId, message);
+            }
+        };
+    },
+    
+    /**
+     * 更新进度
+     * @param {string} operationId - 操作ID
+     * @param {number} percent - 百分比 (0-100)
+     * @param {string} message - 更新消息
+     */
+    update(operationId, percent, message = '') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        const clampedPercent = Math.max(0, Math.min(100, percent));
+        $notification.find('.progress-notification-fill').css('width', `${clampedPercent}%`);
+        $notification.find('.progress-notification-percent').text(`${Math.round(clampedPercent)}%`);
+        
+        if (message) {
+            $notification.find('.progress-notification-message').text(message);
+        }
+    },
+    
+    /**
+     * 标记完成
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 完成消息
+     */
+    complete(operationId, message = '完成') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        $notification.find('.progress-notification-fill').css('width', '100%');
+        $notification.find('.progress-notification-percent').text('✓');
+        $notification.find('.progress-notification-message').text(message);
+        $notification.find('.progress-notification-fill').css('background', 'linear-gradient(90deg, #38a169, #68d391)');
+        
+        setTimeout(() => {
+            $notification.fadeOut(300, () => {
+                $notification.remove();
+                this.activeNotifications.delete(operationId);
+            });
+        }, 2000);
+    },
+    
+    /**
+     * 标记失败
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 失败消息
+     */
+    error(operationId, message = '失败') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        $notification.find('.progress-notification-fill').css('background', 'linear-gradient(90deg, #e53e3e, #fc8181)');
+        $notification.find('.progress-notification-message').text(message);
+        
+        setTimeout(() => {
+            $notification.fadeOut(300, () => {
+                $notification.remove();
+                this.activeNotifications.delete(operationId);
+            });
+        }, 3000);
+    }
+};
+
+/**
+ * 数据管理器 - 数据导出/导入功能
+ */
+const DataManager = {
+    /**
+     * 导出数据
+     */
+    export() {
+        const data = {
+            version: '2.4.0',
+            timestamp: Date.now(),
+            chapters: currentParsedChapters,
+            graphMap: extension_settings[extensionName].chapterGraphMap || {},
+            settings: extension_settings[extensionName]
+        };
+        
+        const blob = new Blob(
+            [JSON.stringify(data, null, 2)],
+            { type: 'application/json' }
+        );
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `novel-writer-backup-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toastr.success('数据导出成功！', '小说续写器');
+    },
+    
+    /**
+     * 导入数据
+     */
+    import() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const confirmed = await ConfirmDialog.show(
+                '导入将覆盖现有数据，确定继续吗？',
+                {
+                    title: '⚠️ 数据导入确认',
+                    confirmText: '确定导入',
+                    danger: false
+                }
+            );
+            
+            if (!confirmed) {
+                input.value = '';
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                if (!data.version) {
+                    throw new Error('无效的数据格式');
+                }
+                
+                if (data.chapters) {
+                    currentParsedChapters = data.chapters;
+                }
+                if (data.graphMap) {
+                    extension_settings[extensionName].chapterGraphMap = data.graphMap;
+                }
+                if (data.settings) {
+                    Object.assign(extension_settings[extensionName], data.settings);
+                }
+                
+                saveSettingsDebounced();
+                renderChapterList();
+                
+                toastr.success('数据导入成功！', '小说续写器');
+            } catch (error) {
+                console.error('导入失败:', error);
+                toastr.error(`导入失败: ${error.message}`, '小说续写器');
+            }
+            
+            input.value = '';
+        };
+        
+        input.click();
+    }
+};
+
+/**
+ * 操作日志系统 - 记录用户操作
+ */
+const OperationLogger = {
+    logs: [],
+    maxSize: 100,
+    
+    /**
+     * 记录操作
+     * @param {string} action - 操作名称
+     * @param {Object} details - 详细信息
+     */
+    log(action, details = {}) {
+        const entry = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            timestamp: Date.now(),
+            action,
+            details,
+            user: 'anonymous'
+        };
+        
+        this.logs.unshift(entry);
+        if (this.logs.length > this.maxSize) {
+            this.logs.pop();
+        }
+        
+        if (DEBUG_MODE?.enabled) {
+            console.log(`[操作日志] ${action}:`, details);
+        }
+    },
+    
+    /**
+     * 获取日志
+     * @returns {Array} 日志列表
+     */
+    getLogs() {
+        return [...this.logs];
+    },
+    
+    /**
+     * 导出日志
+     */
+    exportLogs() {
+        const blob = new Blob(
+            [JSON.stringify(this.logs, null, 2)],
+            { type: 'application/json' }
+        );
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `novel-writer-logs-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toastr.success('日志导出成功！', '小说续写器');
+    },
+    
+    /**
+     * 清空日志
+     */
+    clearLogs() {
+        this.logs = [];
+        toastr.info('日志已清空', '小说续写器');
+    }
+};
+
+/**
+ * 主题管理器 - 深色/浅色模式支持
+ */
+const ThemeManager = {
+    prefersDark: false,
+    
+    /**
+     * 初始化主题
+     */
+    init() {
+        this.prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            this.prefersDark = e.matches;
+            this.applyTheme();
+        });
+        
+        this.applyTheme();
+    },
+    
+    /**
+     * 应用主题
+     */
+    applyTheme() {
+        if (this.prefersDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    },
+    
+    /**
+     * 切换主题
+     */
+    toggle() {
+        this.prefersDark = !this.prefersDark;
+        this.applyTheme();
+        toastr.info(
+            `主题: ${this.prefersDark ? '深色模式' : '浅色模式'}`,
+            '小说续写器'
+        );
+    }
+};
+
+/**
+ * 调试模式开关
+ */
+const DEBUG_MODE = {
+    enabled: false,
+    
+    /**
+     * 调试日志
+     */
+    log(...args) {
+        if (this.enabled) {
+            console.log('[调试]', ...args);
+        }
+    },
+    
+    /**
+     * 调试警告
+     */
+    warn(...args) {
+        if (this.enabled) {
+            console.warn('[调试]', ...args);
+        }
+    },
+    
+    /**
+     * 切换调试模式
+     */
+    toggle() {
+        this.enabled = !this.enabled;
+        toastr.info(
+            `调试模式: ${this.enabled ? '已开启' : '已关闭'}`,
+            '小说续写器'
+        );
+    }
+};
+
+/**
  * 撤销管理器 - 实现操作的撤销和重做
  */
 const UndoManager = {
@@ -1044,6 +1759,12 @@ const FloatBall = {
                 e.preventDefault();
                 UndoManager.redo();
             }
+        }
+        
+        // ? 键显示快捷键帮助
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+            e.preventDefault();
+            KeyboardShortcuts.showHelp();
         }
     },
     
@@ -1910,6 +2631,9 @@ async function loadSettings() {
     setupPresetEventListeners();
     FloatBall.init();
     NovelReader.init();
+    
+    // 初始化主题管理器
+    ThemeManager.init();
 }
 
 function saveDrawerState() {
