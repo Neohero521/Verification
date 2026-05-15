@@ -1,7 +1,7 @@
 /**
  * Novel Writer Extension for SillyTavern
  * @description 小说章节导入、知识图谱构建、一键续写生成一体化扩展
- * @version 2.3.0
+ * @version 2.3.1
  * @author Neohero521
  * @license MIT
  */
@@ -9,6 +9,362 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 import * as PromptConstants from './prompt-constants.js';
+
+// ==============================================安全工具函数==============================================
+
+/**
+ * HTML 转义防止 XSS 攻击
+ * @param {string} text - 需要转义的文本
+ * @returns {string} 转义后的安全文本
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ==============================================加载状态管理工具函数==============================================
+
+/**
+ * 设置按钮加载状态
+ * @param {string|HTMLElement} selector - 选择器或元素
+ * @param {boolean} isLoading - 是否加载中
+ * @param {string} [loadingText="加载中..."] - 加载时显示的文本
+ */
+function setButtonLoading(selector, isLoading, loadingText = "加载中...") {
+    const $btn = typeof selector === 'string' ? document.querySelector(selector) : selector;
+    if (!$btn) return;
+    
+    if (isLoading) {
+        const $btnElement = $btn instanceof Element ? $btn : $btn[0];
+        $btnElement.dataset.originalText = $btnElement.textContent || $btnElement.querySelector('.btn-text')?.textContent || '';
+        $btnElement.dataset.originalIcon = $btnElement.querySelector('.btn-icon')?.innerHTML || '';
+        
+        const $textEl = $btnElement.querySelector('.btn-text');
+        const $iconEl = $btnElement.querySelector('.btn-icon');
+        
+        if ($textEl) $textEl.textContent = loadingText;
+        if ($iconEl) $iconEl.innerHTML = '<span class="loading-spinner"></span>';
+        
+        $btnElement.disabled = true;
+        $btnElement.classList.add('loading');
+        $btnElement.setAttribute('aria-busy', 'true');
+    } else {
+        const $btnElement = $btn instanceof Element ? $btn : $btn[0];
+        
+        const $textEl = $btnElement.querySelector('.btn-text');
+        const $iconEl = $btnElement.querySelector('.btn-icon');
+        
+        if ($textEl && $btnElement.dataset.originalText) $textEl.textContent = $btnElement.dataset.originalText;
+        if ($iconEl && $btnElement.dataset.originalIcon) $iconEl.innerHTML = $btnElement.dataset.originalIcon;
+        
+        $btnElement.disabled = false;
+        $btnElement.classList.remove('loading');
+        $btnElement.removeAttribute('aria-busy');
+    }
+}
+
+/**
+ * 显示操作状态（成功/失败提示）
+ * @param {string} message - 提示消息
+ * @param {string} type - 类型 (success|error|warning|info)
+ */
+function showOperationStatus(message, type = 'info') {
+    // 使用 toastr 显示状态，增强版
+    if (typeof toastr !== 'undefined') {
+        const toastType = type === 'success' ? toastr.success :
+                         type === 'error' ? toastr.error :
+                         type === 'warning' ? toastr.warning : toastr.info;
+        const safeMessage = escapeHtml(String(message));
+        toastType(safeMessage, '操作状态', { timeOut: 3000 });
+    }
+}
+
+// ==============================================增强配置管理模块==============================================
+
+/**
+ * 配置管理器 - 提供类型安全的配置读写
+ */
+const ConfigManager = {
+    /**
+     * 获取配置值
+     * @param {string} key - 配置键
+     * @param {*} defaultValue - 默认值
+     * @returns {*} 配置值
+     */
+    get(key, defaultValue = null) {
+        const keys = key.split('.');
+        let value = extension_settings[extensionName];
+        
+        for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+                value = value[k];
+            } else {
+                return defaultValue;
+            }
+        }
+        
+        return value !== undefined ? value : defaultValue;
+    },
+    
+    /**
+     * 设置配置值
+     * @param {string} key - 配置键
+     * @param {*} value - 配置值
+     * @param {boolean} autoSave - 是否自动保存
+     */
+    set(key, value, autoSave = true) {
+        const keys = key.split('.');
+        let obj = extension_settings[extensionName];
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+            const k = keys[i];
+            if (!(k in obj) || typeof obj[k] !== 'object') {
+                obj[k] = {};
+            }
+            obj = obj[k];
+        }
+        
+        obj[keys[keys.length - 1]] = value;
+        
+        if (autoSave) {
+            saveSettingsDebounced();
+        }
+    },
+    
+    /**
+     * 检查配置是否存在
+     * @param {string} key - 配置键
+     * @returns {boolean}
+     */
+    has(key) {
+        const keys = key.split('.');
+        let value = extension_settings[extensionName];
+        
+        for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+                value = value[k];
+            } else {
+                return false;
+            }
+        }
+        return true;
+    },
+    
+    /**
+     * 删除配置项
+     * @param {string} key - 配置键
+     */
+    delete(key) {
+        const keys = key.split('.');
+        let obj = extension_settings[extensionName];
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+            const k = keys[i];
+            if (!(k in obj) || typeof obj[k] !== 'object') {
+                return;
+            }
+            obj = obj[k];
+        }
+        
+        delete obj[keys[keys.length - 1]];
+        saveSettingsDebounced();
+    },
+    
+    /**
+     * 重置为默认配置
+     */
+    reset() {
+        extension_settings[extensionName] = JSON.parse(JSON.stringify(defaultSettings));
+        saveSettingsDebounced();
+        showOperationStatus('配置已重置为默认值', 'success');
+    },
+    
+    /**
+     * 导出配置
+     * @returns {string} JSON 字符串
+     */
+    export() {
+        return JSON.stringify(extension_settings[extensionName], null, 2);
+    },
+    
+    /**
+     * 验证配置结构
+     * @param {any} config - 待验证的配置
+     * @returns {boolean} 是否有效
+     */
+    _validateConfig(config) {
+        if (typeof config !== 'object' || config === null) {
+            return false;
+        }
+        
+        // 验证已知的数组字段
+        const arrayFields = ['chapterList', 'continueWriteChain', 'batchMergedGraphs'];
+        for (const field of arrayFields) {
+            if (config[field] !== undefined && !Array.isArray(config[field])) {
+                console.warn(`[ConfigManager] Invalid ${field}, should be array`);
+                return false;
+            }
+        }
+        
+        // 验证对象字段
+        const objectFields = ['chapterGraphMap', 'mergedGraph', 'drawerState', 'readerState', 'precheckReport'];
+        for (const field of objectFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'object') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be object`);
+                return false;
+            }
+        }
+        
+        // 验证数值字段
+        const numberFields = ['sendDelay', 'continueChapterIdCounter'];
+        for (const field of numberFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'number') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be number`);
+                return false;
+            }
+        }
+        
+        // 验证布尔字段
+        const booleanFields = ['example_setting', 'enableQualityCheck', 'graphValidateResultShow', 'qualityResultShow', 'enableAutoParentPreset'];
+        for (const field of booleanFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'boolean') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be boolean`);
+                return false;
+            }
+        }
+        
+        return true;
+    },
+    
+    /**
+     * 导入配置
+     * @param {string} jsonStr - JSON 字符串
+     */
+    import(jsonStr) {
+        try {
+            const config = JSON.parse(jsonStr);
+            
+            // 验证配置结构
+            if (!this._validateConfig(config)) {
+                throw new Error('配置结构无效，请检查导入的配置文件');
+            }
+            
+            // 安全合并配置
+            extension_settings[extensionName] = deepMerge(
+                extension_settings[extensionName],
+                config
+            );
+            
+            saveSettingsDebounced();
+            showOperationStatus('配置导入成功', 'success');
+            return true;
+        } catch (err) {
+            console.error('[ConfigManager] 导入失败:', err);
+            showOperationStatus('配置导入失败: ' + err.message, 'error');
+            return false;
+        }
+    }
+};
+
+/**
+ * 用户会话管理
+ */
+const SessionManager = {
+    _sessionKey: 'novel_writer_session',
+    
+    /**
+     * 设置会话数据
+     */
+    set(key, value) {
+        const session = this._getSession();
+        session[key] = value;
+        localStorage.setItem(this._sessionKey, JSON.stringify(session));
+    },
+    
+    /**
+     * 获取会话数据
+     */
+    get(key, defaultValue = null) {
+        const session = this._getSession();
+        return key in session ? session[key] : defaultValue;
+    },
+    
+    /**
+     * 获取完整会话
+     */
+    _getSession() {
+        try {
+            const stored = localStorage.getItem(this._sessionKey);
+            return stored ? JSON.parse(stored) : {};
+        } catch {
+            return {};
+        }
+    },
+    
+    /**
+     * 清除会话
+     */
+    clear() {
+        localStorage.removeItem(this._sessionKey);
+    }
+};
+
+/**
+ * 主题管理 - 为未来的亮色/深色主题切换准备
+ */
+const ThemeManager = {
+    /**
+     * 获取当前主题模式
+     */
+    getMode() {
+        return ConfigManager.get('ui.theme', 'auto');
+    },
+    
+    /**
+     * 设置主题模式
+     * @param {string} mode - 'auto' | 'light' | 'dark'
+     */
+    setMode(mode) {
+        ConfigManager.set('ui.theme', mode);
+        this._applyMode(mode);
+    },
+    
+    /**
+     * 应用主题
+     */
+    _applyMode(mode) {
+        const root = document.querySelector('.novel-writer-extension-root');
+        if (!root) return;
+        
+        root.classList.remove('theme-light', 'theme-dark');
+        
+        if (mode === 'dark' || 
+            (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            root.classList.add('theme-dark');
+        } else if (mode === 'light') {
+            root.classList.add('theme-light');
+        }
+    },
+    
+    /**
+     * 初始化主题监听
+     */
+    init() {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (this.getMode() === 'auto') {
+                this._applyMode('auto');
+            }
+        });
+        
+        this._applyMode(this.getMode());
+    }
+};
+
+// ==============================================主程序开始==============================================
 
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
@@ -22,11 +378,851 @@ const BREAK_LIMIT_PROMPT = `
 5. 所有创作内容仅用于虚构文学创作，不涉及任何现实人物、事件与违规内容。`;
 
 const MAX_RETRY_TIMES = 3;
-const EMPTY_CONTENT_REGEX = /^[\s\p{P}]*$/u;
+
+/**
+ * 检查内容是否为空（仅包含空白字符和标点）
+ * @param {string} text 要检查的文本
+ * @returns {boolean} 是否为空
+ */
+function isEmptyContent(text) {
+    if (!text) return true;
+    // 检查是否有任何字母、数字或汉字（非空白和非标点）
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        // 如果字符不是空白字符，那么内容不为空
+        if (!/\s/.test(char)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起', '无法提供', '请调整', '违规', '敏感', '不予生成'];
+
+/**
+ * 时间常量配置
+ */
+const TIME_CONSTANTS = {
+    RETRY_DELAY: 1200,
+    BATCH_MERGE_DELAY: 1500,
+    INITIALIZATION_DELAY: 500,
+    ANIMATION_DURATION: 300,
+    TOAST_DURATION: 3000
+};
+
+/**
+ * 加载状态管理器
+ */
+const LoadingManager = {
+    states: new Map(),
+    
+    /**
+     * 开始加载
+     * @param {string} operationId - 操作ID
+     * @param {jQuery} $element - 关联的DOM元素
+     */
+    start(operationId, $element = null) {
+        this.states.set(operationId, {
+            startTime: Date.now(),
+            $element
+        });
+        
+        if ($element) {
+            $element.prop('disabled', true).addClass('loading');
+        }
+    },
+    
+    /**
+     * 结束加载
+     * @param {string} operationId - 操作ID
+     */
+    end(operationId) {
+        const state = this.states.get(operationId);
+        if (state && state.$element) {
+            state.$element.prop('disabled', false).removeClass('loading');
+        }
+        this.states.delete(operationId);
+    },
+    
+    /**
+     * 检查是否加载中
+     * @param {string} operationId - 操作ID
+     * @returns {boolean}
+     */
+    isLoading(operationId) {
+        return this.states.has(operationId);
+    },
+    
+    /**
+     * 清除所有加载状态
+     */
+    clear() {
+        this.states.forEach((state, id) => {
+            if (state.$element) {
+                state.$element.prop('disabled', false).removeClass('loading');
+            }
+        });
+        this.states.clear();
+    }
+};
+
+/**
+ * 通用错误处理包装器
+ * @param {Function} asyncFn - 异步函数
+ * @param {Object} options - 配置选项
+ * @returns {Promise<any>}
+ */
+async function withErrorHandler(asyncFn, options = {}) {
+    const {
+        errorTitle = '操作失败',
+        fallbackValue = null,
+        showToast = true,
+        logError = true
+    } = options;
+    
+    try {
+        return await asyncFn();
+    } catch (error) {
+        if (logError) {
+            console.error(`[小说续写插件] ${errorTitle}:`, error);
+        }
+        if (showToast) {
+            toastr.error(`${errorTitle}: ${error.message}`, '小说续写器');
+        }
+        return fallbackValue;
+    }
+}
+
+/**
+ * 批量操作管理器
+ */
+const BatchOperations = {
+    /**
+     * 批量删除章节
+     */
+    async deleteChapters(chapterIds) {
+        if (!chapterIds || chapterIds.length === 0) {
+            toastr.info('没有选择章节', '小说续写器');
+            return;
+        }
+        
+        const confirmed = await ConfirmDialog.danger(
+            `确定要删除 ${chapterIds.length} 个章节吗？此操作不可撤销。`
+        );
+        
+        if (!confirmed) return;
+        
+        LoadingManager.start('batch-delete');
+        
+        try {
+            for (const id of chapterIds) {
+                // 删除章节逻辑
+                currentParsedChapters = currentParsedChapters.filter(c => c.id !== id);
+                const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+                delete graphMap[id];
+                extension_settings[extensionName].chapterGraphMap = graphMap;
+                OperationLogger.log('删除章节', { chapterId: id });
+            }
+            
+            saveSettingsDebounced();
+            renderChapterList();
+            toastr.success(`成功删除 ${chapterIds.length} 个章节`, '小说续写器');
+        } finally {
+            LoadingManager.end('batch-delete');
+        }
+    }
+};
+
+/**
+ * 操作确认对话框 - 统一的确认交互
+ */
+const ConfirmDialog = {
+    /**
+     * 显示确认对话框
+     * @param {string} message - 确认消息
+     * @param {Object} options - 配置选项
+     * @returns {Promise<boolean>}
+     */
+    show(message, options = {}) {
+        const {
+            title = '确认操作',
+            confirmText = '确定',
+            cancelText = '取消',
+            confirmClass = 'btn-primary',
+            danger = false
+        } = options;
+        
+        return new Promise((resolve) => {
+            const $dialog = $(`
+                <div class="confirm-dialog-overlay" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                    animation: fadeIn 0.2s ease-out;
+                ">
+                    <div class="confirm-dialog" style="
+                        background: white;
+                        border-radius: 12px;
+                        padding: 24px;
+                        max-width: 420px;
+                        width: 90%;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                        animation: slideUp 0.3s ease-out;
+                    ">
+                        <h3 style="
+                            margin: 0 0 16px;
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: #1a1a1a;
+                        ">${title}</h3>
+                        <p style="
+                            margin: 0 0 24px;
+                            font-size: 14px;
+                            color: #4a4a4a;
+                            line-height: 1.6;
+                        ">${message}</p>
+                        <div class="confirm-dialog-buttons" style="
+                            display: flex;
+                            gap: 12px;
+                            justify-content: flex-end;
+                        ">
+                            <button class="btn confirm-no" style="
+                                padding: 10px 20px;
+                                border: 1px solid #ddd;
+                                background: white;
+                                color: #4a4a4a;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            ">
+                                ${cancelText}
+                            </button>
+                            <button class="btn confirm-yes" style="
+                                padding: 10px 20px;
+                                border: none;
+                                background: ${danger ? '#e53e3e' : '#3182ce'};
+                                color: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            ">
+                                ${confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { 
+                            opacity: 0;
+                            transform: translateY(20px);
+                        }
+                        to { 
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                    @keyframes fadeOut {
+                        from { opacity: 1; }
+                        to { opacity: 0; }
+                    }
+                </style>
+            `);
+            
+            $dialog.find('.confirm-yes').on('click', () => {
+                $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                setTimeout(() => {
+                    $dialog.remove();
+                    resolve(true);
+                }, 200);
+            });
+            
+            $dialog.find('.confirm-no, .confirm-dialog-overlay').on('click', (e) => {
+                if (e.target === $dialog[0] || e.target.classList.contains('confirm-no')) {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(false);
+                    }, 200);
+                }
+            });
+            
+            $dialog.on('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(false);
+                    }, 200);
+                } else if (e.key === 'Enter') {
+                    $dialog.css('animation', 'fadeOut 0.2s ease-out forwards');
+                    setTimeout(() => {
+                        $dialog.remove();
+                        resolve(true);
+                    }, 200);
+                }
+            });
+            
+            $('body').append($dialog);
+            $dialog.find('.confirm-no').focus();
+        });
+    },
+    
+    /**
+     * 快捷危险操作确认方法
+     * @param {string} message - 确认消息
+     * @returns {Promise<boolean>}
+     */
+    danger(message) {
+        return this.show(message, {
+            title: '⚠️ 危险操作',
+            confirmText: '确认删除',
+            danger: true
+        });
+    }
+};
+
+/**
+ * 快捷键帮助面板 - 显示快捷键说明
+ */
+const KeyboardShortcuts = {
+    shortcuts: [
+        { key: 'Ctrl+Shift+N', desc: '打开/关闭面板' },
+        { key: 'Ctrl+Z', desc: '撤销' },
+        { key: 'Ctrl+Shift+Z / Ctrl+Y', desc: '重做' },
+        { key: 'Escape', desc: '关闭面板' },
+        { key: '?', desc: '显示快捷键帮助' }
+    ],
+    
+    /**
+     * 显示快捷键帮助面板
+     */
+    showHelp() {
+        const content = this.shortcuts
+            .map(s => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px 16px;">
+                        <kbd style="
+                            background: #f7fafc;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 4px;
+                            padding: 2px 8px;
+                            font-family: monospace;
+                            font-size: 13px;
+                            color: #2d3748;
+                        ">${s.key}</kbd>
+                    </td>
+                    <td style="padding: 12px 16px; color: #4a5568;">${s.desc}</td>
+                </tr>
+            `)
+            .join('');
+        
+        const html = `
+            <div style="position: relative;">
+                <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #1a202c;">⌨️ 快捷键</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tbody>
+                        ${content}
+                    </tbody>
+                </table>
+                <p style="margin-top: 16px; font-size: 12px; color: #a0aec0;">按 ? 或 Escape 关闭此帮助</p>
+            </div>
+        `;
+        
+        toastr.info(html, '快捷键帮助', {
+            timeOut: 0,
+            extendedTimeOut: 0,
+            closeButton: true,
+            positionClass: 'toast-top-right'
+        });
+    }
+};
+
+/**
+ * 进度通知组件 - 显示操作进度
+ */
+const ProgressNotifier = {
+    activeNotifications: new Map(),
+    
+    /**
+     * 开始一个进度通知
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 初始消息
+     * @returns {Object} 进度控制对象
+     */
+    start(operationId, message = '处理中...') {
+        const $notification = $(`
+            <div class="progress-notification" data-id="${operationId}" style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border-radius: 8px;
+                padding: 16px 20px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+                z-index: 100000;
+                min-width: 300px;
+            ">
+                <div class="progress-notification-message" style="
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #2d3748;
+                    margin-bottom: 8px;
+                ">${message}</div>
+                <div class="progress-notification-bar" style="
+                    height: 6px;
+                    background: #e2e8f0;
+                    border-radius: 3px;
+                    overflow: hidden;
+                ">
+                    <div class="progress-notification-fill" style="
+                        height: 100%;
+                        background: linear-gradient(90deg, #3182ce, #63b3ed);
+                        width: 0%;
+                        transition: width 0.3s ease;
+                        border-radius: 3px;
+                    "></div>
+                </div>
+                <div class="progress-notification-percent" style="
+                    text-align: right;
+                    font-size: 12px;
+                    color: #718096;
+                    margin-top: 4px;
+                ">0%</div>
+            </div>
+        `);
+        
+        $('body').append($notification);
+        this.activeNotifications.set(operationId, $notification);
+        
+        return {
+            update: (percent, message) => {
+                this.update(operationId, percent, message);
+            },
+            complete: (message) => {
+                this.complete(operationId, message);
+            },
+            error: (message) => {
+                this.error(operationId, message);
+            }
+        };
+    },
+    
+    /**
+     * 更新进度
+     * @param {string} operationId - 操作ID
+     * @param {number} percent - 百分比 (0-100)
+     * @param {string} message - 更新消息
+     */
+    update(operationId, percent, message = '') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        const clampedPercent = Math.max(0, Math.min(100, percent));
+        $notification.find('.progress-notification-fill').css('width', `${clampedPercent}%`);
+        $notification.find('.progress-notification-percent').text(`${Math.round(clampedPercent)}%`);
+        
+        if (message) {
+            $notification.find('.progress-notification-message').text(message);
+        }
+    },
+    
+    /**
+     * 标记完成
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 完成消息
+     */
+    complete(operationId, message = '完成') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        $notification.find('.progress-notification-fill').css('width', '100%');
+        $notification.find('.progress-notification-percent').text('✓');
+        $notification.find('.progress-notification-message').text(message);
+        $notification.find('.progress-notification-fill').css('background', 'linear-gradient(90deg, #38a169, #68d391)');
+        
+        setTimeout(() => {
+            $notification.fadeOut(300, () => {
+                $notification.remove();
+                this.activeNotifications.delete(operationId);
+            });
+        }, 2000);
+    },
+    
+    /**
+     * 标记失败
+     * @param {string} operationId - 操作ID
+     * @param {string} message - 失败消息
+     */
+    error(operationId, message = '失败') {
+        const $notification = this.activeNotifications.get(operationId);
+        if (!$notification) return;
+        
+        $notification.find('.progress-notification-fill').css('background', 'linear-gradient(90deg, #e53e3e, #fc8181)');
+        $notification.find('.progress-notification-message').text(message);
+        
+        setTimeout(() => {
+            $notification.fadeOut(300, () => {
+                $notification.remove();
+                this.activeNotifications.delete(operationId);
+            });
+        }, 3000);
+    }
+};
+
+/**
+ * 数据管理器 - 数据导出/导入功能
+ */
+const DataManager = {
+    /**
+     * 导出数据
+     */
+    export() {
+        const data = {
+            version: '2.4.0',
+            timestamp: Date.now(),
+            chapters: currentParsedChapters,
+            graphMap: extension_settings[extensionName].chapterGraphMap || {},
+            settings: extension_settings[extensionName]
+        };
+        
+        const blob = new Blob(
+            [JSON.stringify(data, null, 2)],
+            { type: 'application/json' }
+        );
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `novel-writer-backup-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toastr.success('数据导出成功！', '小说续写器');
+    },
+    
+    /**
+     * 导入数据
+     */
+    import() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const confirmed = await ConfirmDialog.show(
+                '导入将覆盖现有数据，确定继续吗？',
+                {
+                    title: '⚠️ 数据导入确认',
+                    confirmText: '确定导入',
+                    danger: false
+                }
+            );
+            
+            if (!confirmed) {
+                input.value = '';
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                if (!data.version) {
+                    throw new Error('无效的数据格式');
+                }
+                
+                if (data.chapters) {
+                    currentParsedChapters = data.chapters;
+                }
+                if (data.graphMap) {
+                    extension_settings[extensionName].chapterGraphMap = data.graphMap;
+                }
+                if (data.settings) {
+                    Object.assign(extension_settings[extensionName], data.settings);
+                }
+                
+                saveSettingsDebounced();
+                renderChapterList();
+                
+                toastr.success('数据导入成功！', '小说续写器');
+            } catch (error) {
+                console.error('导入失败:', error);
+                toastr.error(`导入失败: ${error.message}`, '小说续写器');
+            }
+            
+            input.value = '';
+        };
+        
+        input.click();
+    }
+};
+
+/**
+ * 操作日志系统 - 记录用户操作
+ */
+const OperationLogger = {
+    logs: [],
+    maxSize: 100,
+    
+    /**
+     * 记录操作
+     * @param {string} action - 操作名称
+     * @param {Object} details - 详细信息
+     */
+    log(action, details = {}) {
+        const entry = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            timestamp: Date.now(),
+            action,
+            details,
+            user: 'anonymous'
+        };
+        
+        this.logs.unshift(entry);
+        if (this.logs.length > this.maxSize) {
+            this.logs.pop();
+        }
+        
+        if (DEBUG_MODE?.enabled) {
+            console.log(`[操作日志] ${action}:`, details);
+        }
+    },
+    
+    /**
+     * 获取日志
+     * @returns {Array} 日志列表
+     */
+    getLogs() {
+        return [...this.logs];
+    },
+    
+    /**
+     * 导出日志
+     */
+    exportLogs() {
+        const blob = new Blob(
+            [JSON.stringify(this.logs, null, 2)],
+            { type: 'application/json' }
+        );
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `novel-writer-logs-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toastr.success('日志导出成功！', '小说续写器');
+    },
+    
+    /**
+     * 清空日志
+     */
+    clearLogs() {
+        this.logs = [];
+        toastr.info('日志已清空', '小说续写器');
+    }
+};
+
+/**
+ * 主题管理器 - 深色/浅色模式支持
+ */
+const ThemeManager = {
+    prefersDark: false,
+    
+    /**
+     * 初始化主题
+     */
+    init() {
+        this.prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            this.prefersDark = e.matches;
+            this.applyTheme();
+        });
+        
+        this.applyTheme();
+    },
+    
+    /**
+     * 应用主题
+     */
+    applyTheme() {
+        if (this.prefersDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    },
+    
+    /**
+     * 切换主题
+     */
+    toggle() {
+        this.prefersDark = !this.prefersDark;
+        this.applyTheme();
+        toastr.info(
+            `主题: ${this.prefersDark ? '深色模式' : '浅色模式'}`,
+            '小说续写器'
+        );
+    }
+};
+
+/**
+ * 调试模式开关
+ */
+const DEBUG_MODE = {
+    enabled: false,
+    
+    /**
+     * 调试日志
+     */
+    log(...args) {
+        if (this.enabled) {
+            console.log('[调试]', ...args);
+        }
+    },
+    
+    /**
+     * 调试警告
+     */
+    warn(...args) {
+        if (this.enabled) {
+            console.warn('[调试]', ...args);
+        }
+    },
+    
+    /**
+     * 切换调试模式
+     */
+    toggle() {
+        this.enabled = !this.enabled;
+        toastr.info(
+            `调试模式: ${this.enabled ? '已开启' : '已关闭'}`,
+            '小说续写器'
+        );
+    }
+};
+
+/**
+ * 撤销管理器 - 实现操作的撤销和重做
+ */
+const UndoManager = {
+    undoStack: [],
+    redoStack: [],
+    maxSize: 50,
+    
+    /**
+     * 推入一个操作到撤销栈
+     * @param {Object} action - 操作对象 { type, data, undo, redo }
+     */
+    push(action) {
+        this.undoStack.push(action);
+        if (this.undoStack.length > this.maxSize) {
+            this.undoStack.shift();
+        }
+        this.redoStack = [];
+    },
+    
+    /**
+     * 执行撤销
+     * @returns {boolean} 是否成功撤销
+     */
+    undo() {
+        if (this.undoStack.length === 0) {
+            toastr.info('没有可撤销的操作', '小说续写器');
+            return false;
+        }
+        
+        const action = this.undoStack.pop();
+        if (action && action.undo) {
+            try {
+                action.undo();
+                this.redoStack.push(action);
+                toastr.success(`已撤销: ${action.type}`, '小说续写器');
+                return true;
+            } catch (error) {
+                console.error('[UndoManager] 撤销失败:', error);
+                toastr.error(`撤销失败: ${error.message}`, '小说续写器');
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    /**
+     * 执行重做
+     * @returns {boolean} 是否成功重做
+     */
+    redo() {
+        if (this.redoStack.length === 0) {
+            toastr.info('没有可重做的操作', '小说续写器');
+            return false;
+        }
+        
+        const action = this.redoStack.pop();
+        if (action && action.redo) {
+            try {
+                action.redo();
+                this.undoStack.push(action);
+                toastr.success(`已重做: ${action.type}`, '小说续写器');
+                return true;
+            } catch (error) {
+                console.error('[UndoManager] 重做失败:', error);
+                toastr.error(`重做失败: ${error.message}`, '小说续写器');
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    /**
+     * 清除所有历史
+     */
+    clear() {
+        this.undoStack = [];
+        this.redoStack = [];
+    },
+    
+    /**
+     * 获取撤销栈大小
+     */
+    canUndo() {
+        return this.undoStack.length > 0;
+    },
+    
+    /**
+     * 获取重做栈大小
+     */
+    canRedo() {
+        return this.redoStack.length > 0;
+    }
+};
 
 const MAX_API_CALLS_PER_MINUTE = 3;
 const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const WAIT_TIME_PRECISION = 1;
 let apiCallTimestamps = [];
 
 const presetChapterRegexList = [
@@ -68,7 +1264,7 @@ const defaultSettings = {
     precheckStatus: "未执行",
     precheckReportText: "",
     floatBallState: {
-        position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
+        position: { x: window.innerWidth - 90, y: Math.max(0, window.innerHeight / 2 - 32) },
         isPanelOpen: false,
         activeTab: "tab-chapter"
     },
@@ -106,6 +1302,47 @@ function debounce(func, delay) {
     };
 }
 
+/**
+ * 节流函数 - 限制函数在指定时间间隔内只能执行一次
+ * @param {Function} func - 要执行的函数
+ * @param {number} limit - 时间间隔（毫秒）
+ * @returns {Function}
+ */
+function throttle(func, limit) {
+    let inThrottle = false;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+/**
+ * 带立即执行的防抖函数
+ * @param {Function} func - 要执行的函数
+ * @param {number} delay - 延迟时间（毫秒）
+ * @param {boolean} immediate - 是否立即执行
+ * @returns {Function}
+ */
+function debounceImmediate(func, delay, immediate = false) {
+    let timer = null;
+    return function(...args) {
+        if (timer === null && immediate) {
+            func.apply(this, args);
+        }
+        
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            if (!immediate) {
+                func.apply(this, args);
+            }
+            timer = null;
+        }, delay);
+    };
+}
+
 function deepMerge(target, source) {
     const merged = { ...target };
     for (const key in source) {
@@ -131,7 +1368,7 @@ async function rateLimitCheck() {
         const waitTime = earliestCallTime + API_RATE_LIMIT_WINDOW_MS - now;
         
         if (waitTime > 0) {
-            const waitSeconds = (waitTime / 1000).toFixed(1);
+            const waitSeconds = (waitTime / 1000).toFixed(WAIT_TIME_PRECISION);
             console.log(`[小说续写插件] 触发API限流保护，需等待${waitSeconds}秒`);
             toastr.info(`触发API限流保护，需等待${waitSeconds}秒后继续生成`, "小说续写器");
             
@@ -155,7 +1392,17 @@ async function rateLimitCheck() {
 
 async function generateRawWithBreakLimit(params) {
     const context = getContext();
+    
+    if (!context || typeof context !== 'object') {
+        throw new Error('无法获取上下文，插件可能未正确初始化');
+    }
+    
     const { generateRaw } = context;
+    
+    if (typeof generateRaw !== 'function') {
+        throw new Error('generateRaw 函数不可用，请检查 SillyTavern 版本兼容性');
+    }
+    
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
@@ -174,6 +1421,8 @@ async function generateRawWithBreakLimit(params) {
         systemPrompt: finalSystemPrompt
     };
     
+    const originalTemperature = params.temperature || 0.7;
+    
     while (retryCount < MAX_RETRY_TIMES) {
         if (stopGenerateFlag || stopSending) {
             lastError = new Error('用户手动停止生成');
@@ -185,7 +1434,7 @@ async function generateRawWithBreakLimit(params) {
             const rawResult = await generateRaw(finalParams);
             const trimmedResult = rawResult.trim();
             
-            if (EMPTY_CONTENT_REGEX.test(trimmedResult)) {
+            if (isEmptyContent(trimmedResult)) {
                 throw new Error('返回内容为空');
             }
             
@@ -225,9 +1474,16 @@ async function generateRawWithBreakLimit(params) {
             console.warn(`[小说续写插件] 第${retryCount}次调用失败：${error.message}`);
             
             if (retryCount < MAX_RETRY_TIMES) {
-                finalParams.systemPrompt += `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
-                finalParams.temperature = Math.min((finalParams.temperature || 0.7) + 0.12, 1.2);
-                await new Promise(resolve => setTimeout(resolve, 1200));
+                const retryTemperature = Math.min(originalTemperature + 0.12 * retryCount, 1.2);
+                finalParams.systemPrompt = params.systemPrompt + `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
+                finalParams.temperature = retryTemperature;
+                
+                await new Promise(resolve => setTimeout(resolve, TIME_CONSTANTS.RETRY_DELAY));
+                
+                if (stopGenerateFlag || stopSending) {
+                    lastError = new Error('用户手动停止生成');
+                    break;
+                }
             }
         }
     }
@@ -348,55 +1604,176 @@ const FloatBall = {
     startPos: { x: 0, y: 0 },
     offset: { x: 0, y: 0 },
     minMoveDistance: 3,
+    _abortController: null,
     
     init() {
-        this.ball = document.getElementById("novel-writer-float-ball");
-        this.panel = document.getElementById("novel-writer-panel");
-        
-        if (!this.ball || !this.panel) {
-            console.error("[小说续写插件] 元素未找到");
-            toastr.error("小说续写插件加载失败", "插件错误");
-            return;
+        try {
+            this.ball = document.getElementById("novel-writer-float-ball");
+            this.panel = document.getElementById("novel-writer-panel");
+            
+            if (!this.ball || !this.panel) {
+                console.error("[小说续写插件] 元素未找到");
+                if (typeof toastr !== 'undefined') {
+                    toastr.error("小说续写插件加载失败", "插件错误");
+                }
+                return;
+            }
+            
+            console.log("[小说续写插件] 悬浮球初始化成功");
+            this.bindEvents();
+            this.restoreState();
+            this.ball.style.visibility = "visible";
+            this.ball.style.opacity = "1";
+            this.ball.style.display = "flex";
+            
+            console.log("[小说续写插件] 悬浮球已显示");
+        } catch (error) {
+            console.error("[小说续写插件] 悬浮球初始化失败:", error);
         }
-        
-        console.log("[小说续写插件] 悬浮球初始化成功");
-        this.bindEvents();
-        this.restoreState();
-        this.ball.style.visibility = "visible";
-        this.ball.style.opacity = "1";
-        this.ball.style.display = "flex";
+    },
+    
+    destroy() {
+        if (this._abortController) {
+            this._abortController.abort();
+        }
+        document.onclick = null;
+        window.onresize = null;
     },
     
     bindEvents() {
-        this.ball.removeEventListener("mousedown", this.startDrag.bind(this));
-        document.removeEventListener("mousemove", this.onDrag.bind(this));
-        document.removeEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.removeEventListener("touchstart", this.startDrag.bind(this));
-        document.removeEventListener("touchmove", this.onDrag.bind(this));
-        document.removeEventListener("touchend", this.stopDrag.bind(this));
+        if (this._abortController) {
+            this._abortController.abort();
+        }
+        this._abortController = new AbortController();
+        const signal = this._abortController.signal;
         
-        this.ball.addEventListener("mousedown", this.startDrag.bind(this));
-        document.addEventListener("mousemove", this.onDrag.bind(this));
-        document.addEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
-        document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
-        document.addEventListener("touchend", this.stopDrag.bind(this));
+        this.ball.addEventListener("mousedown", this.startDrag.bind(this), { signal });
+        document.addEventListener("mousemove", this.onDrag.bind(this), { signal });
+        document.addEventListener("mouseup", this.stopDrag.bind(this), { signal });
+        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { signal, passive: false });
+        document.addEventListener("touchmove", this.onDrag.bind(this), { signal, passive: false });
+        document.addEventListener("touchend", this.stopDrag.bind(this), { signal });
+        
+        this.ball.addEventListener("keydown", this.onBallKeydown.bind(this), { signal });
         
         const closeBtn = document.getElementById("panel-close-btn");
-        closeBtn.onclick = (e) => {
+        closeBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             this.hidePanel();
-        };
+            this.ball.focus();
+        }, { signal });
         
         document.querySelectorAll(".panel-tab-item").forEach(tab => {
-            tab.onclick = (e) => {
+            tab.addEventListener("click", (e) => {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
-            };
+            }, { signal });
+            tab.addEventListener("keydown", this.onTabKeydown.bind(this), { signal });
         });
         
-        document.onclick = this.outsideClose.bind(this);
-        window.onresize = debounce(this.resizeHandler.bind(this), 200);
+        document.addEventListener("click", this.outsideClose.bind(this), { signal });
+        window.addEventListener("resize", debounce(this.resizeHandler.bind(this), 200), { signal });
+        document.addEventListener("keydown", this.onGlobalKeydown.bind(this), { signal });
+    },
+    
+    onBallKeydown(e) {
+        switch(e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.togglePanel();
+                if (this.panel.classList.contains("show")) {
+                    // 面板打开时，焦点移到第一个选项卡
+                    const firstTab = this.panel.querySelector('.panel-tab-item');
+                    if (firstTab) firstTab.focus();
+                }
+                break;
+            case 'ArrowDown':
+            case 'ArrowRight':
+                e.preventDefault();
+                this.showPanel();
+                const firstTab = this.panel.querySelector('.panel-tab-item');
+                if (firstTab) firstTab.focus();
+                break;
+        }
+    },
+    
+    onTabKeydown(e) {
+        const tabItems = Array.from(this.panel.querySelectorAll(".panel-tab-item"));
+        const currentIndex = tabItems.indexOf(e.currentTarget);
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+            case 'ArrowUp':
+                e.preventDefault();
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabItems.length - 1;
+                tabItems[prevIndex].focus();
+                tabItems[prevIndex].click();
+                break;
+            case 'ArrowRight':
+            case 'ArrowDown':
+                e.preventDefault();
+                const nextIndex = currentIndex < tabItems.length - 1 ? currentIndex + 1 : 0;
+                tabItems[nextIndex].focus();
+                tabItems[nextIndex].click();
+                break;
+            case 'Home':
+                e.preventDefault();
+                tabItems[0].focus();
+                break;
+            case 'End':
+                e.preventDefault();
+                tabItems[tabItems.length - 1].focus();
+                break;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.switchTab(e.currentTarget.dataset.tab);
+                break;
+        }
+    },
+    
+    onGlobalKeydown(e) {
+        // Escape 键关闭面板
+        if (e.key === 'Escape' && this.panel.classList.contains("show")) {
+            e.preventDefault();
+            this.hidePanel();
+            this.ball.focus();
+        }
+        
+        // Ctrl/Cmd + Shift + N 打开/关闭面板（快捷键）
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+            e.preventDefault();
+            this.togglePanel();
+            if (this.panel.classList.contains("show")) {
+                const firstTab = this.panel.querySelector('.panel-tab-item');
+                if (firstTab) firstTab.focus();
+            } else {
+                this.ball.focus();
+            }
+        }
+        
+        // Ctrl/Cmd + Z 撤销
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+            if (this.panel.classList.contains("show")) {
+                e.preventDefault();
+                UndoManager.undo();
+            }
+        }
+        
+        // Ctrl/Cmd + Shift + Z 或 Ctrl/Cmd + Y 重做
+        if ((e.ctrlKey || e.metaKey) && (e.shiftKey && e.key === 'z' || e.key === 'y')) {
+            if (this.panel.classList.contains("show")) {
+                e.preventDefault();
+                UndoManager.redo();
+            }
+        }
+        
+        // ? 键显示快捷键帮助
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+            e.preventDefault();
+            KeyboardShortcuts.showHelp();
+        }
     },
     
     outsideClose(e) {
@@ -419,6 +1796,9 @@ const FloatBall = {
         this.isDragging = false;
         this.isClick = true;
         this.ball.classList.add("dragging");
+        this.ball.style.transform = 'none';
+        this.ball.style.right = 'auto';
+        this.ball.style.bottom = 'auto';
         
         const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -456,6 +1836,7 @@ const FloatBall = {
         this.ball.style.left = `${x}px`;
         this.ball.style.top = `${y}px`;
         this.ball.style.right = 'auto';
+        this.ball.style.bottom = 'auto';
         this.ball.style.transform = 'none';
         
         extension_settings[extensionName].floatBallState.position = { x, y };
@@ -493,7 +1874,8 @@ const FloatBall = {
         }
         
         this.ball.style.right = 'auto';
-        this.ball.style.transform = "none";
+        this.ball.style.bottom = 'auto';
+        this.ball.style.transform = 'none';
         
         const newRect = this.ball.getBoundingClientRect();
         extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
@@ -533,13 +1915,18 @@ const FloatBall = {
         const state = extension_settings[extensionName].floatBallState || defaultSettings.floatBallState;
         const maxX = window.innerWidth - this.ball.offsetWidth;
         const maxY = window.innerHeight - this.ball.offsetHeight;
-        const safeX = Math.max(0, Math.min(state.position.x, maxX));
-        const safeY = Math.max(0, Math.min(state.position.y, maxY));
+        
+        let safeX = state.position?.x ?? (window.innerWidth - 90);
+        let safeY = state.position?.y ?? (window.innerHeight / 2 - 32);
+        
+        safeX = Math.max(0, Math.min(safeX, maxX));
+        safeY = Math.max(0, Math.min(safeY, maxY));
         
         this.ball.style.left = `${safeX}px`;
         this.ball.style.top = `${safeY}px`;
         this.ball.style.right = 'auto';
-        this.ball.style.transform = "none";
+        this.ball.style.bottom = 'auto';
+        this.ball.style.transform = 'none';
         
         this.switchTab(state.activeTab);
         if (state.isPanelOpen) this.showPanel();
@@ -1095,14 +2482,27 @@ async function importChapterGraphs(file) {
 async function batchMergeGraphs() {
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     const sortedChapters = [...currentParsedChapters].sort((a, b) => a.id - b.id);
-    const graphList = sortedChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
+    const graphList = sortedChapters.map(chapter => {
+        if (typeof chapter.id === 'undefined' || chapter.id === null) {
+            console.warn('[小说续写插件] 发现章节ID缺失:', chapter);
+            return null;
+        }
+        return graphMap[chapter.id];
+    }).filter(Boolean);
     
     if (graphList.length === 0) {
         toastr.warning('没有可合并的图谱', "小说续写器");
         return;
     }
     
-    const batchCount = parseInt($('#batch-merge-count').val()) || 50;
+    const batchCountInput = $('#batch-merge-count').val();
+    const batchCount = parseInt(batchCountInput);
+    
+    if (isNaN(batchCount)) {
+        toastr.error('每批合并数必须是有效的数字', "小说续写器");
+        return;
+    }
+    
     if (batchCount < 10 || batchCount > 100) {
         toastr.error('每批合并数必须在10-100之间', "小说续写器");
         return;
@@ -1142,20 +2542,26 @@ async function batchMergeGraphs() {
                 ...getActivePresetParams()
             });
             
-            const batchMergedGraph = JSON.parse(result.trim());
-            batchMergedGraph.batchInfo = {
-                batchNumber: batchNum,
-                totalBatches: batches.length,
-                startChapterId: sortedChapters[i * batchCount].id,
-                endChapterId: sortedChapters[Math.min((i + 1) * batchCount - 1, sortedChapters.length - 1)].id,
-                chapterCount: batch.length
-            };
-            
-            batchMergedGraphs.push(batchMergedGraph);
-            successCount++;
-            
-            extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
-            saveSettingsDebounced();
+            try {
+                const batchMergedGraph = JSON.parse(result.trim());
+                batchMergedGraph.batchInfo = {
+                    batchNumber: batchNum,
+                    totalBatches: batches.length,
+                    startChapterId: sortedChapters[i * batchCount].id,
+                    endChapterId: sortedChapters[Math.min((i + 1) * batchCount - 1, sortedChapters.length - 1)].id,
+                    chapterCount: batch.length
+                };
+                
+                batchMergedGraphs.push(batchMergedGraph);
+                successCount++;
+                
+                extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
+                saveSettingsDebounced();
+            } catch (parseError) {
+                console.error(`[小说续写插件] 批次${batchNum} JSON解析失败:`, parseError);
+                toastr.error(`批次${batchNum}合并结果解析失败，将跳过该批次`, "小说续写器");
+                continue;
+            }
             
             if (i < batches.length - 1 && !stopGenerateFlag) {
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -1241,8 +2647,32 @@ async function loadSettings() {
     await new Promise(resolve => setTimeout(resolve, 500));
     updatePresetNameDisplay();
     setupPresetEventListeners();
-    FloatBall.init();
-    NovelReader.init();
+    
+    // 初始化悬浮球和阅读器
+    if (typeof FloatBall !== 'undefined') {
+        try {
+            FloatBall.init();
+        } catch (error) {
+            console.error('[小说续写插件] FloatBall 初始化失败:', error);
+        }
+    }
+    
+    if (typeof NovelReader !== 'undefined') {
+        try {
+            NovelReader.init();
+        } catch (error) {
+            console.error('[小说续写插件] NovelReader 初始化失败:', error);
+        }
+    }
+    
+    // 初始化主题管理器
+    if (typeof ThemeManager !== 'undefined') {
+        try {
+            ThemeManager.init();
+        } catch (error) {
+            console.error('[小说续写插件] ThemeManager 初始化失败:', error);
+        }
+    }
 }
 
 function saveDrawerState() {
@@ -1404,7 +2834,23 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
             ...getActivePresetParams()
         });
         
-        const precheckResult = JSON.parse(result.trim());
+        let precheckResult;
+        try {
+            precheckResult = JSON.parse(result.trim());
+        } catch (parseError) {
+            console.error('[小说续写插件] 前置校验 JSON 解析失败:', parseError);
+            toastr.warning('前置校验结果解析失败，将使用默认值继续', "小说续写器");
+            return {
+                isPass: true,
+                preGraph: {},
+                report: "前置校验结果解析失败",
+                redLines: "无明确人设红线",
+                forbiddenRules: "无明确设定禁区",
+                foreshadowList: "无明确可呼应伏笔",
+                conflictWarning: "无潜在矛盾预警"
+            };
+        }
+        
         currentPrecheckResult = precheckResult;
         
         const reportText = `校验结果：${precheckResult.isPass ? "通过" : "不通过"}`;
@@ -1500,7 +2946,15 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
             ...getActivePresetParams()
         });
         
-        const graphData = JSON.parse(result.trim());
+        let graphData;
+        try {
+            graphData = JSON.parse(result.trim());
+        } catch (parseError) {
+            console.error('[小说续写插件] 图谱数据 JSON 解析失败:', parseError);
+            toastr.error('图谱数据解析失败，请重试', "小说续写器");
+            return null;
+        }
+        
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
         graphMap[chapterId] = graphData;
         extension_settings[extensionName].chapterGraphMap = graphMap;
@@ -2723,3 +4177,326 @@ jQuery(async () => {
         toastr.success('已清空所有续写章节', "小说续写器");
     });
 });
+
+export async function init() {
+    console.log('[小说续写插件] 开始初始化...');
+    
+    injectHtmlContent();
+    
+    await loadSettings();
+    
+    console.log('[小说续写插件] 初始化完成');
+}
+
+function injectHtmlContent() {
+    if (document.querySelector('.novel-writer-extension-root')) {
+        console.log('[小说续写插件] HTML 已存在，跳过注入');
+        return;
+    }
+    
+    const htmlContent = `
+<div class="novel-writer-extension-root" aria-label="小说智能续写系统">
+    <div id="novel-writer-float-ball" 
+         class="float-ball" 
+         role="button" 
+         tabindex="0"
+         aria-label="打开小说续写系统面板"
+         style="visibility: hidden; opacity: 0;">
+        <div class="ball-inner" role="presentation" aria-hidden="true">
+            <div class="ball-icon">📖</div>
+            <div class="ball-glow" role="presentation" aria-hidden="true"></div>
+        </div>
+        <div class="ball-pulse" role="presentation" aria-hidden="true"></div>
+    </div>
+
+    <div id="novel-writer-panel" 
+         class="writer-panel" 
+         role="dialog" 
+         aria-modal="true" 
+         aria-labelledby="panel-title"
+         aria-describedby="panel-description">
+        <div class="panel-header">
+            <div class="panel-title">
+                <div class="title-icon">
+                    <span>📖</span>
+                    <div class="title-icon-glow"></div>
+                </div>
+                <div class="title-text">
+                    <h2 id="panel-title">小说智能续写系统</h2>
+                    <p id="panel-description" class="title-subtitle">Novel AI Writer System - 提供章节管理、知识图谱构建和智能续写功能</p>
+                </div>
+            </div>
+            <button id="panel-close-btn" 
+                    class="panel-close-btn"
+                    aria-label="关闭面板"
+                    title="按 Escape 键也可关闭">
+                <span>✕</span>
+                <div class="btn-hover-effect"></div>
+            </button>
+        </div>
+
+        <div class="panel-tab-nav" 
+             role="tablist" 
+             aria-label="功能模块选项卡">
+            <div class="tab-nav-container">
+                <div class="tab-nav-indicator" role="presentation" aria-hidden="true"></div>
+                <div class="panel-tab-item active" 
+                     data-tab="tab-chapter"
+                     role="tab"
+                     id="tab-chapter-btn"
+                     aria-selected="true"
+                     aria-controls="tab-chapter"
+                     tabindex="0">
+                    <div class="tab-icon">📋</div>
+                    <div class="tab-text">章节管理</div>
+                    <div class="tab-indicator"></div>
+                </div>
+                <div class="panel-tab-item" 
+                     data-tab="tab-graph"
+                     role="tab"
+                     id="tab-graph-btn"
+                     aria-selected="false"
+                     aria-controls="tab-graph"
+                     tabindex="-1">
+                    <div class="tab-icon">🧠</div>
+                    <div class="tab-text">知识图谱</div>
+                    <div class="tab-indicator"></div>
+                </div>
+                <div class="panel-tab-item" 
+                     data-tab="tab-write"
+                     role="tab"
+                     id="tab-write-btn"
+                     aria-selected="false"
+                     aria-controls="tab-write"
+                     tabindex="-1">
+                    <div class="tab-icon">✒️</div>
+                    <div class="tab-text">内容续写</div>
+                    <div class="tab-indicator"></div>
+                </div>
+                <div class="panel-tab-item" 
+                     data-tab="tab-reader"
+                     role="tab"
+                     id="tab-reader-btn"
+                     aria-selected="false"
+                     aria-controls="tab-reader"
+                     tabindex="-1">
+                    <div class="tab-icon">📚</div>
+                    <div class="tab-text">小说阅读</div>
+                    <div class="tab-indicator"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-tab-content">
+            <div class="panel-tab-panel active" 
+                 id="tab-chapter" 
+                 role="tabpanel" 
+                 aria-labelledby="tab-chapter-btn"
+                 tabindex="0">
+                <div class="chapter-panel">
+                    <div class="inline-drawer" id="chapter-upload-drawer">
+                        <div class="inline-drawer-header" role="button" tabindex="0" aria-expanded="false">
+                            <span class="drawer-icon">📁</span>
+                            <span class="drawer-title">导入小说章节</span>
+                            <span class="drawer-arrow">▼</span>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="upload-area" id="chapter-upload-area">
+                                <div class="upload-icon">📄</div>
+                                <p>拖拽小说文件到此处或点击选择文件</p>
+                                <input type="file" id="chapter-file-upload" accept=".txt,.md" style="display: none;">
+                                <button id="chapter-upload-btn" class="btn btn-primary">选择文件</button>
+                            </div>
+                            <div class="chapter-split-options">
+                                <div class="option-item">
+                                    <label for="chapter-regex-input">章节标题匹配规则</label>
+                                    <input type="text" id="chapter-regex-input" placeholder="例如：第[一二三四五六七八九十百千]+章">
+                                </div>
+                                <div class="option-item">
+                                    <label for="chapter-word-count">每章字数限制</label>
+                                    <input type="number" id="chapter-word-count" value="5000" min="500" max="50000">
+                                </div>
+                                <button id="chapter-parse-btn" class="btn btn-secondary">解析章节</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chapter-list-container">
+                        <div class="list-header">
+                            <h3>章节列表</h3>
+                            <span class="list-count">共 <span id="chapter-count">0</span> 章</span>
+                        </div>
+                        <div id="chapter-list" class="chapter-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-tab-panel" 
+                 id="tab-graph" 
+                 role="tabpanel" 
+                 aria-labelledby="tab-graph-btn"
+                 tabindex="0">
+                <div class="graph-panel">
+                    <div class="inline-drawer" id="graph-upload-drawer">
+                        <div class="inline-drawer-header" role="button" tabindex="0" aria-expanded="false">
+                            <span class="drawer-icon">📊</span>
+                            <span class="drawer-title">导入知识图谱</span>
+                            <span class="drawer-arrow">▼</span>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="upload-area" id="graph-upload-area">
+                                <div class="upload-icon">🧠</div>
+                                <p>拖拽图谱文件到此处或点击选择文件</p>
+                                <input type="file" id="graph-file-upload" accept=".json" style="display: none;">
+                                <button id="graph-upload-btn" class="btn btn-primary">选择文件</button>
+                            </div>
+                            <button id="graph-validate-btn" class="btn btn-secondary">验证图谱格式</button>
+                            <div id="graph-validate-result" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <div class="inline-drawer" id="graph-batch-drawer">
+                        <div class="inline-drawer-header" role="button" tabindex="0" aria-expanded="false">
+                            <span class="drawer-icon">🔄</span>
+                            <span class="drawer-title">批量合并图谱</span>
+                            <span class="drawer-arrow">▼</span>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="batch-options">
+                                <div class="option-item">
+                                    <label for="batch-merge-count">每批合并数量</label>
+                                    <input type="number" id="batch-merge-count" value="5" min="2" max="20">
+                                </div>
+                            </div>
+                            <button id="graph-batch-merge-btn" class="btn btn-primary">开始批量合并</button>
+                            <button id="graph-batch-clear-btn" class="btn btn-secondary">清空合并结果</button>
+                            <div id="batch-merge-status"></div>
+                            <div class="progress-bar">
+                                <div id="batch-merge-progress" class="progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="graph-preview">
+                        <div class="preview-header">
+                            <h3>合并图谱预览</h3>
+                            <div class="preview-actions">
+                                <button id="graph-copy-btn" class="btn btn-sm btn-secondary">复制</button>
+                                <button id="graph-export-btn" class="btn btn-sm btn-primary">导出</button>
+                                <button id="graph-clear-btn" class="btn btn-sm btn-danger">清空</button>
+                            </div>
+                        </div>
+                        <textarea id="merged-graph-preview" readonly placeholder="合并后的图谱将显示在这里..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-tab-panel" 
+                 id="tab-write" 
+                 role="tabpanel" 
+                 aria-labelledby="tab-write-btn"
+                 tabindex="0">
+                <div class="write-panel">
+                    <div class="write-chapter-select">
+                        <label for="write-chapter-select">选择基准章节</label>
+                        <select id="write-chapter-select">
+                            <option value="">请选择章节</option>
+                        </select>
+                    </div>
+
+                    <div class="inline-drawer" id="write-precheck-drawer">
+                        <div class="inline-drawer-header" role="button" tabindex="0" aria-expanded="false">
+                            <span class="drawer-icon">✅</span>
+                            <span class="drawer-title">续写前置检查</span>
+                            <span id="precheck-status" class="status-default">未执行</span>
+                            <span class="drawer-arrow">▼</span>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <textarea id="write-chapter-content" rows="8" placeholder="章节内容将显示在这里..."></textarea>
+                            <button id="precheck-run-btn" class="btn btn-secondary">执行检查</button>
+                            <textarea id="precheck-report" rows="4" readonly placeholder="检查报告将显示在这里..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="write-options">
+                        <div class="option-item">
+                            <label for="write-word-count">续写字数</label>
+                            <input type="number" id="write-word-count" value="2000" min="500" max="10000">
+                        </div>
+                        <div class="option-item">
+                            <label for="send-template-input">发送模板</label>
+                            <input type="text" id="send-template-input" placeholder="使用 {character} 和 {text} 作为变量">
+                        </div>
+                        <div class="option-item">
+                            <label for="send-delay-input">发送延迟(ms)</label>
+                            <input type="number" id="send-delay-input" value="2000" min="0" max="10000">
+                        </div>
+                        <div class="option-item">
+                            <label class="switch-label">
+                                <input type="checkbox" id="quality-check-switch">
+                                <span class="switch-slider"></span>
+                                启用质量检测
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="quality-result-block" style="display: none;">
+                        <h4>质量检测结果</h4>
+                        <div id="quality-result"></div>
+                    </div>
+
+                    <div class="write-actions">
+                        <button id="write-generate-btn" class="btn btn-primary">生成续写</button>
+                        <button id="write-stop-btn" class="btn btn-danger" disabled>停止生成</button>
+                    </div>
+
+                    <div id="write-status"></div>
+                    <textarea id="write-content-preview" rows="10" readonly placeholder="续写内容将显示在这里..."></textarea>
+
+                    <div class="write-actions-bottom">
+                        <button id="write-copy-btn" class="btn btn-secondary">复制内容</button>
+                        <button id="write-send-btn" class="btn btn-primary">发送到对话框</button>
+                        <button id="write-clear-btn" class="btn btn-danger">清空内容</button>
+                    </div>
+
+                    <div class="continue-chain-section">
+                        <h4>续写章节链</h4>
+                        <div id="continue-chain-list"></div>
+                        <button id="clear-chain-btn" class="btn btn-sm btn-danger">清空续写链</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-tab-panel" 
+                 id="tab-reader" 
+                 role="tabpanel" 
+                 aria-labelledby="tab-reader-btn"
+                 tabindex="0">
+                <div class="reader-panel">
+                    <div class="reader-controls">
+                        <button id="reader-font-minus" class="btn btn-sm">-</button>
+                        <span id="reader-font-size">16px</span>
+                        <button id="reader-font-plus" class="btn btn-sm">+</button>
+                        <button id="reader-chapter-select-btn" class="btn btn-sm btn-secondary">选择章节</button>
+                        <div id="reader-chapter-select-container" style="display: none;">
+                            <select id="reader-chapter-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="reader-viewer" id="reader-content"></div>
+
+                    <div class="reader-navigation">
+                        <button id="reader-prev-chapter" class="btn btn-secondary">上一章</button>
+                        <span id="reader-chapter-info"></span>
+                        <button id="reader-next-chapter" class="btn btn-secondary">下一章</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', htmlContent);
+    console.log('[小说续写插件] HTML 内容已注入');
+}
