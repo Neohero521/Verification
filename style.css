@@ -851,12 +851,21 @@
     position: relative;
     width: 52px;
     height: 28px;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
 }
 
 .novel-writer-extension-root .toggle-switch input {
+    position: absolute;
     opacity: 0;
-    width: 0;
-    height: 0;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
 }
 
 .novel-writer-extension-root .toggle-slider {
@@ -869,6 +878,7 @@
     background-color: var(--novel-border-color);
     transition: var(--novel-transition-normal);
     border-radius: var(--novel-radius-full);
+    pointer-events: none;
 }
 
 .novel-writer-extension-root .toggle-slider::before {
@@ -884,6 +894,16 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* 使用aria-checked来控制样式，这样JS切换时也能看到效果 */
+.novel-writer-extension-root .toggle-switch[aria-checked="true"] .toggle-slider {
+    background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
+}
+
+.novel-writer-extension-root .toggle-switch[aria-checked="true"] .toggle-slider::before {
+    transform: translateX(24px);
+}
+
+/* 保持input:checked的兼容性 */
 .novel-writer-extension-root .toggle-switch input:checked + .toggle-slider {
     background: linear-gradient(135deg, var(--novel-primary) 0%, var(--novel-primary-dark) 100%);
 }

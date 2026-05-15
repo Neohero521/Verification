@@ -1904,9 +1904,11 @@ async function loadSettings() {
     $("#chapter-regex-input").val(settings.chapterRegex);
     $("#send-template-input").val(settings.sendTemplate);
     $("#send-delay-input").val(settings.sendDelay);
-    $("#quality-check-switch").prop("checked", settings.enableQualityCheck);
+    $("#quality-check-switch input").prop("checked", settings.enableQualityCheck);
+    $("#quality-check-switch").attr("aria-checked", settings.enableQualityCheck);
     $("#write-word-count").val(settings.writeWordCount || 2000);
-    $("#auto-parent-preset-switch").prop("checked", settings.enableAutoParentPreset);
+    $("#auto-parent-preset-switch input").prop("checked", settings.enableAutoParentPreset);
+    $("#auto-parent-preset-switch").attr("aria-checked", settings.enableAutoParentPreset);
     
     const mergedGraph = settings.mergedGraph || {};
     $("#merged-graph-preview").val(Object.keys(mergedGraph).length > 0 ? JSON.stringify(mergedGraph, null, 2) : "");
@@ -3160,12 +3162,44 @@ jQuery(async () => {
         reader.readAsText(file, 'UTF-8');
     });
     
-    $("#auto-parent-preset-switch").off("change").on("change", (e) => {
-        const isChecked = Boolean($(e.target).prop("checked"));
-        extension_settings[extensionName].enableAutoParentPreset = isChecked;
+    // 修复toggle开关事件绑定，支持鼠标点击和键盘操作
+    const setupToggleSwitch = (selector, settingKey) => {
+        const $switch = $(selector);
+        
+        $switch.off("click keydown").on("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSwitch($switch, settingKey);
+        }).on("keydown", (e) => {
+            if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSwitch($switch, settingKey);
+            }
+        });
+    };
+    
+    const toggleSwitch = ($switch, settingKey) => {
+        const $input = $switch.find("input");
+        const currentState = extension_settings[extensionName][settingKey];
+        const newState = !currentState;
+        
+        $input.prop("checked", newState);
+        $switch.attr("aria-checked", newState);
+        extension_settings[extensionName][settingKey] = newState;
         saveSettingsDebounced();
-        updatePresetNameDisplay();
-    });
+        
+        // 如果是预设开关，更新预设名称显示
+        if (settingKey === "enableAutoParentPreset") {
+            updatePresetNameDisplay();
+        }
+        
+        console.log(`[小说续写器] ${settingKey} 切换为:`, newState);
+    };
+    
+    // 设置两个toggle开关
+    setupToggleSwitch("#auto-parent-preset-switch", "enableAutoParentPreset");
+    setupToggleSwitch("#quality-check-switch", "enableQualityCheck");
     
     $("#select-all-btn").off("click").on("click", () => {
         $(".chapter-select").prop("checked", true);
@@ -3369,8 +3403,11 @@ jQuery(async () => {
         validateContinuePrecondition(selectedChapterId, modifiedContent);
     });
     
-    $("#quality-check-switch").off("change").on("change", (e) => {
-        const isChecked = Boolean($(e.target).prop("checked"));
+    $("#quality-check-switch").off("click").on("click", (e) => {
+        const $input = $(e.currentTarget).find("input");
+        const isChecked = !$input.prop("checked");
+        $input.prop("checked", isChecked);
+        $(e.currentTarget).attr("aria-checked", isChecked);
         extension_settings[extensionName].enableQualityCheck = isChecked;
         saveSettingsDebounced();
     });
