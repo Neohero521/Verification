@@ -254,10 +254,15 @@
                                 <span class="toggle-label">自动使用父级对话预设</span>
                                 <span class="toggle-hint">开启后，续写将使用当前对话的生成预设参数</span>
                             </div>
-                            <label class="toggle-switch">
-                                <input id="auto-parent-preset-switch" type="checkbox" checked />
+                            <div class="toggle-switch" 
+                                 role="switch" 
+                                 aria-checked="true"
+                                 aria-label="自动使用父级对话预设"
+                                 tabindex="0"
+                                 id="auto-parent-preset-switch">
+                                <input type="checkbox" checked class="sr-only" />
                                 <span class="toggle-slider"></span>
-                            </label>
+                            </div>
                         </div>
                         <div id="parent-preset-name-display" class="preset-name-display" style="display: none;"></div>
                     </div>
@@ -689,10 +694,15 @@
                                     <span class="toggle-label">开启质量自动校验</span>
                                     <span class="toggle-hint">不合格自动重写</span>
                                 </div>
-                                <label class="toggle-switch">
-                                    <input id="quality-check-switch" type="checkbox" checked />
+                                <div class="toggle-switch" 
+                                     role="switch" 
+                                     aria-checked="true"
+                                     aria-label="开启质量自动校验"
+                                     tabindex="0"
+                                     id="quality-check-switch">
+                                    <input type="checkbox" checked class="sr-only" />
                                     <span class="toggle-slider"></span>
-                                </label>
+                                </div>
                             </div>
                         </div>
                     </div>

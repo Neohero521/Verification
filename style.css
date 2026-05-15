@@ -2284,15 +2284,6 @@
     animation: btnShine 3s ease-in-out infinite;
 }
 
-@keyframes btnShine {
-    0% {
-        left: -100%;
-    }
-    10%, 100% {
-        left: 200%;
-    }
-}
-
 /* 元素悬停提升效果 */
 .novel-writer-extension-root .hover-lift {
     transition: all var(--novel-transition-normal);

@@ -401,6 +401,7 @@ const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起',
 
 const MAX_API_CALLS_PER_MINUTE = 3;
 const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const WAIT_TIME_PRECISION = 1;
 let apiCallTimestamps = [];
 
 const presetChapterRegexList = [
@@ -505,7 +506,7 @@ async function rateLimitCheck() {
         const waitTime = earliestCallTime + API_RATE_LIMIT_WINDOW_MS - now;
         
         if (waitTime > 0) {
-            const waitSeconds = (waitTime / 1000).toFixed(1);
+            const waitSeconds = (waitTime / 1000).toFixed(WAIT_TIME_PRECISION);
             console.log(`[小说续写插件] 触发API限流保护，需等待${waitSeconds}秒`);
             toastr.info(`触发API限流保护，需等待${waitSeconds}秒后继续生成`, "小说续写器");
             
@@ -529,7 +530,17 @@ async function rateLimitCheck() {
 
 async function generateRawWithBreakLimit(params) {
     const context = getContext();
+    
+    if (!context || typeof context !== 'object') {
+        throw new Error('无法获取上下文，插件可能未正确初始化');
+    }
+    
     const { generateRaw } = context;
+    
+    if (typeof generateRaw !== 'function') {
+        throw new Error('generateRaw 函数不可用，请检查 SillyTavern 版本兼容性');
+    }
+    
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
@@ -722,6 +733,7 @@ const FloatBall = {
     startPos: { x: 0, y: 0 },
     offset: { x: 0, y: 0 },
     minMoveDistance: 3,
+    _abortController: null,
     
     init() {
         this.ball = document.getElementById("novel-writer-float-ball");
@@ -741,47 +753,48 @@ const FloatBall = {
         this.ball.style.display = "flex";
     },
     
+    destroy() {
+        if (this._abortController) {
+            this._abortController.abort();
+        }
+        document.onclick = null;
+        window.onresize = null;
+    },
+    
     bindEvents() {
-        this.ball.removeEventListener("mousedown", this.startDrag.bind(this));
-        document.removeEventListener("mousemove", this.onDrag.bind(this));
-        document.removeEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.removeEventListener("touchstart", this.startDrag.bind(this));
-        document.removeEventListener("touchmove", this.onDrag.bind(this));
-        document.removeEventListener("touchend", this.stopDrag.bind(this));
+        if (this._abortController) {
+            this._abortController.abort();
+        }
+        this._abortController = new AbortController();
+        const signal = this._abortController.signal;
         
-        this.ball.addEventListener("mousedown", this.startDrag.bind(this));
-        document.addEventListener("mousemove", this.onDrag.bind(this));
-        document.addEventListener("mouseup", this.stopDrag.bind(this));
-        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { passive: false });
-        document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
-        document.addEventListener("touchend", this.stopDrag.bind(this));
+        this.ball.addEventListener("mousedown", this.startDrag.bind(this), { signal });
+        document.addEventListener("mousemove", this.onDrag.bind(this), { signal });
+        document.addEventListener("mouseup", this.stopDrag.bind(this), { signal });
+        this.ball.addEventListener("touchstart", this.startDrag.bind(this), { signal, passive: false });
+        document.addEventListener("touchmove", this.onDrag.bind(this), { signal, passive: false });
+        document.addEventListener("touchend", this.stopDrag.bind(this), { signal });
         
-        // 键盘导航支持
-        this.ball.removeEventListener("keydown", this.onBallKeydown.bind(this));
-        this.ball.addEventListener("keydown", this.onBallKeydown.bind(this));
+        this.ball.addEventListener("keydown", this.onBallKeydown.bind(this), { signal });
         
         const closeBtn = document.getElementById("panel-close-btn");
-        closeBtn.onclick = (e) => {
+        closeBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             this.hidePanel();
-            this.ball.focus(); // 关闭后焦点回到悬浮球
-        };
+            this.ball.focus();
+        }, { signal });
         
         document.querySelectorAll(".panel-tab-item").forEach(tab => {
-            tab.onclick = (e) => {
+            tab.addEventListener("click", (e) => {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
-            };
-            // 添加键盘事件到选项卡
-            tab.addEventListener("keydown", this.onTabKeydown.bind(this));
+            }, { signal });
+            tab.addEventListener("keydown", this.onTabKeydown.bind(this), { signal });
         });
         
-        document.onclick = this.outsideClose.bind(this);
-        window.onresize = debounce(this.resizeHandler.bind(this), 200);
-        
-        // 添加全局键盘事件
-        document.removeEventListener("keydown", this.onGlobalKeydown.bind(this));
-        document.addEventListener("keydown", this.onGlobalKeydown.bind(this));
+        document.addEventListener("click", this.outsideClose.bind(this), { signal });
+        window.addEventListener("resize", debounce(this.resizeHandler.bind(this), 200), { signal });
+        document.addEventListener("keydown", this.onGlobalKeydown.bind(this), { signal });
     },
     
     onBallKeydown(e) {
