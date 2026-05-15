@@ -1607,21 +1607,29 @@ const FloatBall = {
     _abortController: null,
     
     init() {
-        this.ball = document.getElementById("novel-writer-float-ball");
-        this.panel = document.getElementById("novel-writer-panel");
-        
-        if (!this.ball || !this.panel) {
-            console.error("[小说续写插件] 元素未找到");
-            toastr.error("小说续写插件加载失败", "插件错误");
-            return;
+        try {
+            this.ball = document.getElementById("novel-writer-float-ball");
+            this.panel = document.getElementById("novel-writer-panel");
+            
+            if (!this.ball || !this.panel) {
+                console.error("[小说续写插件] 元素未找到");
+                if (typeof toastr !== 'undefined') {
+                    toastr.error("小说续写插件加载失败", "插件错误");
+                }
+                return;
+            }
+            
+            console.log("[小说续写插件] 悬浮球初始化成功");
+            this.bindEvents();
+            this.restoreState();
+            this.ball.style.visibility = "visible";
+            this.ball.style.opacity = "1";
+            this.ball.style.display = "flex";
+            
+            console.log("[小说续写插件] 悬浮球已显示");
+        } catch (error) {
+            console.error("[小说续写插件] 悬浮球初始化失败:", error);
         }
-        
-        console.log("[小说续写插件] 悬浮球初始化成功");
-        this.bindEvents();
-        this.restoreState();
-        this.ball.style.visibility = "visible";
-        this.ball.style.opacity = "1";
-        this.ball.style.display = "flex";
     },
     
     destroy() {
@@ -1825,7 +1833,7 @@ const FloatBall = {
         this.ball.style.left = `${x}px`;
         this.ball.style.top = `${y}px`;
         this.ball.style.right = 'auto';
-        this.ball.style.transform = 'none';
+        this.ball.style.bottom = 'auto';
         
         extension_settings[extensionName].floatBallState.position = { x, y };
         saveSettingsDebounced();
@@ -1862,7 +1870,7 @@ const FloatBall = {
         }
         
         this.ball.style.right = 'auto';
-        this.ball.style.transform = "none";
+        this.ball.style.bottom = 'auto';
         
         const newRect = this.ball.getBoundingClientRect();
         extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
@@ -1908,7 +1916,7 @@ const FloatBall = {
         this.ball.style.left = `${safeX}px`;
         this.ball.style.top = `${safeY}px`;
         this.ball.style.right = 'auto';
-        this.ball.style.transform = "none";
+        this.ball.style.bottom = 'auto';
         
         this.switchTab(state.activeTab);
         if (state.isPanelOpen) this.showPanel();
@@ -2629,11 +2637,32 @@ async function loadSettings() {
     await new Promise(resolve => setTimeout(resolve, 500));
     updatePresetNameDisplay();
     setupPresetEventListeners();
-    FloatBall.init();
-    NovelReader.init();
+    
+    // 初始化悬浮球和阅读器
+    if (typeof FloatBall !== 'undefined') {
+        try {
+            FloatBall.init();
+        } catch (error) {
+            console.error('[小说续写插件] FloatBall 初始化失败:', error);
+        }
+    }
+    
+    if (typeof NovelReader !== 'undefined') {
+        try {
+            NovelReader.init();
+        } catch (error) {
+            console.error('[小说续写插件] NovelReader 初始化失败:', error);
+        }
+    }
     
     // 初始化主题管理器
-    ThemeManager.init();
+    if (typeof ThemeManager !== 'undefined') {
+        try {
+            ThemeManager.init();
+        } catch (error) {
+            console.error('[小说续写插件] ThemeManager 初始化失败:', error);
+        }
+    }
 }
 
 function saveDrawerState() {
