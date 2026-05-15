@@ -1920,6 +1920,80 @@
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
 }
 
+/* ==============================================书架样式============================================== */
+.novel-writer-extension-root #tab-bookshelf {
+    display: none;
+}
+
+.novel-writer-extension-root #tab-bookshelf.active {
+    display: block;
+}
+
+.novel-writer-extension-root .book-item {
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    padding: 16px 18px;
+    transition: all var(--novel-transition-fast);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.novel-writer-extension-root .book-item:hover {
+    border-color: var(--novel-primary);
+    background: var(--novel-bg-card-hover);
+    transform: translateX(4px);
+}
+
+.novel-writer-extension-root .book-item.active {
+    border-color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+.novel-writer-extension-root .book-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.novel-writer-extension-root .book-title {
+    color: var(--novel-text-white);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.novel-writer-extension-root .book-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.novel-writer-extension-root .book-meta-item {
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.novel-writer-extension-root .book-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.novel-writer-extension-root .btn-icon {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
 /* 悬浮球焦点样式 */
 .novel-writer-extension-root .float-ball:focus {
     outline: 3px solid var(--novel-primary);

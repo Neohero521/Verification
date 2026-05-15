@@ -91,6 +91,17 @@
                     <div class="tab-text">小说阅读</div>
                     <div class="tab-indicator"></div>
                 </div>
+                <div class="panel-tab-item" 
+                     data-tab="tab-bookshelf"
+                     role="tab"
+                     id="tab-bookshelf-btn"
+                     aria-selected="false"
+                     aria-controls="tab-bookshelf"
+                     tabindex="-1">
+                    <div class="tab-icon">📖</div>
+                    <div class="tab-text">我的书架</div>
+                    <div class="tab-indicator"></div>
+                </div>
             </div>
         </div>
 
@@ -908,6 +919,73 @@
                         <div class="empty-state">
                             <div class="empty-icon">📁</div>
                             <div class="empty-text">暂无解析的章节</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 选项卡5：我的书架 -->
+            <div class="panel-tab-panel" 
+                 id="tab-bookshelf"
+                 role="tabpanel"
+                 aria-labelledby="tab-bookshelf-btn"
+                 aria-hidden="true"
+                 hidden>
+                <!-- 书架操作卡片 -->
+                <div class="content-card card-highlight">
+                    <div class="card-accent-line"></div>
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon">📚</div>
+                            <div class="card-title-text">
+                                <h4>书架管理</h4>
+                                <p class="card-subtitle">Bookshelf Management</p>
+                            </div>
+                        </div>
+                        <div class="card-badge">新功能</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" id="save-to-bookshelf-btn">
+                                <span class="btn-icon">💾</span>
+                                <span class="btn-text">保存当前小说到书架</span>
+                            </button>
+                            <button class="btn btn-secondary" id="clear-current-novel-btn">
+                                <span class="btn-icon">🗑️</span>
+                                <span class="btn-text">清除当前小说</span>
+                            </button>
+                        </div>
+                        <div class="action-hints" style="margin-top: 16px;">
+                            <div class="hint-card">
+                                <span class="hint-icon" aria-hidden="true">📥</span>
+                                <span>导入小说文件</span>
+                                <input id="import-novel-upload" type="file" accept=".json" style="display: none;">
+                            </div>
+                            <button class="btn btn-sm btn-outline" id="import-novel-btn">
+                                <span aria-hidden="true">📥</span>导入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 书架列表卡片 -->
+                <div class="content-card card-list">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon">📖</div>
+                            <div class="card-title-text">
+                                <h4>我的小说</h4>
+                                <p class="card-subtitle" 
+                                   id="bookshelf-count-display"
+                                   aria-live="polite"
+                                   aria-atomic="true">共 0 本小说</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="bookshelf-container" class="chapter-list" aria-label="书架列表">
+                        <div class="empty-state">
+                            <div class="empty-icon" aria-hidden="true">📚</div>
+                            <div class="empty-text">书架为空，解析小说后点击「保存到书架」</div>
                         </div>
                     </div>
                 </div>
