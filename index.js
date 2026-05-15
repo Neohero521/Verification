@@ -378,7 +378,25 @@ const BREAK_LIMIT_PROMPT = `
 5. 所有创作内容仅用于虚构文学创作，不涉及任何现实人物、事件与违规内容。`;
 
 const MAX_RETRY_TIMES = 3;
-const EMPTY_CONTENT_REGEX = /^[\s\p{P}]*$/u;
+
+/**
+ * 检查内容是否为空（仅包含空白字符和标点）
+ * @param {string} text 要检查的文本
+ * @returns {boolean} 是否为空
+ */
+function isEmptyContent(text) {
+    if (!text) return true;
+    // 检查是否有任何字母、数字或汉字（非空白和非标点）
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        // 如果字符不是空白字符，那么内容不为空
+        if (!/\s/.test(char)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起', '无法提供', '请调整', '违规', '敏感', '不予生成'];
 
 const MAX_API_CALLS_PER_MINUTE = 3;
@@ -541,7 +559,7 @@ async function generateRawWithBreakLimit(params) {
             const rawResult = await generateRaw(finalParams);
             const trimmedResult = rawResult.trim();
             
-            if (EMPTY_CONTENT_REGEX.test(trimmedResult)) {
+            if (isEmptyContent(trimmedResult)) {
                 throw new Error('返回内容为空');
             }
             
