@@ -105,46 +105,20 @@
 }
 
 @keyframes ballFloat {
-    0%, 100% { 
-        transform: translateY(-50%) translateX(0) scale(1); 
-        box-shadow: 0 0 20px var(--novel-primary-glow), 0 4px 15px rgba(0, 0, 0, 0.4);
-    }
-    25% { 
-        transform: translateY(-51%) translateX(2px) scale(1.02); 
-        box-shadow: 0 0 30px var(--novel-primary-glow), 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
-    50% { 
-        transform: translateY(-52%) translateX(0) scale(1); 
-        box-shadow: 0 0 25px var(--novel-primary-glow), 0 4px 18px rgba(0, 0, 0, 0.45);
-    }
-    75% { 
-        transform: translateY(-51%) translateX(-2px) scale(1.02); 
-        box-shadow: 0 0 30px var(--novel-primary-glow), 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-52%) translateX(0); }
 }
 
 .novel-writer-extension-root .float-ball:hover {
-    transform: translateY(-50%) scale(1.15);
-    box-shadow: 0 0 50px var(--novel-primary-glow), 0 8px 30px rgba(0, 0, 0, 0.6);
-    animation: ballPulseHover 0.6s ease-in-out infinite;
-}
-
-@keyframes ballPulseHover {
-    0%, 100% { transform: translateY(-50%) scale(1.15); }
-    50% { transform: translateY(-50%) scale(1.2); }
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 0 40px var(--novel-primary-glow), 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 .novel-writer-extension-root .float-ball.dragging {
     animation: none;
-    transform: scale(1.25);
+    transform: scale(1.15);
     opacity: 0.9;
     z-index: 1000000;
-    box-shadow: 0 0 60px var(--novel-primary-glow), 0 12px 40px rgba(0, 0, 0, 0.7);
-    cursor: grabbing;
-}
-
-.novel-writer-extension-root .float-ball:active {
-    transform: translateY(-50%) scale(1.05);
 }
 
 .novel-writer-extension-root .ball-inner {
@@ -215,41 +189,6 @@
     display: flex;
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
-    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.9), 0 0 80px rgba(99, 102, 241, 0.15);
-    animation: panelOpen 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes panelOpen {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8) translateY(20px);
-        filter: blur(10px);
-    }
-    50% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.02) translateY(-5px);
-        filter: blur(0);
-    }
-    100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1) translateY(0);
-    }
-}
-
-.novel-writer-extension-root .writer-panel.hide {
-    animation: panelClose 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes panelClose {
-    0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1) translateY(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.9) translateY(20px);
-        filter: blur(5px);
-    }
 }
 
 /* ==============================================面板头部样式============================================== */
@@ -442,37 +381,12 @@
     overflow: hidden;
     transition: all var(--novel-transition-normal);
     position: relative;
-    animation: cardSlideIn 0.4s ease-out;
-}
-
-@keyframes cardSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .novel-writer-extension-root .content-card:hover {
     border-color: var(--novel-border-light);
     box-shadow: var(--novel-shadow-md);
-    transform: translateY(-3px);
-    animation: cardHoverGlow 0.3s ease-out;
-}
-
-@keyframes cardHoverGlow {
-    0% {
-        box-shadow: var(--novel-shadow-md);
-    }
-    50% {
-        box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
-    }
-    100% {
-        box-shadow: var(--novel-shadow-md);
-    }
+    transform: translateY(-2px);
 }
 
 .novel-writer-extension-root .card-highlight {
@@ -593,18 +507,12 @@
     font-size: 0.95rem;
     transition: all var(--novel-transition-fast);
     outline: none;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.novel-writer-extension-root .form-input:hover {
-    border-color: var(--novel-border-light);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .novel-writer-extension-root .form-input:focus {
     border-color: var(--novel-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.1);
-    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background: var(--novel-bg-dark);
 }
 
 .novel-writer-extension-root .form-input::placeholder {
@@ -676,32 +584,12 @@
 .novel-writer-extension-root .upload-zone:hover {
     border-color: var(--novel-primary);
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--novel-bg-dark) 100%);
-    transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+    transform: scale(1.01);
 }
 
 .novel-writer-extension-root .upload-zone.dragover {
     border-color: var(--novel-primary);
-    background: rgba(99, 102, 241, 0.15);
-    transform: scale(1.05);
-    box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
-}
-
-.novel-writer-extension-root .upload-zone.dragover::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 2px solid var(--novel-primary);
-    border-radius: inherit;
-    animation: uploadDragPulse 1s ease-in-out infinite;
-}
-
-@keyframes uploadDragPulse {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.01); }
+    background: rgba(99, 102, 241, 0.1);
 }
 
 .novel-writer-extension-root .upload-icon {
@@ -908,22 +796,6 @@
     white-space: nowrap;
     position: relative;
     overflow: hidden;
-    letter-spacing: 0.3px;
-}
-
-.novel-writer-extension-root .btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s ease;
-}
-
-.novel-writer-extension-root .btn:hover::before {
-    left: 100%;
 }
 
 .novel-writer-extension-root .btn-sm {
@@ -939,7 +811,6 @@
 .novel-writer-extension-root .btn-xl {
     padding: 16px 36px;
     font-size: 1.1rem;
-    letter-spacing: 0.5px;
 }
 
 .novel-writer-extension-root .btn-primary {
@@ -949,12 +820,12 @@
 }
 
 .novel-writer-extension-root .btn-primary:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(99, 102, 241, 0.5);
 }
 
 .novel-writer-extension-root .btn-primary:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0);
 }
 
 .novel-writer-extension-root .btn-secondary {
@@ -964,12 +835,8 @@
 }
 
 .novel-writer-extension-root .btn-secondary:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 30px rgba(6, 182, 212, 0.4);
-}
-
-.novel-writer-extension-root .btn-secondary:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(6, 182, 212, 0.4);
 }
 
 .novel-writer-extension-root .btn-outline {
@@ -982,7 +849,6 @@
     border-color: var(--novel-primary);
     color: var(--novel-primary);
     background: rgba(99, 102, 241, 0.05);
-    transform: translateY(-1px);
 }
 
 .novel-writer-extension-root .btn-danger {
@@ -992,12 +858,8 @@
 }
 
 .novel-writer-extension-root .btn-danger:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
-}
-
-.novel-writer-extension-root .btn-danger:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
 }
 
 .novel-writer-extension-root .btn:disabled,
@@ -1878,905 +1740,5 @@
     .novel-writer-extension-root .reader-controls {
         width: 100%;
         justify-content: space-between;
-    }
-}
-
-/* ==============================================可访问性优化样式============================================== */
-
-/* 焦点样式 - 确保键盘导航可见 */
-.novel-writer-extension-root *:focus {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 2px;
-    outline-style: solid;
-}
-
-.novel-writer-extension-root *:focus:not(:focus-visible) {
-    outline: none;
-}
-
-.novel-writer-extension-root *:focus-visible {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
-}
-
-/* 悬浮球焦点样式 */
-.novel-writer-extension-root .float-ball:focus {
-    outline: 3px solid var(--novel-primary);
-    outline-offset: 4px;
-    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.3);
-}
-
-/* 选项卡焦点样式 */
-.novel-writer-extension-root .panel-tab-item:focus {
-    background: rgba(99, 102, 241, 0.1);
-    outline: 2px solid var(--novel-primary);
-    outline-offset: -2px;
-    border-radius: var(--novel-radius-md);
-}
-
-/* 选项卡激活状态焦点 */
-.novel-writer-extension-root .panel-tab-item.active:focus {
-    background: rgba(99, 102, 241, 0.15);
-}
-
-/* 按钮焦点样式 */
-.novel-writer-extension-root .btn:focus {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-}
-
-.novel-writer-extension-root .btn:focus:not(:focus-visible) {
-    outline: none;
-    box-shadow: none;
-}
-
-.novel-writer-extension-root .btn:focus-visible {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-}
-
-/* 输入框焦点样式 */
-.novel-writer-extension-root .form-input:focus,
-.novel-writer-extension-root .form-textarea:focus,
-.novel-writer-extension-root .form-select:focus {
-    outline: none;
-    border-color: var(--novel-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-}
-
-/* 开关焦点样式 */
-.novel-writer-extension-root .toggle-switch input:focus + .toggle-slider {
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-}
-
-/* 复选框焦点样式 */
-.novel-writer-extension-root input[type="checkbox"]:focus + label {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-/* 滑块焦点样式 */
-.novel-writer-extension-root .slider:focus {
-    outline: 2px solid var(--novel-primary);
-    outline-offset: 4px;
-}
-
-/* 跳过链接样式（可访问性辅助功能） */
-.novel-writer-extension-root .skip-link {
-    position: absolute;
-    top: -40px;
-    left: 0;
-    background: var(--novel-primary);
-    color: white;
-    padding: 8px 16px;
-    z-index: 1000001;
-    text-decoration: none;
-    font-weight: 600;
-    border-radius: 0 0 var(--novel-radius-md) 0;
-    transition: top 0.3s;
-}
-
-.novel-writer-extension-root .skip-link:focus {
-    top: 0;
-    outline: 2px solid var(--novel-text-white);
-}
-
-/* 屏幕阅读器专用内容 */
-.novel-writer-extension-root .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-/* 隐藏但保持可访问性 */
-.novel-writer-extension-root .sr-only-focusable:focus,
-.novel-writer-extension-root .sr-only-focusable:active {
-    position: static;
-    width: auto;
-    height: auto;
-    padding: inherit;
-    margin: inherit;
-    overflow: visible;
-    clip: auto;
-    white-space: normal;
-}
-
-/* 增强的按钮点击反馈 */
-.novel-writer-extension-root .btn:active {
-    transform: scale(0.97);
-    transition: transform 0.1s ease;
-}
-
-.novel-writer-extension-root .btn-primary:active {
-    transform: scale(0.97) translateY(0);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-}
-
-/* 禁用状态样式增强 */
-.novel-writer-extension-root .btn:disabled,
-.novel-writer-extension-root .btn[aria-disabled="true"] {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-    transform: none;
-}
-
-.novel-writer-extension-root .btn:disabled:focus,
-.novel-writer-extension-root .btn[aria-disabled="true"]:focus {
-    outline: 2px dashed var(--novel-border-light);
-    outline-offset: 2px;
-}
-
-/* 表格和列表的键盘导航增强 */
-.novel-writer-extension-root .chapter-list .chapter-item:focus-within {
-    background: var(--novel-bg-card-hover);
-    border-color: var(--novel-primary);
-    outline: none;
-}
-
-/* 上传区域焦点样式 */
-.novel-writer-extension-root .upload-zone:focus-within {
-    border-color: var(--novel-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-}
-
-/* 抽屉组件焦点样式 */
-.novel-writer-extension-root .inline-drawer-header:focus {
-    background: var(--novel-bg-card-hover);
-    outline: 2px solid var(--novel-primary);
-    outline-offset: -2px;
-}
-
-/* 卡片焦点样式 */
-.novel-writer-extension-root .content-card:focus-within {
-    border-color: var(--novel-primary-light);
-    box-shadow: var(--novel-shadow-md), 0 0 20px rgba(99, 102, 241, 0.15);
-}
-
-/* 文本选择颜色优化 */
-.novel-writer-extension-root ::selection {
-    background: rgba(99, 102, 241, 0.4);
-    color: var(--novel-text-white);
-}
-
-.novel-writer-extension-root ::-moz-selection {
-    background: rgba(99, 102, 241, 0.4);
-    color: var(--novel-text-white);
-}
-
-/* 减少动画效果（符合用户偏好设置） */
-@media (prefers-reduced-motion: reduce) {
-    .novel-writer-extension-root *,
-    .novel-writer-extension-root *::before,
-    .novel-writer-extension-root *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-
-/* 高对比度模式支持 */
-@media (prefers-contrast: high) {
-    .novel-writer-extension-root .content-card {
-        border-width: 2px;
-        border-color: var(--novel-text-primary);
-    }
-    
-    .novel-writer-extension-root .form-input,
-    .novel-writer-extension-root .form-textarea,
-    .novel-writer-extension-root .form-select {
-        border-width: 2px;
-        border-color: var(--novel-text-primary);
-    }
-    
-    .novel-writer-extension-root .btn {
-        border-width: 2px;
-    }
-    
-    .novel-writer-extension-root .panel-tab-item:focus {
-        outline-width: 3px;
-    }
-}
-
-/* 打印样式优化 */
-@media print {
-    .novel-writer-extension-root .float-ball,
-    .novel-writer-extension-root .panel-close-btn,
-    .novel-writer-extension-root .btn {
-        display: none !important;
-    }
-    
-    .novel-writer-extension-root .writer-panel {
-        position: static;
-        width: 100%;
-        height: auto;
-        box-shadow: none;
-        border: 1px solid #000;
-    }
-    
-    .novel-writer-extension-root .panel-tab-panel {
-        display: block !important;
-        page-break-after: always;
-    }
-}
-
-/* 移动端触摸目标优化 */
-@media (max-width: 768px) {
-    /* 增大触摸目标 */
-    .novel-writer-extension-root .btn,
-    .novel-writer-extension-root .panel-tab-item {
-        min-height: 44px;
-        min-width: 44px;
-    }
-    
-    .novel-writer-extension-root .form-input,
-    .novel-writer-extension-root .form-select {
-        min-height: 44px;
-    }
-    
-    /* 增大焦点区域 */
-    .novel-writer-extension-root .btn:focus,
-    .novel-writer-extension-root .panel-tab-item:focus {
-        outline-offset: 3px;
-        outline-width: 3px;
-    }
-    
-    /* 改善滑块触摸 */
-    .novel-writer-extension-root .slider {
-        height: 12px;
-    }
-    
-    .novel-writer-extension-root .slider::-webkit-slider-thumb {
-        width: 28px;
-        height: 28px;
-    }
-}
-
-/* ==============================================加载状态与动画样式============================================== */
-
-/* 加载旋转器样式 */
-.novel-writer-extension-root .loading-spinner {
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-    border: 2px solid transparent;
-    border-top-color: currentColor;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    vertical-align: middle;
-    margin-right: 8px;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-/* 按钮加载状态 */
-.novel-writer-extension-root .btn.loading {
-    pointer-events: none;
-    opacity: 0.8;
-    cursor: wait;
-}
-
-.novel-writer-extension-root .btn.loading .btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 按钮加载闪烁效果 */
-.novel-writer-extension-root .btn-primary.loading {
-    animation: buttonPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes buttonPulse {
-    0%, 100% {
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-    }
-    50% {
-        box-shadow: 0 4px 25px rgba(99, 102, 241, 0.6);
-    }
-}
-
-/* 进度条加载动画 */
-.novel-writer-extension-root .progress-fill {
-    background: linear-gradient(90deg, 
-        var(--novel-primary) 0%, 
-        var(--novel-secondary) 50%, 
-        var(--novel-primary) 100%);
-    background-size: 200% 100%;
-    animation: progressShine 1.5s ease-in-out infinite;
-}
-
-@keyframes progressShine {
-    0% {
-        background-position: 0% 50%;
-    }
-    100% {
-        background-position: 200% 50%;
-    }
-}
-
-/* 卡片悬浮球加载状态 */
-.novel-writer-extension-root .float-ball.loading {
-    animation: ballSpin 1s ease-in-out infinite;
-}
-
-@keyframes ballSpin {
-    0%, 100% {
-        transform: translateY(-50%) scale(1);
-    }
-    50% {
-        transform: translateY(-52%) scale(1.05);
-    }
-}
-
-/* 骨架屏加载效果 */
-.novel-writer-extension-root .skeleton {
-    background: linear-gradient(90deg, 
-        var(--novel-bg-card) 25%, 
-        var(--novel-bg-card-hover) 50%, 
-        var(--novel-bg-card) 75%);
-    background-size: 200% 100%;
-    animation: skeletonShine 1.8s linear infinite;
-}
-
-@keyframes skeletonShine {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-/* 章节列表加载项 */
-.novel-writer-extension-root .chapter-list .loading-item {
-    padding: 14px 18px;
-    background: var(--novel-bg-card);
-    border: 1px solid var(--novel-border-color);
-    border-radius: var(--novel-radius-md);
-    margin-bottom: 10px;
-}
-
-.novel-writer-extension-root .chapter-list .loading-item .loading-line {
-    height: 16px;
-    width: 100%;
-    border-radius: 4px;
-    margin-bottom: 8px;
-}
-
-.novel-writer-extension-root .chapter-list .loading-item .loading-line.short {
-    width: 60%;
-}
-
-/* 上传区域加载 */
-.novel-writer-extension-root .upload-zone.loading {
-    animation: uploadPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes uploadPulse {
-    0%, 100% {
-        border-color: var(--novel-border-color);
-    }
-    50% {
-        border-color: var(--novel-primary);
-    }
-}
-
-/* 操作成功反馈 */
-.novel-writer-extension-root .success-animation {
-    animation: successPop 0.3s ease-out;
-}
-
-@keyframes successPop {
-    0% {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* 错误抖动动画 */
-.novel-writer-extension-root .shake {
-    animation: shake 0.5s ease-in-out;
-}
-
-@keyframes shake {
-    0%, 100% {
-        transform: translateX(0);
-    }
-    10%, 30%, 50%, 70%, 90% {
-        transform: translateX(-4px);
-    }
-    20%, 40%, 60%, 80% {
-        transform: translateX(4px);
-    }
-}
-
-/* 淡入淡出过渡 */
-.novel-writer-extension-root .fade-in {
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* 平滑滑动过渡 */
-.novel-writer-extension-root .slide-up {
-    animation: slideUp 0.4s ease-out;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* 弹性伸缩动画 */
-.novel-writer-extension-root .bounce-in {
-    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes bounceIn {
-    0% {
-        transform: scale(0.3);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    70% {
-        transform: scale(0.9);
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* 波纹效果 */
-.novel-writer-extension-root .ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(0);
-    animation: rippleEffect 0.6s linear;
-    pointer-events: none;
-}
-
-@keyframes rippleEffect {
-    to {
-        transform: scale(4);
-        opacity: 0;
-    }
-}
-
-/* ==============================================微交互增强============================================== */
-
-/* 按钮光泽划过效果 */
-.novel-writer-extension-root .btn-shine {
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent 0%, 
-        rgba(255, 255, 255, 0.3) 50%, 
-        transparent 100%);
-    animation: btnShine 3s ease-in-out infinite;
-}
-
-/* 元素悬停提升效果 */
-.novel-writer-extension-root .hover-lift {
-    transition: all var(--novel-transition-normal);
-}
-
-.novel-writer-extension-root .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--novel-shadow-lg);
-}
-
-/* 卡片悬停发光 */
-.novel-writer-extension-root .card-glow:hover {
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
-}
-
-/* 文本渐变色 */
-.novel-writer-extension-root .text-gradient {
-    background: linear-gradient(90deg, var(--novel-primary), var(--novel-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* ==============================================性能优化============================================== */
-
-/* 使用硬件加速提示 */
-.novel-writer-extension-root .writer-panel,
-.novel-writer-extension-root .btn {
-    will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-font-smoothing: subpixel-antialiased;
-}
-
-/* 悬浮球特殊优化 */
-.novel-writer-extension-root .float-ball {
-    will-change: transform, width, background-position;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-font-smoothing: subpixel-antialiased;
-}
-
-/* 减少动画优化 */
-.novel-writer-extension-root * {
-    -webkit-tap-highlight-color: transparent;
-    tap-highlight-color: transparent;
-}
-
-/* 平滑滚动 */
-.novel-writer-extension-root .reader-content {
-    scroll-behavior: smooth;
-}
-
-/* 过渡动画优化 */
-.novel-writer-extension-root .panel-tab-panel {
-    transition: opacity var(--novel-transition-normal);
-}
-
-/* GPU 加速元素 */
-.novel-writer-extension-root .progress-fill,
-.novel-writer-extension-root .panel-tab-item::before {
-    will-change: width, background-position;
-}
-
-/* 延迟加载提示 */
-.novel-writer-extension-root .lazy-load {
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.novel-writer-extension-root .lazy-load.loaded {
-    opacity: 1;
-}
-
-/* 预加载优化 */
-.novel-writer-extension-root .preload {
-    background: var(--novel-bg-dark);
-}
-
-/* ==============================================增强移动端优化============================================== */
-
-/* 超小屏设备 (320px - 480px) */
-@media (max-width: 480px) {
-    .novel-writer-extension-root .writer-panel {
-        width: 100%;
-        height: 100%;
-        max-height: 100vh;
-        border-radius: 0;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        margin: 0;
-    }
-    
-    .novel-writer-extension-root .panel-header {
-        padding: 12px 16px;
-    }
-    
-    .novel-writer-extension-root .panel-title h2 {
-        font-size: 1.2rem;
-    }
-    
-    .novel-writer-extension-root .panel-tab-item {
-        padding: 10px 12px;
-        font-size: 0.85rem;
-    }
-    
-    .novel-writer-extension-root .panel-tab-item .tab-icon {
-        font-size: 1.2rem;
-        margin-right: 6px;
-    }
-    
-    .novel-writer-extension-root .panel-tab-content {
-        padding: 12px 14px;
-    }
-    
-    .novel-writer-extension-root .content-card {
-        padding: 14px;
-        margin-bottom: 12px;
-    }
-    
-    .novel-writer-extension-root .card-header .card-title {
-        font-size: 0.95rem;
-    }
-    
-    .novel-writer-extension-root .btn {
-        padding: 10px 14px;
-        font-size: 0.9rem;
-        min-height: 44px;
-    }
-    
-    .novel-writer-extension-root .btn-icon {
-        font-size: 1rem;
-    }
-    
-    .novel-writer-extension-root .form-input,
-    .novel-writer-extension-root .form-textarea,
-    .novel-writer-extension-root .form-select {
-        padding: 10px 12px;
-        font-size: 16px; /* 防止 iOS 缩放 */
-        min-height: 44px;
-    }
-    
-    .novel-writer-extension-root .upload-zone {
-        padding: 20px 16px;
-    }
-    
-    .novel-writer-extension-root .upload-zone .upload-icon {
-        font-size: 2.5rem;
-    }
-    
-    .novel-writer-extension-root .chapter-list {
-        gap: 8px;
-    }
-    
-    .novel-writer-extension-root .chapter-item {
-        padding: 10px 12px;
-    }
-    
-    .novel-writer-extension-root .chapter-checkbox {
-        transform: scale(1.1);
-    }
-    
-    .novel-writer-extension-root .reader-header {
-        padding: 10px 12px;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    
-    .novel-writer-extension-root .reader-controls {
-        width: 100%;
-        justify-content: space-between;
-    }
-    
-    .novel-writer-extension-root .reader-content {
-        padding: 14px;
-        font-size: 0.95rem;
-        line-height: 1.7;
-    }
-    
-    .novel-writer-extension-root .stat-card {
-        padding: 10px;
-    }
-    
-    .novel-writer-extension-root .stat-value {
-        font-size: 1.2rem;
-    }
-    
-    .novel-writer-extension-root .stat-label {
-        font-size: 0.75rem;
-    }
-    
-    .novel-writer-extension-root .float-ball {
-        width: 48px;
-        height: 48px;
-    }
-    
-    .novel-writer-extension-root .float-ball .ball-icon {
-        font-size: 1.4rem;
-    }
-    
-    .novel-writer-extension-root .code-editor {
-        font-size: 0.8rem;
-        padding: 10px;
-    }
-    
-    .novel-writer-extension-root .card-footer {
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    
-    .novel-writer-extension-root .form-group {
-        margin-bottom: 14px;
-    }
-    
-    .novel-writer-extension-root .form-label {
-        font-size: 0.85rem;
-        margin-bottom: 6px;
-    }
-    
-    .novel-writer-extension-root .tag {
-        padding: 4px 8px;
-        font-size: 0.75rem;
-    }
-    
-    .novel-writer-extension-root .slider {
-        height: 12px;
-    }
-    
-    .novel-writer-extension-root .slider::-webkit-slider-thumb {
-        width: 28px;
-        height: 28px;
-    }
-    
-    /* 调整行高防止内容溢出 */
-    .novel-writer-extension-root .row {
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-    
-    /* 让小屏幕上的表格更紧凑 */
-    .novel-writer-extension-root .chapter-list {
-        max-height: 200px;
-    }
-}
-
-/* 中屏设备 (481px - 768px) */
-@media (min-width: 481px) and (max-width: 768px) {
-    .novel-writer-extension-root .writer-panel {
-        width: 95%;
-        max-width: 600px;
-    }
-    
-    .novel-writer-extension-root .panel-tab-item {
-        padding: 12px 16px;
-    }
-    
-    .novel-writer-extension-root .panel-tab-content {
-        padding: 16px;
-    }
-    
-    .novel-writer-extension-root .content-card {
-        padding: 16px;
-    }
-}
-
-/* 平板设备 (769px - 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .novel-writer-extension-root .writer-panel {
-        width: 85%;
-        max-width: 700px;
-    }
-}
-
-/* 横屏模式优化 */
-@media (orientation: landscape) and (max-height: 500px) {
-    .novel-writer-extension-root .writer-panel {
-        height: 90vh;
-        top: 5vh;
-    }
-    
-    .novel-writer-extension-root .panel-tab-content {
-        padding: 10px 14px;
-        overflow-y: auto;
-        max-height: calc(100% - 120px);
-    }
-    
-    .novel-writer-extension-root .reader-content {
-        max-height: 300px;
-    }
-}
-
-/* 触摸屏优化 */
-@media (hover: none) and (pointer: coarse) {
-    .novel-writer-extension-root .btn {
-        touch-action: manipulation;
-        transition: transform 0.1s ease;
-    }
-    
-    .novel-writer-extension-root .btn:active {
-        transform: scale(0.96);
-    }
-    
-    .novel-writer-extension-root .panel-tab-item {
-        touch-action: manipulation;
-    }
-    
-    /* 防止双击缩放 */
-    .novel-writer-extension-root {
-        touch-action: manipulation;
-    }
-}
-
-/* 暗色模式优化 */
-@media (prefers-color-scheme: dark) {
-    /* 确保在系统暗色模式下也有合适的对比度 */
-    .novel-writer-extension-root .text-secondary {
-        color: rgba(255, 255, 255, 0.8);
-    }
-    
-    .novel-writer-extension-root .text-muted {
-        color: rgba(255, 255, 255, 0.6);
-    }
-}
-
-/* 安全区域适配 (iPhone  notch 设备) */
-@supports (padding: max(0px)) {
-    .novel-writer-extension-root .writer-panel {
-        padding-left: max(0px, env(safe-area-inset-left));
-        padding-right: max(0px, env(safe-area-inset-right));
-    }
-    
-    .novel-writer-extension-root .panel-header {
-        padding-top: max(16px, env(safe-area-inset-top));
-    }
-}
-
-/* 高 DPI 屏幕优化 */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .novel-writer-extension-root {
-        image-rendering: -webkit-optimize-contrast;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-}
-
-/* 数据节省模式 */
-@media (prefers-reduced-data: reduce) {
-    .novel-writer-extension-root .btn-shine,
-    .novel-writer-extension-root .ball-glow {
-        display: none !important;
-    }
-    
-    .novel-writer-extension-root .panel-tab-item.active::before {
-        animation: none !important;
     }
 }
