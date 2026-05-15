@@ -792,18 +792,38 @@ function getActivePresetParams() {
     let presetParams = {};
     
     if (settings.enableAutoParentPreset) {
-        if (context?.generation_settings && typeof context.generation_settings === 'object') {
-            presetParams = { ...context.generation_settings };
-            console.log('[小说续写器] 使用 context.generation_settings 预设参数');
-        } else if (window.generation_params && typeof window.generation_params === 'object') {
-            presetParams = { ...window.generation_params };
-            console.log('[小说续写器] 使用 window.generation_params 预设参数');
-        } else if (context?.preset?.data && typeof context.preset.data === 'object') {
-            presetParams = { ...context.preset.data };
-            console.log('[小说续写器] 使用 context.preset.data 预设参数');
-        } else if (window.SillyTavern?.presetManager?.currentPreset?.data) {
-            presetParams = { ...window.SillyTavern.presetManager.currentPreset.data };
-            console.log('[小说续写器] 使用 window.SillyTavern.presetManager.currentPreset.data 预设参数');
+        // 优先使用 getPresetManager API 获取当前预设
+        if (context?.getPresetManager) {
+            try {
+                const presetManager = context.getPresetManager();
+                if (presetManager) {
+                    const presetName = presetManager.getSelectedPresetName();
+                    const presetData = presetManager.getPresetSettings(presetName);
+                    if (presetData && typeof presetData === 'object') {
+                        presetParams = { ...presetData };
+                        console.log('[小说续写器] 使用 getPresetManager() 预设参数:', presetName);
+                    }
+                }
+            } catch (e) {
+                console.warn('[小说续写器] 使用 getPresetManager 失败:', e);
+            }
+        }
+        
+        // 备用方案
+        if (Object.keys(presetParams).length === 0) {
+            if (context?.generation_settings && typeof context.generation_settings === 'object') {
+                presetParams = { ...context.generation_settings };
+                console.log('[小说续写器] 使用 context.generation_settings 预设参数');
+            } else if (context?.textCompletionSettings && typeof context.textCompletionSettings === 'object') {
+                presetParams = { ...context.textCompletionSettings };
+                console.log('[小说续写器] 使用 context.textCompletionSettings 预设参数');
+            } else if (window.generation_params && typeof window.generation_params === 'object') {
+                presetParams = { ...window.generation_params };
+                console.log('[小说续写器] 使用 window.generation_params 预设参数');
+            } else if (window.SillyTavern?.presetManager?.currentPreset?.data) {
+                presetParams = { ...window.SillyTavern.presetManager.currentPreset.data };
+                console.log('[小说续写器] 使用 window.SillyTavern.presetManager.currentPreset.data 预设参数');
+            }
         }
     } else {
         if (window.generation_params && typeof window.generation_params === 'object') {
@@ -811,31 +831,55 @@ function getActivePresetParams() {
         }
     }
     
+    // 扩展的有效参数列表，兼容不同 API 类型
     const validParams = [
+        // 温度相关
         'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-        'max_new_tokens', 'min_new_tokens', 'max_tokens',
-        'repetition_penalty', 'presence_penalty', 'frequency_penalty',
+        // 生成长度
+        'max_new_tokens', 'min_new_tokens', 'max_tokens', 'max_length',
+        // 重复惩罚
+        'repetition_penalty', 'presence_penalty', 'frequency_penalty', 'encoder_repetition_penalty',
+        // 采样器
         'typical_p', 'tfs', 'epsilon_cutoff', 'eta_cutoff', 'guidance_scale',
-        'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau',
-        'dynamic_temperature', 'dynatemp_low', 'dynatemp_high',
-        'negative_prompt', 'stop_sequence', 'seed', 'do_sample',
-        'encoder_repetition_penalty', 'no_repeat_ngram_size',
-        'num_beams', 'length_penalty', 'early_stopping',
+        'cfg_scale', 'penalty_alpha', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta',
+        // 动态温度
+        'dynamic_temperature', 'dynatemp_low', 'dynatemp_high', 'dynatemp_exponent',
+        // 其他
+        'negative_prompt', 'stop_sequence', 'stop', 'seed', 'do_sample',
+        'no_repeat_ngram_size', 'num_beams', 'length_penalty', 'early_stopping',
         'ban_eos_token', 'skip_special_tokens', 'add_bos_token',
         'truncation_length', 'custom_token_bans', 'sampler_priority',
-        'system_prompt', 'logit_bias', 'stream'
+        'system_prompt', 'logit_bias', 'stream',
+        // SillyTavern 特有参数
+        'temp', 'rep_pen', 'top_k_value', 'top_p_value', 'typical', 'tfs_value',
+        'top_a_value', 'min_p_value', 'penalty_alpha_value'
     ];
     
     const filteredParams = {};
     for (const key of validParams) {
         if (presetParams[key] !== undefined && presetParams[key] !== null) {
-            filteredParams[key] = presetParams[key];
+            // 处理参数别名映射
+            let targetKey = key;
+            // SillyTavern 使用别名，映射到标准名称
+            if (key === 'temp') targetKey = 'temperature';
+            if (key === 'rep_pen') targetKey = 'repetition_penalty';
+            if (key === 'top_k_value') targetKey = 'top_k';
+            if (key === 'top_p_value') targetKey = 'top_p';
+            if (key === 'min_p_value') targetKey = 'min_p';
+            if (key === 'top_a_value') targetKey = 'top_a';
+            if (key === 'tfs_value') targetKey = 'tfs';
+            if (key === 'penalty_alpha_value') targetKey = 'penalty_alpha';
+            if (key === 'stop') targetKey = 'stop_sequence';
+            if (key === 'max_length') targetKey = 'max_new_tokens';
+            
+            filteredParams[targetKey] = presetParams[key];
         }
     }
     
     const defaultFallbackParams = {
         temperature: 0.7,
         top_p: 0.9,
+        top_k: 40,
         max_new_tokens: 2048,
         repetition_penalty: 1.1,
         do_sample: true
@@ -858,6 +902,24 @@ function getCurrentPresetName() {
     const context = getContext();
     let presetName = "默认预设";
     
+    // 优先使用 getPresetManager API
+    if (context?.getPresetManager) {
+        try {
+            const presetManager = context.getPresetManager();
+            if (presetManager) {
+                const name = presetManager.getSelectedPresetName();
+                if (name && typeof name === 'string') {
+                    presetName = name;
+                    console.log('[小说续写器] 使用 getPresetManager() 预设名称:', presetName);
+                    return presetName;
+                }
+            }
+        } catch (e) {
+            console.warn('[小说续写器] 使用 getPresetManager 获取名称失败:', e);
+        }
+    }
+    
+    // 备用方案
     if (context?.preset?.name && typeof context.preset.name === 'string') {
         presetName = context.preset.name;
         console.log('[小说续写器] 使用 context.preset.name 预设名称:', presetName);
