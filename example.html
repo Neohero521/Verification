@@ -155,16 +155,33 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">
+                                <label class="form-label" id="split-word-count-label">
                                     <span class="label-icon">📏</span>
                                     按字数拆分
                                 </label>
                                 <div class="input-suffix-wrapper">
-                                    <input id="split-word-count" type="number" min="1000" max="10000" step="100" class="form-input" value="3000">
+                                    <input id="split-word-count" 
+                                           type="number" 
+                                           min="1000" 
+                                           max="10000" 
+                                           step="100" 
+                                           class="form-input" 
+                                           value="3000"
+                                           aria-labelledby="split-word-count-label">
                                     <span class="input-suffix">字/章</span>
                                 </div>
                                 <div class="slider-container">
-                                    <input type="range" min="1000" max="10000" step="100" value="3000" class="slider" id="split-word-slider">
+                                    <input type="range" 
+                                           min="1000" 
+                                           max="10000" 
+                                           step="100" 
+                                           value="3000" 
+                                           class="slider" 
+                                           id="split-word-slider"
+                                           aria-labelledby="split-word-count-label"
+                                           aria-valuemin="1000"
+                                           aria-valuemax="10000"
+                                           aria-valuenow="3000">
                                     <div class="slider-labels">
                                         <span>1000</span>
                                         <span>5000</span>
@@ -176,19 +193,31 @@
 
                         <div class="form-grid">
                             <div class="form-group">
-                                <label class="form-label">
+                                <label class="form-label" id="send-template-label">
                                     <span class="label-icon">⚡</span>
                                     发送命令模板
                                 </label>
-                                <input id="send-template-input" type="text" class="form-input" placeholder="请输入发送命令模板" value="/sendas name={{char}} {{pipe}}">
+                                <input id="send-template-input" 
+                                       type="text" 
+                                       class="form-input" 
+                                       placeholder="请输入发送命令模板" 
+                                       value="/sendas name={{char}} {{pipe}}"
+                                       aria-labelledby="send-template-label">
                             </div>
                             <div class="form-group">
-                                <label class="form-label">
+                                <label class="form-label" id="send-delay-label">
                                     <span class="label-icon">⏱️</span>
                                     发送间隔
                                 </label>
                                 <div class="input-suffix-wrapper">
-                                    <input id="send-delay-input" type="number" min="0" max="5000" step="10" class="form-input" value="100">
+                                    <input id="send-delay-input" 
+                                           type="number" 
+                                           min="0" 
+                                           max="5000" 
+                                           step="10" 
+                                           class="form-input" 
+                                           value="100"
+                                           aria-labelledby="send-delay-label">
                                     <span class="input-suffix">ms</span>
                                 </div>
                             </div>
@@ -241,45 +270,68 @@
                             <div class="card-icon">📖</div>
                             <div class="card-title-text">
                                 <h4>章节列表</h4>
-                                <p class="card-subtitle" id="chapter-count-display">共 0 个章节</p>
+                                <p class="card-subtitle" 
+                                   id="chapter-count-display"
+                                   aria-live="polite"
+                                   aria-atomic="true">共 0 个章节</p>
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn btn-icon-only" id="select-all-btn" title="全选">
-                                <span>☑️</span>
+                            <button class="btn btn-icon-only" 
+                                    id="select-all-btn" 
+                                    aria-label="全选"
+                                    title="全选">
+                                <span aria-hidden="true">☑️</span>
                             </button>
-                            <button class="btn btn-icon-only" id="unselect-all-btn" title="取消全选">
-                                <span>⬜</span>
+                            <button class="btn btn-icon-only" 
+                                    id="unselect-all-btn" 
+                                    aria-label="取消全选"
+                                    title="取消全选">
+                                <span aria-hidden="true">⬜</span>
                             </button>
-                            <button class="btn btn-sm btn-danger" id="stop-send-btn" disabled>
-                                <span>⏹️</span>停止
+                            <button class="btn btn-sm btn-danger" 
+                                    id="stop-send-btn" 
+                                    disabled
+                                    aria-disabled="true">
+                                <span aria-hidden="true">⏹️</span>停止
                             </button>
                         </div>
                     </div>
                     <div class="progress-wrapper">
                         <div class="progress-info">
-                            <span id="novel-import-status" class="progress-text"></span>
-                            <span class="progress-percent" id="novel-import-percent"></span>
+                            <span id="novel-import-status" 
+                                  class="progress-text"
+                                  aria-live="polite"
+                                  role="status"></span>
+                            <span class="progress-percent" 
+                                  id="novel-import-percent"
+                                  aria-live="polite"></span>
                         </div>
-                        <div class="progress-bar">
+                        <div class="progress-bar" 
+                             role="progressbar"
+                             id="novel-import-progress-bar"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             aria-label="小说导入进度">
                             <div id="novel-import-progress" class="progress-fill"></div>
                         </div>
                     </div>
-                    <div id="novel-chapter-list" class="chapter-list">
+                    <div id="novel-chapter-list" class="chapter-list" aria-label="章节列表">
                         <div class="empty-state">
-                            <div class="empty-icon">📁</div>
+                            <div class="empty-icon" aria-hidden="true">📁</div>
                             <div class="empty-text">请上传小说文件并点击「解析章节」</div>
                         </div>
                     </div>
                     <div class="card-footer">
                         <button class="btn btn-outline" id="validate-chapter-graph-btn">
-                            <span>🔍</span>检验图谱状态
+                            <span aria-hidden="true">🔍</span>检验图谱状态
                         </button>
                         <button class="btn btn-primary" id="import-selected-btn">
-                            <span>📤</span>导入选中章节
+                            <span aria-hidden="true">📤</span>导入选中章节
                         </button>
                         <button class="btn btn-secondary" id="import-all-btn">
-                            <span>📤</span>导入全部
+                            <span aria-hidden="true">📤</span>导入全部
                         </button>
                     </div>
                 </div>
@@ -318,25 +370,36 @@
 
                         <div class="progress-wrapper">
                             <div class="progress-info">
-                                <span id="graph-generate-status" class="progress-text"></span>
-                                <span class="progress-percent" id="graph-generate-percent"></span>
+                                <span id="graph-generate-status" 
+                                      class="progress-text"
+                                      aria-live="polite"
+                                      role="status"></span>
+                                <span class="progress-percent" 
+                                      id="graph-generate-percent"
+                                      aria-live="polite"></span>
                             </div>
-                            <div class="progress-bar progress-animated">
+                            <div class="progress-bar progress-animated" 
+                                 role="progressbar"
+                                 id="graph-progress-bar"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"
+                                 aria-label="图谱生成进度">
                                 <div id="graph-progress" class="progress-fill"></div>
                             </div>
                         </div>
 
                         <div class="action-hints">
                             <div class="hint-card">
-                                <span class="hint-icon">📥</span>
+                                <span class="hint-icon" aria-hidden="true">📥</span>
                                 <span>导入单章节图谱</span>
                                 <input id="chapter-graph-file-upload" type="file" accept=".json" style="display: none;">
                             </div>
                             <button class="btn btn-sm btn-outline" id="chapter-graph-import-btn">
-                                <span>📥</span>导入
+                                <span aria-hidden="true">📥</span>导入
                             </button>
                             <button class="btn btn-sm btn-secondary" id="chapter-graph-export-btn">
-                                <span>📤</span>导出
+                                <span aria-hidden="true">📤</span>导出
                             </button>
                         </div>
                     </div>
@@ -357,12 +420,19 @@
                     <div class="card-body">
                         <div class="merge-config">
                             <div class="form-group">
-                                <label class="form-label">
+                                <label class="form-label" id="batch-merge-label">
                                     <span class="label-icon">📊</span>
                                     每批合并章节数
                                 </label>
                                 <div class="input-suffix-wrapper">
-                                    <input id="batch-merge-count" type="number" min="10" max="100" step="10" class="form-input" value="50">
+                                    <input id="batch-merge-count" 
+                                           type="number" 
+                                           min="10" 
+                                           max="100" 
+                                           step="10" 
+                                           class="form-input" 
+                                           value="50"
+                                           aria-labelledby="batch-merge-label">
                                     <span class="input-suffix">章节/批</span>
                                 </div>
                             </div>
@@ -380,10 +450,21 @@
 
                         <div class="progress-wrapper">
                             <div class="progress-info">
-                                <span id="batch-merge-status" class="progress-text"></span>
-                                <span class="progress-percent" id="batch-merge-percent"></span>
+                                <span id="batch-merge-status" 
+                                      class="progress-text"
+                                      aria-live="polite"
+                                      role="status"></span>
+                                <span class="progress-percent" 
+                                      id="batch-merge-percent"
+                                      aria-live="polite"></span>
                             </div>
-                            <div class="progress-bar progress-animated">
+                            <div class="progress-bar progress-animated" 
+                                 role="progressbar"
+                                 id="batch-merge-progress-bar"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"
+                                 aria-label="批量合并进度">
                                 <div id="batch-merge-progress" class="progress-fill"></div>
                             </div>
                         </div>
@@ -421,25 +502,32 @@
                     </div>
                     <div class="card-body">
                         <div class="code-preview">
-                            <textarea id="merged-graph-preview" rows="10" class="form-textarea code-editor" readonly placeholder="合并后的图谱JSON将显示在这里..." wrap="soft"></textarea>
-                            <div class="code-line-numbers" id="code-line-numbers"></div>
+                            <textarea id="merged-graph-preview" 
+                                      rows="10" 
+                                      class="form-textarea code-editor" 
+                                      readonly 
+                                      placeholder="合并后的图谱JSON将显示在这里..." 
+                                      wrap="soft"
+                                      aria-label="合并后图谱预览"
+                                      aria-readonly="true"></textarea>
+                            <div class="code-line-numbers" id="code-line-numbers" aria-hidden="true"></div>
                         </div>
                         <div class="action-hints">
                             <input id="graph-file-upload" type="file" accept=".json" style="display: none;">
                             <button class="btn btn-sm btn-outline" id="graph-validate-btn">
-                                <span>✓</span>校验
+                                <span aria-hidden="true">✓</span>校验
                             </button>
                             <button class="btn btn-sm btn-outline" id="graph-import-btn">
-                                <span>📥</span>导入JSON
+                                <span aria-hidden="true">📥</span>导入JSON
                             </button>
                             <button class="btn btn-sm btn-secondary" id="graph-copy-btn">
-                                <span>📋</span>复制
+                                <span aria-hidden="true">📋</span>复制
                             </button>
                             <button class="btn btn-sm btn-secondary" id="graph-export-btn">
-                                <span>💾</span>导出
+                                <span aria-hidden="true">💾</span>导出
                             </button>
                             <button class="btn btn-sm btn-danger" id="graph-clear-btn">
-                                <span>🗑️</span>清空
+                                <span aria-hidden="true">🗑️</span>清空
                             </button>
                         </div>
                     </div>
@@ -461,7 +549,14 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <textarea id="graph-validate-content" rows="4" class="form-textarea" readonly placeholder="校验结果将显示在这里..." wrap="soft"></textarea>
+                        <textarea id="graph-validate-content" 
+                                  rows="4" 
+                                  class="form-textarea" 
+                                  readonly 
+                                  placeholder="校验结果将显示在这里..." 
+                                  wrap="soft"
+                                  aria-label="校验结果"
+                                  aria-readonly="true"></textarea>
                     </div>
                 </div>
             </div>
@@ -487,26 +582,35 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" id="write-chapter-label">
                                 <span class="label-icon">📑</span>
                                 选择续写基准章节
                             </label>
-                            <select id="write-chapter-select" class="form-select">
+                            <select id="write-chapter-select" 
+                                    class="form-select"
+                                    aria-labelledby="write-chapter-label">
                                 <option value="">请先解析章节</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <div class="form-label-row">
-                                <label class="form-label">
+                                <label class="form-label" id="write-content-label">
                                     <span class="label-icon">📝</span>
                                     基准章节内容
                                 </label>
                                 <span class="label-hint">可直接编辑修改</span>
                             </div>
-                            <textarea id="write-chapter-content" rows="8" class="form-textarea" placeholder="请先选择上方的基准章节..." readonly wrap="soft"></textarea>
+                            <textarea id="write-chapter-content" 
+                                      rows="8" 
+                                      class="form-textarea" 
+                                      placeholder="请先选择上方的基准章节..." 
+                                      readonly 
+                                      wrap="soft"
+                                      aria-labelledby="write-content-label"
+                                      aria-readonly="true"></textarea>
                         </div>
                         <button class="btn btn-sm btn-outline btn-block" id="graph-update-modified-btn">
-                            <span class="btn-icon">🔄</span>
+                            <span class="btn-icon" aria-hidden="true">🔄</span>
                             <span class="btn-text">更新魔改章节图谱</span>
                         </button>
                     </div>
@@ -516,27 +620,36 @@
                 <div class="inline-drawer" id="drawer-precheck">
                     <div class="inline-drawer-toggle inline-drawer-header">
                         <div class="drawer-title">
-                            <span class="drawer-icon">🎯</span>
+                            <span class="drawer-icon" aria-hidden="true">🎯</span>
                             <span class="drawer-text">续写前置校验与合规边界</span>
                         </div>
                         <div class="drawer-indicator">
-                            <span id="precheck-status" class="status-badge status-default">未执行</span>
-                            <div class="inline-drawer-icon down">▼</div>
+                            <span id="precheck-status" 
+                                  class="status-badge status-default"
+                                  aria-live="polite">未执行</span>
+                            <div class="inline-drawer-icon down" aria-hidden="true">▼</div>
                         </div>
                     </div>
                     <div class="inline-drawer-content">
                         <div class="precheck-header">
                             <button class="btn btn-primary" id="precheck-run-btn">
-                                <span class="btn-icon">⚡</span>
+                                <span class="btn-icon" aria-hidden="true">⚡</span>
                                 <span class="btn-text">执行前置校验</span>
                             </button>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" id="precheck-report-label">
                                 <span class="label-icon">📊</span>
                                 合规边界与校验报告
                             </label>
-                            <textarea id="precheck-report" rows="6" class="form-textarea" readonly placeholder="执行前置校验后，将显示人设红线、设定禁区、可呼应伏笔、矛盾预警等内容..." wrap="soft"></textarea>
+                            <textarea id="precheck-report" 
+                                      rows="6" 
+                                      class="form-textarea" 
+                                      readonly 
+                                      placeholder="执行前置校验后，将显示人设红线、设定禁区、可呼应伏笔、矛盾预警等内容..." 
+                                      wrap="soft"
+                                      aria-labelledby="precheck-report-label"
+                                      aria-readonly="true"></textarea>
                         </div>
                     </div>
                 </div>
@@ -555,12 +668,19 @@
                     <div class="card-body">
                         <div class="config-grid">
                             <div class="form-group">
-                                <label class="form-label">
+                                <label class="form-label" id="write-word-label">
                                     <span class="label-icon">📏</span>
                                     续写字数
                                 </label>
                                 <div class="input-suffix-wrapper">
-                                    <input id="write-word-count" type="number" min="500" max="10000" step="100" class="form-input" value="2000">
+                                    <input id="write-word-count" 
+                                           type="number" 
+                                           min="500" 
+                                           max="10000" 
+                                           step="100" 
+                                           class="form-input" 
+                                           value="2000"
+                                           aria-labelledby="write-word-label">
                                     <span class="input-suffix">字</span>
                                 </div>
                             </div>
@@ -582,32 +702,45 @@
                 <div class="content-card card-generate">
                     <div class="generate-actions">
                         <button class="btn btn-primary btn-xl" id="write-generate-btn">
-                            <span class="btn-icon">✨</span>
+                            <span class="btn-icon" aria-hidden="true">✨</span>
                             <span class="btn-text">生成续写章节</span>
                             <div class="btn-shine"></div>
                         </button>
-                        <button class="btn btn-danger btn-xl" id="write-stop-btn" disabled>
-                            <span class="btn-icon">⏹️</span>
+                        <button class="btn btn-danger btn-xl" 
+                                id="write-stop-btn" 
+                                disabled
+                                aria-disabled="true">
+                            <span class="btn-icon" aria-hidden="true">⏹️</span>
                             <span class="btn-text">停止生成</span>
                         </button>
                     </div>
                     <div class="progress-wrapper">
                         <div class="progress-info">
-                            <span id="write-status" class="progress-text"></span>
+                            <span id="write-status" 
+                                  class="progress-text"
+                                  aria-live="polite"
+                                  role="status"></span>
                         </div>
                     </div>
                     <div id="quality-result-block" class="quality-result" style="display: none;">
                         <div class="quality-score-display">
                             <div class="score-circle">
-                                <svg viewBox="0 0 100 100">
+                                <svg viewBox="0 0 100 100" aria-hidden="true">
                                     <circle class="score-bg" cx="50" cy="50" r="45"></circle>
                                     <circle class="score-fill" cx="50" cy="50" r="45" id="quality-score-circle"></circle>
                                 </svg>
-                                <span class="score-value" id="quality-score">0</span>
+                                <span class="score-value" id="quality-score" aria-live="polite">0</span>
                             </div>
                             <span class="score-label">质量评估得分</span>
                         </div>
-                        <textarea id="quality-report" rows="3" class="form-textarea" readonly placeholder="质量评估详细报告将显示在这里..." wrap="soft"></textarea>
+                        <textarea id="quality-report" 
+                                  rows="3" 
+                                  class="form-textarea" 
+                                  readonly 
+                                  placeholder="质量评估详细报告将显示在这里..." 
+                                  wrap="soft"
+                                  aria-label="质量评估报告"
+                                  aria-readonly="true"></textarea>
                     </div>
                 </div>
 
@@ -615,29 +748,34 @@
                 <div class="content-card card-result">
                     <div class="card-header">
                         <div class="card-title-group">
-                            <div class="card-icon">📝</div>
+                            <div class="card-icon" aria-hidden="true">📝</div>
                             <div class="card-title-text">
                                 <h4>续写生成结果</h4>
                                 <p class="card-subtitle">Generated Content</p>
                             </div>
                         </div>
                         <div class="result-stats">
-                            <span id="result-word-count">0 字</span>
+                            <span id="result-word-count" aria-live="polite">0 字</span>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="result-preview">
-                            <textarea id="write-content-preview" rows="12" class="form-textarea" placeholder="生成的续写章节内容将显示在这里..." wrap="soft"></textarea>
+                            <textarea id="write-content-preview" 
+                                      rows="12" 
+                                      class="form-textarea" 
+                                      placeholder="生成的续写章节内容将显示在这里..." 
+                                      wrap="soft"
+                                      aria-label="续写生成结果预览"></textarea>
                         </div>
                         <div class="action-hints">
                             <button class="btn btn-sm btn-secondary" id="write-copy-btn">
-                                <span>📋</span>复制
+                                <span aria-hidden="true">📋</span>复制
                             </button>
                             <button class="btn btn-sm btn-primary" id="write-send-btn">
-                                <span>📤</span>发送到对话框
+                                <span aria-hidden="true">📤</span>发送到对话框
                             </button>
                             <button class="btn btn-sm btn-danger" id="write-clear-btn">
-                                <span>🗑️</span>清空
+                                <span aria-hidden="true">🗑️</span>清空
                             </button>
                         </div>
                     </div>
@@ -647,19 +785,19 @@
                 <div class="content-card card-chain">
                     <div class="card-header">
                         <div class="card-title-group">
-                            <div class="card-icon">🔗</div>
+                            <div class="card-icon" aria-hidden="true">🔗</div>
                             <div class="card-title-text">
                                 <h4>续写章节链条</h4>
                                 <p class="card-subtitle">可无限叠加续写</p>
                             </div>
                         </div>
                         <button class="btn btn-sm btn-danger" id="clear-chain-btn">
-                            <span>🗑️</span>清空所有
+                            <span aria-hidden="true">🗑️</span>清空所有
                         </button>
                     </div>
-                    <div id="continue-write-chain" class="chain-container">
+                    <div id="continue-write-chain" class="chain-container" aria-live="polite">
                         <div class="empty-state">
-                            <div class="empty-icon">📝</div>
+                            <div class="empty-icon" aria-hidden="true">📝</div>
                             <div class="empty-text">暂无续写章节，生成续写内容后自动添加到此处</div>
                         </div>
                     </div>
@@ -676,33 +814,39 @@
                 <!-- 阅读器顶部控制栏 -->
                 <div class="reader-header">
                     <div class="reader-title">
-                        <div class="reader-icon">📖</div>
+                        <div class="reader-icon" aria-hidden="true">📖</div>
                         <div class="reader-title-text">
-                            <span id="reader-current-chapter-title">未选择章节</span>
-                            <span id="reader-chapter-count" class="reader-chapter-info">0/0</span>
+                            <span id="reader-current-chapter-title" aria-live="polite">未选择章节</span>
+                            <span id="reader-chapter-count" class="reader-chapter-info" aria-live="polite">0/0</span>
                         </div>
                     </div>
                     <div class="reader-controls">
                         <div class="font-size-control">
-                            <button class="btn btn-sm btn-icon reader-font-btn" id="reader-font-minus" title="缩小字体">
-                                <span>A</span><span>-</span>
+                            <button class="btn btn-sm btn-icon reader-font-btn" 
+                                    id="reader-font-minus" 
+                                    aria-label="缩小字体"
+                                    title="缩小字体">
+                                <span aria-hidden="true">A</span><span aria-hidden="true">-</span>
                             </button>
-                            <span class="font-size-display" id="font-size-display">16</span>
-                            <button class="btn btn-sm btn-icon reader-font-btn" id="reader-font-plus" title="放大字体">
-                                <span>A</span><span>+</span>
+                            <span class="font-size-display" id="font-size-display" aria-live="polite">16</span>
+                            <button class="btn btn-sm btn-icon reader-font-btn" 
+                                    id="reader-font-plus" 
+                                    aria-label="放大字体"
+                                    title="放大字体">
+                                <span aria-hidden="true">A</span><span aria-hidden="true">+</span>
                             </button>
                         </div>
                         <button class="btn btn-sm btn-primary" id="reader-chapter-select-btn">
-                            <span>📋</span>章节列表
+                            <span aria-hidden="true">📋</span>章节列表
                         </button>
                     </div>
                 </div>
 
                 <!-- 阅读器核心内容区域 -->
                 <div class="reader-content-wrap">
-                    <div class="reader-content" id="reader-content">
+                    <div class="reader-content" id="reader-content" role="main">
                         <div class="reader-empty-state">
-                            <div class="reader-empty-icon">📚</div>
+                            <div class="reader-empty-icon" aria-hidden="true">📚</div>
                             <div class="reader-empty-text">请先在「章节管理」中解析小说文件，然后选择章节开始阅读</div>
                         </div>
                     </div>
@@ -710,19 +854,32 @@
 
                 <!-- 阅读器底部进度条 + 翻章按钮 -->
                 <div class="reader-footer">
-                    <button class="btn btn-sm btn-outline reader-nav-btn" id="reader-prev-chapter" title="上一章">
-                        <span class="nav-icon">◀</span>
+                    <button class="btn btn-sm btn-outline reader-nav-btn" 
+                            id="reader-prev-chapter" 
+                            aria-label="上一章"
+                            title="上一章">
+                        <span class="nav-icon" aria-hidden="true">◀</span>
                         <span class="nav-text">上一章</span>
                     </button>
                     <div class="reader-progress-wrapper">
-                        <span id="reader-progress-text" class="reader-progress-text">0%</span>
-                        <div class="reader-progress-bar">
+                        <span id="reader-progress-text" 
+                              class="reader-progress-text"
+                              aria-live="polite">0%</span>
+                        <div class="reader-progress-bar" 
+                             role="progressbar"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             aria-label="阅读进度">
                             <div class="reader-progress-fill" id="reader-progress-fill"></div>
                         </div>
                     </div>
-                    <button class="btn btn-sm btn-outline reader-nav-btn" id="reader-next-chapter" title="下一章">
+                    <button class="btn btn-sm btn-outline reader-nav-btn" 
+                            id="reader-next-chapter" 
+                            aria-label="下一章"
+                            title="下一章">
                         <span class="nav-text">下一章</span>
-                        <span class="nav-icon">▶</span>
+                        <span class="nav-icon" aria-hidden="true">▶</span>
                     </button>
                 </div>
 
