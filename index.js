@@ -576,6 +576,47 @@ function debounce(func, delay) {
     };
 }
 
+/**
+ * 节流函数 - 限制函数在指定时间间隔内只能执行一次
+ * @param {Function} func - 要执行的函数
+ * @param {number} limit - 时间间隔（毫秒）
+ * @returns {Function}
+ */
+function throttle(func, limit) {
+    let inThrottle = false;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+/**
+ * 带立即执行的防抖函数
+ * @param {Function} func - 要执行的函数
+ * @param {number} delay - 延迟时间（毫秒）
+ * @param {boolean} immediate - 是否立即执行
+ * @returns {Function}
+ */
+function debounceImmediate(func, delay, immediate = false) {
+    let timer = null;
+    return function(...args) {
+        if (timer === null && immediate) {
+            func.apply(this, args);
+        }
+        
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            if (!immediate) {
+                func.apply(this, args);
+            }
+            timer = null;
+        }, delay);
+    };
+}
+
 function deepMerge(target, source) {
     const merged = { ...target };
     for (const key in source) {
@@ -975,6 +1016,22 @@ const FloatBall = {
                 if (firstTab) firstTab.focus();
             } else {
                 this.ball.focus();
+            }
+        }
+        
+        // Ctrl/Cmd + Z 撤销
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+            if (this.panel.classList.contains("show")) {
+                e.preventDefault();
+                UndoManager.undo();
+            }
+        }
+        
+        // Ctrl/Cmd + Shift + Z 或 Ctrl/Cmd + Y 重做
+        if ((e.ctrlKey || e.metaKey) && (e.shiftKey && e.key === 'z' || e.key === 'y')) {
+            if (this.panel.classList.contains("show")) {
+                e.preventDefault();
+                UndoManager.redo();
             }
         }
     },
