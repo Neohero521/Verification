@@ -399,6 +399,101 @@ function isEmptyContent(text) {
 
 const REJECT_KEYWORDS = ['不能', '无法', '不符合', '抱歉', '对不起', '无法提供', '请调整', '违规', '敏感', '不予生成'];
 
+/**
+ * 撤销管理器 - 实现操作的撤销和重做
+ */
+const UndoManager = {
+    undoStack: [],
+    redoStack: [],
+    maxSize: 50,
+    
+    /**
+     * 推入一个操作到撤销栈
+     * @param {Object} action - 操作对象 { type, data, undo, redo }
+     */
+    push(action) {
+        this.undoStack.push(action);
+        if (this.undoStack.length > this.maxSize) {
+            this.undoStack.shift();
+        }
+        this.redoStack = [];
+    },
+    
+    /**
+     * 执行撤销
+     * @returns {boolean} 是否成功撤销
+     */
+    undo() {
+        if (this.undoStack.length === 0) {
+            toastr.info('没有可撤销的操作', '小说续写器');
+            return false;
+        }
+        
+        const action = this.undoStack.pop();
+        if (action && action.undo) {
+            try {
+                action.undo();
+                this.redoStack.push(action);
+                toastr.success(`已撤销: ${action.type}`, '小说续写器');
+                return true;
+            } catch (error) {
+                console.error('[UndoManager] 撤销失败:', error);
+                toastr.error(`撤销失败: ${error.message}`, '小说续写器');
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    /**
+     * 执行重做
+     * @returns {boolean} 是否成功重做
+     */
+    redo() {
+        if (this.redoStack.length === 0) {
+            toastr.info('没有可重做的操作', '小说续写器');
+            return false;
+        }
+        
+        const action = this.redoStack.pop();
+        if (action && action.redo) {
+            try {
+                action.redo();
+                this.undoStack.push(action);
+                toastr.success(`已重做: ${action.type}`, '小说续写器');
+                return true;
+            } catch (error) {
+                console.error('[UndoManager] 重做失败:', error);
+                toastr.error(`重做失败: ${error.message}`, '小说续写器');
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    /**
+     * 清除所有历史
+     */
+    clear() {
+        this.undoStack = [];
+        this.redoStack = [];
+    },
+    
+    /**
+     * 获取撤销栈大小
+     */
+    canUndo() {
+        return this.undoStack.length > 0;
+    },
+    
+    /**
+     * 获取重做栈大小
+     */
+    canRedo() {
+        return this.redoStack.length > 0;
+    }
+};
+
 const MAX_API_CALLS_PER_MINUTE = 3;
 const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const WAIT_TIME_PRECISION = 1;
@@ -559,6 +654,8 @@ async function generateRawWithBreakLimit(params) {
         systemPrompt: finalSystemPrompt
     };
     
+    const originalTemperature = params.temperature || 0.7;
+    
     while (retryCount < MAX_RETRY_TIMES) {
         if (stopGenerateFlag || stopSending) {
             lastError = new Error('用户手动停止生成');
@@ -610,9 +707,16 @@ async function generateRawWithBreakLimit(params) {
             console.warn(`[小说续写插件] 第${retryCount}次调用失败：${error.message}`);
             
             if (retryCount < MAX_RETRY_TIMES) {
-                finalParams.systemPrompt += `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
-                finalParams.temperature = Math.min((finalParams.temperature || 0.7) + 0.12, 1.2);
+                const retryTemperature = Math.min(originalTemperature + 0.12 * retryCount, 1.2);
+                finalParams.systemPrompt = params.systemPrompt + `\n\n【重试修正】\n上次错误：${error.message}。本次必须严格遵守所有强制规则。`;
+                finalParams.temperature = retryTemperature;
+                
                 await new Promise(resolve => setTimeout(resolve, 1200));
+                
+                if (stopGenerateFlag || stopSending) {
+                    lastError = new Error('用户手动停止生成');
+                    break;
+                }
             }
         }
     }
@@ -1571,14 +1675,27 @@ async function importChapterGraphs(file) {
 async function batchMergeGraphs() {
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
     const sortedChapters = [...currentParsedChapters].sort((a, b) => a.id - b.id);
-    const graphList = sortedChapters.map(chapter => graphMap[chapter.id]).filter(Boolean);
+    const graphList = sortedChapters.map(chapter => {
+        if (typeof chapter.id === 'undefined' || chapter.id === null) {
+            console.warn('[小说续写插件] 发现章节ID缺失:', chapter);
+            return null;
+        }
+        return graphMap[chapter.id];
+    }).filter(Boolean);
     
     if (graphList.length === 0) {
         toastr.warning('没有可合并的图谱', "小说续写器");
         return;
     }
     
-    const batchCount = parseInt($('#batch-merge-count').val()) || 50;
+    const batchCountInput = $('#batch-merge-count').val();
+    const batchCount = parseInt(batchCountInput);
+    
+    if (isNaN(batchCount)) {
+        toastr.error('每批合并数必须是有效的数字', "小说续写器");
+        return;
+    }
+    
     if (batchCount < 10 || batchCount > 100) {
         toastr.error('每批合并数必须在10-100之间', "小说续写器");
         return;
@@ -1618,20 +1735,26 @@ async function batchMergeGraphs() {
                 ...getActivePresetParams()
             });
             
-            const batchMergedGraph = JSON.parse(result.trim());
-            batchMergedGraph.batchInfo = {
-                batchNumber: batchNum,
-                totalBatches: batches.length,
-                startChapterId: sortedChapters[i * batchCount].id,
-                endChapterId: sortedChapters[Math.min((i + 1) * batchCount - 1, sortedChapters.length - 1)].id,
-                chapterCount: batch.length
-            };
-            
-            batchMergedGraphs.push(batchMergedGraph);
-            successCount++;
-            
-            extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
-            saveSettingsDebounced();
+            try {
+                const batchMergedGraph = JSON.parse(result.trim());
+                batchMergedGraph.batchInfo = {
+                    batchNumber: batchNum,
+                    totalBatches: batches.length,
+                    startChapterId: sortedChapters[i * batchCount].id,
+                    endChapterId: sortedChapters[Math.min((i + 1) * batchCount - 1, sortedChapters.length - 1)].id,
+                    chapterCount: batch.length
+                };
+                
+                batchMergedGraphs.push(batchMergedGraph);
+                successCount++;
+                
+                extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
+                saveSettingsDebounced();
+            } catch (parseError) {
+                console.error(`[小说续写插件] 批次${batchNum} JSON解析失败:`, parseError);
+                toastr.error(`批次${batchNum}合并结果解析失败，将跳过该批次`, "小说续写器");
+                continue;
+            }
             
             if (i < batches.length - 1 && !stopGenerateFlag) {
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -1880,7 +2003,23 @@ async function validateContinuePrecondition(baseChapterId, modifiedChapterConten
             ...getActivePresetParams()
         });
         
-        const precheckResult = JSON.parse(result.trim());
+        let precheckResult;
+        try {
+            precheckResult = JSON.parse(result.trim());
+        } catch (parseError) {
+            console.error('[小说续写插件] 前置校验 JSON 解析失败:', parseError);
+            toastr.warning('前置校验结果解析失败，将使用默认值继续', "小说续写器");
+            return {
+                isPass: true,
+                preGraph: {},
+                report: "前置校验结果解析失败",
+                redLines: "无明确人设红线",
+                forbiddenRules: "无明确设定禁区",
+                foreshadowList: "无明确可呼应伏笔",
+                conflictWarning: "无潜在矛盾预警"
+            };
+        }
+        
         currentPrecheckResult = precheckResult;
         
         const reportText = `校验结果：${precheckResult.isPass ? "通过" : "不通过"}`;
@@ -1976,7 +2115,15 @@ async function updateModifiedChapterGraph(chapterId, modifiedContent) {
             ...getActivePresetParams()
         });
         
-        const graphData = JSON.parse(result.trim());
+        let graphData;
+        try {
+            graphData = JSON.parse(result.trim());
+        } catch (parseError) {
+            console.error('[小说续写插件] 图谱数据 JSON 解析失败:', parseError);
+            toastr.error('图谱数据解析失败，请重试', "小说续写器");
+            return null;
+        }
+        
         const graphMap = extension_settings[extensionName].chapterGraphMap || {};
         graphMap[chapterId] = graphData;
         extension_settings[extensionName].chapterGraphMap = graphMap;
