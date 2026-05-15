@@ -41,33 +41,6 @@
             </button>
         </div>
 
-        <!-- 书架选择器 -->
-        <div class="bookshelf-bar" role="region" aria-label="书架管理">
-            <div class="bookshelf-container">
-                <div class="bookshelf-label">
-                    <span class="bookshelf-icon">📚</span>
-                    <span class="bookshelf-text">书架</span>
-                </div>
-                <div class="book-selector" id="book-selector">
-                    <select id="current-book-select" class="book-select" aria-label="选择小说">
-                        <option value="">-- 选择小说 --</option>
-                    </select>
-                    <div class="book-actions">
-                        <button id="new-book-btn" class="book-action-btn btn-primary" title="创建新小说">
-                            <span>+ 新小说</span>
-                        </button>
-                        <button id="manage-books-btn" class="book-action-btn btn-secondary" title="管理书架">
-                            <span>📖 管理</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="current-book-info" id="current-book-info" style="display: none;">
-                    <span id="current-book-title" class="book-title"></span>
-                    <span id="current-book-meta" class="book-meta"></span>
-                </div>
-            </div>
-        </div>
-
         <!-- 选项卡导航 -->
         <div class="panel-tab-nav" 
              role="tablist" 
@@ -937,79 +910,6 @@
                             <div class="empty-text">暂无解析的章节</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 书架管理模态框 -->
-    <div id="bookshelf-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bookshelf-modal-title" style="display: none;">
-        <div class="modal-content bookshelf-modal">
-            <div class="modal-header">
-                <h3 id="bookshelf-modal-title">书架管理</h3>
-                <button id="bookshelf-modal-close" class="modal-close-btn" aria-label="关闭">
-                    <span>✕</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <!-- 新建小说表单 -->
-                <div class="form-section">
-                    <h4>📖 新建小说</h4>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">小说标题</label>
-                            <input id="new-book-title" type="text" class="form-input" placeholder="请输入小说标题">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">作者</label>
-                            <input id="new-book-author" type="text" class="form-input" placeholder="请输入作者">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">简介</label>
-                        <textarea id="new-book-description" class="form-textarea" rows="2" placeholder="可选：添加小说简介"></textarea>
-                    </div>
-                    <button id="create-book-btn" class="btn btn-primary">
-                        <span>➕ 创建小说</span>
-                    </button>
-                </div>
-
-                <!-- 小说列表 -->
-                <div class="books-list-section">
-                    <h4>📚 我的书架</h4>
-                    <div id="books-list" class="books-grid">
-                        <!-- 小说卡片会在这里渲染 -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 新建小说/上传小说模态框 -->
-    <div id="new-book-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-book-modal-title" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="new-book-modal-title">上传新小说</h3>
-                <button id="new-book-modal-close" class="modal-close-btn" aria-label="关闭">
-                    <span>✕</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">小说标题</label>
-                    <input id="upload-book-title" type="text" class="form-input" placeholder="请输入小说标题">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">作者</label>
-                    <input id="upload-book-author" type="text" class="form-input" placeholder="请输入作者">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">选择文件</label>
-                    <input id="upload-book-file" type="file" accept=".txt" class="form-input">
-                </div>
-                <div class="action-buttons">
-                    <button id="upload-book-cancel" class="btn btn-secondary">取消</button>
-                    <button id="upload-book-confirm" class="btn btn-primary">创建并上传</button>
                 </div>
             </div>
         </div>

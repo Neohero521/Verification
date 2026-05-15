@@ -529,254 +529,40 @@ const defaultSettings = {
     sendTemplate: "/sendas name={{char}} {{pipe}}",
     sendDelay: 100,
     example_setting: false,
+    chapterList: [],
+    chapterGraphMap: {},
+    mergedGraph: {},
+    continueWriteChain: [],
+    continueChapterIdCounter: 1,
     enableQualityCheck: true,
-    enableAutoParentPreset: true,
+    precheckReport: {},
     drawerState: {
         "drawer-chapter-import": true,
         "drawer-graph": false,
         "drawer-write": false,
         "drawer-precheck": false
     },
-    floatBallState: {
-        position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
-        isPanelOpen: false,
-        activeTab: "tab-chapter"
-    },
-    // 书架系统
-    bookshelf: [],
-    currentBookId: null,
-    
-    // 保持兼容性，迁移到书架系统时的旧数据
-    chapterList: [],
-    chapterGraphMap: {},
-    mergedGraph: {},
-    continueWriteChain: [],
-    continueChapterIdCounter: 1,
-    precheckReport: {},
     selectedBaseChapterId: "",
     writeContentPreview: "",
     graphValidateResultShow: false,
     qualityResultShow: false,
     precheckStatus: "未执行",
     precheckReportText: "",
+    floatBallState: {
+        position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
+        isPanelOpen: false,
+        activeTab: "tab-chapter"
+    },
     readerState: {
         fontSize: 16,
         currentChapterId: null,
         currentChapterType: "original",
         readProgress: {}
     },
+    enableAutoParentPreset: true,
     batchMergedGraphs: []
 };
 
-// ==============================================书架管理系统==============================================
-const BookshelfManager = {
-    /**
-     * 生成唯一书籍ID
-     */
-    _generateId() {
-        return 'book_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    },
-
-    /**
-     * 获取所有书籍
-     */
-    getAllBooks() {
-        return ConfigManager.get('bookshelf', []);
-    },
-
-    /**
-     * 获取当前书籍
-     */
-    getCurrentBook() {
-        const bookId = ConfigManager.get('currentBookId');
-        if (!bookId) return null;
-        const books = this.getAllBooks();
-        return books.find(book => book.id === bookId) || null;
-    },
-
-    /**
-     * 设置当前书籍
-     */
-    setCurrentBook(bookId) {
-        ConfigManager.set('currentBookId', bookId);
-        this._loadBookData(bookId);
-    },
-
-    /**
-     * 加载书籍数据到当前状态
-     */
-    _loadBookData(bookId) {
-        const book = this.getBookById(bookId);
-        if (book) {
-            // 加载书籍的章节、图谱等数据到全局状态
-            currentParsedChapters = book.chapters || [];
-            continueWriteChain = book.continueWriteChain || [];
-            continueChapterIdCounter = book.continueChapterIdCounter || 1;
-            batchMergedGraphs = book.batchMergedGraphs || [];
-            ConfigManager.set('selectedBaseChapterId', book.selectedBaseChapterId || "");
-            ConfigManager.set('writeContentPreview', book.writeContentPreview || "");
-            ConfigManager.set('precheckReport', book.precheckReport || {});
-            ConfigManager.set('precheckStatus', book.precheckStatus || "未执行");
-            ConfigManager.set('precheckReportText', book.precheckReportText || "");
-            ConfigManager.set('mergedGraph', book.mergedGraph || {});
-            ConfigManager.set('chapterGraphMap', book.chapterGraphMap || {});
-            ConfigManager.set('readerState', book.readerState || {
-                fontSize: 16,
-                currentChapterId: null,
-                currentChapterType: "original",
-                readProgress: {}
-            });
-            console.log('[BookshelfManager] 已加载书籍:', book.title);
-        }
-    },
-
-    /**
-     * 保存当前状态到书籍
-     */
-    saveCurrentBookState() {
-        const bookId = ConfigManager.get('currentBookId');
-        if (!bookId) return;
-        
-        const book = this.getBookById(bookId);
-        if (book) {
-            book.chapters = [...currentParsedChapters];
-            book.continueWriteChain = [...continueWriteChain];
-            book.continueChapterIdCounter = continueChapterIdCounter;
-            book.batchMergedGraphs = [...batchMergedGraphs];
-            book.selectedBaseChapterId = ConfigManager.get('selectedBaseChapterId', "");
-            book.writeContentPreview = ConfigManager.get('writeContentPreview', "");
-            book.precheckReport = ConfigManager.get('precheckReport', {});
-            book.precheckStatus = ConfigManager.get('precheckStatus', "未执行");
-            book.precheckReportText = ConfigManager.get('precheckReportText', "");
-            book.mergedGraph = ConfigManager.get('mergedGraph', {});
-            book.chapterGraphMap = ConfigManager.get('chapterGraphMap', {});
-            book.readerState = ConfigManager.get('readerState', {});
-            book.updatedAt = new Date().toISOString();
-            
-            this.updateBook(book);
-            console.log('[BookshelfManager] 已保存书籍状态:', book.title);
-        }
-    },
-
-    /**
-     * 根据ID获取书籍
-     */
-    getBookById(bookId) {
-        const books = this.getAllBooks();
-        return books.find(book => book.id === bookId) || null;
-    },
-
-    /**
-     * 添加新书籍
-     */
-    addBook(bookData) {
-        const book = {
-            id: this._generateId(),
-            title: bookData.title || '未命名小说',
-            author: bookData.author || '未知作者',
-            description: bookData.description || '',
-            coverImage: bookData.coverImage || '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            chapters: bookData.chapters || [],
-            chapterGraphMap: bookData.chapterGraphMap || {},
-            mergedGraph: bookData.mergedGraph || {},
-            continueWriteChain: bookData.continueWriteChain || [],
-            continueChapterIdCounter: bookData.continueChapterIdCounter || 1,
-            batchMergedGraphs: bookData.batchMergedGraphs || [],
-            selectedBaseChapterId: "",
-            writeContentPreview: "",
-            precheckReport: {},
-            precheckStatus: "未执行",
-            precheckReportText: "",
-            readerState: {
-                fontSize: 16,
-                currentChapterId: null,
-                currentChapterType: "original",
-                readProgress: {}
-            }
-        };
-        
-        const books = this.getAllBooks();
-        books.unshift(book);
-        ConfigManager.set('bookshelf', books);
-        return book;
-    },
-
-    /**
-     * 更新书籍信息
-     */
-    updateBook(updatedBook) {
-        const books = this.getAllBooks();
-        const index = books.findIndex(book => book.id === updatedBook.id);
-        if (index !== -1) {
-            books[index] = { ...updatedBook, updatedAt: new Date().toISOString() };
-            ConfigManager.set('bookshelf', books);
-        }
-    },
-
-    /**
-     * 删除书籍
-     */
-    deleteBook(bookId) {
-        const books = this.getAllBooks().filter(book => book.id !== bookId);
-        ConfigManager.set('bookshelf', books);
-        
-        // 如果删除的是当前书籍，清除选择
-        if (ConfigManager.get('currentBookId') === bookId) {
-            ConfigManager.set('currentBookId', null);
-            this._clearCurrentState();
-        }
-    },
-
-    /**
-     * 清空当前状态
-     */
-    _clearCurrentState() {
-        currentParsedChapters = [];
-        continueWriteChain = [];
-        continueChapterIdCounter = 1;
-        batchMergedGraphs = [];
-        ConfigManager.set('selectedBaseChapterId', "");
-        ConfigManager.set('writeContentPreview', "");
-        ConfigManager.set('precheckReport', {});
-        ConfigManager.set('precheckStatus', "未执行");
-        ConfigManager.set('precheckReportText', "");
-        ConfigManager.set('mergedGraph', {});
-        ConfigManager.set('chapterGraphMap', {});
-    },
-
-    /**
-     * 从旧数据迁移到书架系统
-     */
-    migrateFromOldFormat() {
-        const oldChapterList = ConfigManager.get('chapterList', []);
-        if (oldChapterList.length > 0) {
-            const book = this.addBook({
-                title: '我的小说',
-                description: '从旧版本迁移的小说',
-                chapters: oldChapterList,
-                chapterGraphMap: ConfigManager.get('chapterGraphMap', {}),
-                mergedGraph: ConfigManager.get('mergedGraph', {}),
-                continueWriteChain: ConfigManager.get('continueWriteChain', []),
-                continueChapterIdCounter: ConfigManager.get('continueChapterIdCounter', 1),
-                batchMergedGraphs: ConfigManager.get('batchMergedGraphs', []),
-                selectedBaseChapterId: ConfigManager.get('selectedBaseChapterId', ""),
-                writeContentPreview: ConfigManager.get('writeContentPreview', ""),
-                precheckReport: ConfigManager.get('precheckReport', {}),
-                precheckStatus: ConfigManager.get('precheckStatus', "未执行"),
-                precheckReportText: ConfigManager.get('precheckReportText', ""),
-                readerState: ConfigManager.get('readerState', {})
-            });
-            this.setCurrentBook(book.id);
-            // 清空旧数据防止重复
-            ConfigManager.set('chapterList', [], false);
-            console.log('[BookshelfManager] 已从旧格式迁移');
-        }
-    }
-};
-
-// 全局变量 - 书架系统
 let currentParsedChapters = [];
 let isGeneratingGraph = false;
 let isGeneratingWrite = false;
