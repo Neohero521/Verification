@@ -688,6 +688,11 @@ async function generateRawWithBreakLimit(params) {
         throw new Error('generateRaw 函数不可用，请检查 SillyTavern 版本兼容性');
     }
     
+    const settings = extension_settings[extensionName];
+    if (settings.enableAutoParentPreset) {
+        console.log('[小说续写器] 准备调用 generateRaw，将使用父级预设');
+    }
+    
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
@@ -782,16 +787,25 @@ async function generateRawWithBreakLimit(params) {
 
 function getActivePresetParams() {
     const settings = extension_settings[extensionName];
-    let presetParams = {};
     const context = getContext();
     
-    if (context?.generation_settings && typeof context.generation_settings === 'object') {
-        presetParams = { ...context.generation_settings };
-    } else if (window.generation_params && typeof window.generation_params === 'object') {
-        presetParams = { ...window.generation_params };
-    }
+    let presetParams = {};
     
-    if (!settings.enableAutoParentPreset) {
+    if (settings.enableAutoParentPreset) {
+        if (context?.generation_settings && typeof context.generation_settings === 'object') {
+            presetParams = { ...context.generation_settings };
+            console.log('[小说续写器] 使用 context.generation_settings 预设参数');
+        } else if (window.generation_params && typeof window.generation_params === 'object') {
+            presetParams = { ...window.generation_params };
+            console.log('[小说续写器] 使用 window.generation_params 预设参数');
+        } else if (context?.preset?.data && typeof context.preset.data === 'object') {
+            presetParams = { ...context.preset.data };
+            console.log('[小说续写器] 使用 context.preset.data 预设参数');
+        } else if (window.SillyTavern?.presetManager?.currentPreset?.data) {
+            presetParams = { ...window.SillyTavern.presetManager.currentPreset.data };
+            console.log('[小说续写器] 使用 window.SillyTavern.presetManager.currentPreset.data 预设参数');
+        }
+    } else {
         if (window.generation_params && typeof window.generation_params === 'object') {
             presetParams = { ...window.generation_params };
         }
@@ -833,6 +847,10 @@ function getActivePresetParams() {
         }
     }
     
+    if (settings.enableAutoParentPreset) {
+        console.log('[小说续写器] 最终使用的预设参数:', filteredParams);
+    }
+    
     return filteredParams;
 }
 
@@ -842,16 +860,24 @@ function getCurrentPresetName() {
     
     if (context?.preset?.name && typeof context.preset.name === 'string') {
         presetName = context.preset.name;
+        console.log('[小说续写器] 使用 context.preset.name 预设名称:', presetName);
     } else if (context?.generation_settings?.preset_name && typeof context.generation_settings.preset_name === 'string') {
         presetName = context.generation_settings.preset_name;
+        console.log('[小说续写器] 使用 context.generation_settings.preset_name 预设名称:', presetName);
     } else if (window.SillyTavern?.presetManager?.currentPreset?.name) {
         presetName = window.SillyTavern.presetManager.currentPreset.name;
+        console.log('[小说续写器] 使用 window.SillyTavern.presetManager.currentPreset.name 预设名称:', presetName);
     } else if (window?.current_preset?.name && typeof window.current_preset.name === 'string') {
         presetName = window.current_preset.name;
+        console.log('[小说续写器] 使用 window.current_preset.name 预设名称:', presetName);
     } else if (window?.generation_params?.preset_name && typeof window.generation_params.preset_name === 'string') {
         presetName = window.generation_params.preset_name;
+        console.log('[小说续写器] 使用 window.generation_params.preset_name 预设名称:', presetName);
     } else if (window?.extension_settings?.presets?.current_preset) {
         presetName = window.extension_settings.presets.current_preset;
+        console.log('[小说续写器] 使用 window.extension_settings.presets.current_preset 预设名称:', presetName);
+    } else {
+        console.log('[小说续写器] 使用默认预设名称');
     }
     
     return presetName;
@@ -865,12 +891,14 @@ const updatePresetNameDisplay = debounce(function() {
     if (!settings.enableAutoParentPreset) {
         presetNameElement.style.display = "none";
         currentPresetName = "";
+        console.log('[小说续写器] 父级预设功能已关闭');
         return;
     }
     
     currentPresetName = getCurrentPresetName();
     presetNameElement.textContent = `当前生效父级预设：${currentPresetName}`;
     presetNameElement.style.display = "block";
+    console.log('[小说续写器] 更新预设显示:', currentPresetName);
 }, 100);
 
 function setupPresetEventListeners() {
