@@ -382,10 +382,15 @@ const FloatBall = {
         document.addEventListener("touchmove", this.onDrag.bind(this), { passive: false });
         document.addEventListener("touchend", this.stopDrag.bind(this));
         
+        // 键盘导航支持
+        this.ball.removeEventListener("keydown", this.onBallKeydown.bind(this));
+        this.ball.addEventListener("keydown", this.onBallKeydown.bind(this));
+        
         const closeBtn = document.getElementById("panel-close-btn");
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             this.hidePanel();
+            this.ball.focus(); // 关闭后焦点回到悬浮球
         };
         
         document.querySelectorAll(".panel-tab-item").forEach(tab => {
@@ -393,10 +398,94 @@ const FloatBall = {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
             };
+            // 添加键盘事件到选项卡
+            tab.addEventListener("keydown", this.onTabKeydown.bind(this));
         });
         
         document.onclick = this.outsideClose.bind(this);
         window.onresize = debounce(this.resizeHandler.bind(this), 200);
+        
+        // 添加全局键盘事件
+        document.removeEventListener("keydown", this.onGlobalKeydown.bind(this));
+        document.addEventListener("keydown", this.onGlobalKeydown.bind(this));
+    },
+    
+    onBallKeydown(e) {
+        switch(e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.togglePanel();
+                if (this.panel.classList.contains("show")) {
+                    // 面板打开时，焦点移到第一个选项卡
+                    const firstTab = this.panel.querySelector('.panel-tab-item');
+                    if (firstTab) firstTab.focus();
+                }
+                break;
+            case 'ArrowDown':
+            case 'ArrowRight':
+                e.preventDefault();
+                this.showPanel();
+                const firstTab = this.panel.querySelector('.panel-tab-item');
+                if (firstTab) firstTab.focus();
+                break;
+        }
+    },
+    
+    onTabKeydown(e) {
+        const tabItems = Array.from(this.panel.querySelectorAll(".panel-tab-item"));
+        const currentIndex = tabItems.indexOf(e.currentTarget);
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+            case 'ArrowUp':
+                e.preventDefault();
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabItems.length - 1;
+                tabItems[prevIndex].focus();
+                tabItems[prevIndex].click();
+                break;
+            case 'ArrowRight':
+            case 'ArrowDown':
+                e.preventDefault();
+                const nextIndex = currentIndex < tabItems.length - 1 ? currentIndex + 1 : 0;
+                tabItems[nextIndex].focus();
+                tabItems[nextIndex].click();
+                break;
+            case 'Home':
+                e.preventDefault();
+                tabItems[0].focus();
+                break;
+            case 'End':
+                e.preventDefault();
+                tabItems[tabItems.length - 1].focus();
+                break;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.switchTab(e.currentTarget.dataset.tab);
+                break;
+        }
+    },
+    
+    onGlobalKeydown(e) {
+        // Escape 键关闭面板
+        if (e.key === 'Escape' && this.panel.classList.contains("show")) {
+            e.preventDefault();
+            this.hidePanel();
+            this.ball.focus();
+        }
+        
+        // Ctrl/Cmd + Shift + N 打开/关闭面板（快捷键）
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+            e.preventDefault();
+            this.togglePanel();
+            if (this.panel.classList.contains("show")) {
+                const firstTab = this.panel.querySelector('.panel-tab-item');
+                if (firstTab) firstTab.focus();
+            } else {
+                this.ball.focus();
+            }
+        }
     },
     
     outsideClose(e) {

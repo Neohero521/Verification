@@ -1,6 +1,11 @@
-<div class="novel-writer-extension-root">
+<div class="novel-writer-extension-root" role="application" aria-label="小说智能续写系统">
     <!-- 可移动悬浮球 -->
-    <div id="novel-writer-float-ball" class="float-ball" style="visibility: hidden; opacity: 0;">
+    <div id="novel-writer-float-ball" 
+         class="float-ball" 
+         role="button" 
+         tabindex="0"
+         aria-label="打开小说续写系统面板"
+         style="visibility: hidden; opacity: 0;">
         <div class="ball-inner">
             <div class="ball-icon">📖</div>
             <div class="ball-glow"></div>
@@ -9,7 +14,12 @@
     </div>
 
     <!-- 主功能面板 -->
-    <div id="novel-writer-panel" class="writer-panel">
+    <div id="novel-writer-panel" 
+         class="writer-panel" 
+         role="dialog" 
+         aria-modal="true" 
+         aria-labelledby="panel-title"
+         aria-describedby="panel-description">
         <!-- 面板头部 -->
         <div class="panel-header">
             <div class="panel-title">
@@ -18,36 +28,65 @@
                     <div class="title-icon-glow"></div>
                 </div>
                 <div class="title-text">
-                    <h2>小说智能续写系统</h2>
-                    <p class="title-subtitle">Novel AI Writer System</p>
+                    <h2 id="panel-title">小说智能续写系统</h2>
+                    <p id="panel-description" class="title-subtitle">Novel AI Writer System - 提供章节管理、知识图谱构建和智能续写功能</p>
                 </div>
             </div>
-            <button id="panel-close-btn" class="panel-close-btn">
+            <button id="panel-close-btn" 
+                    class="panel-close-btn"
+                    aria-label="关闭面板"
+                    title="按 Escape 键也可关闭">
                 <span>✕</span>
                 <div class="btn-hover-effect"></div>
             </button>
         </div>
 
         <!-- 选项卡导航 -->
-        <div class="panel-tab-nav">
+        <div class="panel-tab-nav" 
+             role="tablist" 
+             aria-label="功能模块选项卡">
             <div class="tab-nav-container">
                 <div class="tab-nav-indicator"></div>
-                <div class="panel-tab-item active" data-tab="tab-chapter">
+                <div class="panel-tab-item active" 
+                     data-tab="tab-chapter"
+                     role="tab"
+                     id="tab-chapter-btn"
+                     aria-selected="true"
+                     aria-controls="tab-chapter"
+                     tabindex="0">
                     <div class="tab-icon">📋</div>
                     <div class="tab-text">章节管理</div>
                     <div class="tab-indicator"></div>
                 </div>
-                <div class="panel-tab-item" data-tab="tab-graph">
+                <div class="panel-tab-item" 
+                     data-tab="tab-graph"
+                     role="tab"
+                     id="tab-graph-btn"
+                     aria-selected="false"
+                     aria-controls="tab-graph"
+                     tabindex="-1">
                     <div class="tab-icon">🧠</div>
                     <div class="tab-text">知识图谱</div>
                     <div class="tab-indicator"></div>
                 </div>
-                <div class="panel-tab-item" data-tab="tab-write">
+                <div class="panel-tab-item" 
+                     data-tab="tab-write"
+                     role="tab"
+                     id="tab-write-btn"
+                     aria-selected="false"
+                     aria-controls="tab-write"
+                     tabindex="-1">
                     <div class="tab-icon">✒️</div>
                     <div class="tab-text">内容续写</div>
                     <div class="tab-indicator"></div>
                 </div>
-                <div class="panel-tab-item" data-tab="tab-reader">
+                <div class="panel-tab-item" 
+                     data-tab="tab-reader"
+                     role="tab"
+                     id="tab-reader-btn"
+                     aria-selected="false"
+                     aria-controls="tab-reader"
+                     tabindex="-1">
                     <div class="tab-icon">📚</div>
                     <div class="tab-text">小说阅读</div>
                     <div class="tab-indicator"></div>
@@ -58,7 +97,10 @@
         <!-- 选项卡内容容器 -->
         <div class="panel-tab-content">
             <!-- 选项卡1：章节管理 -->
-            <div class="panel-tab-panel active" id="tab-chapter">
+            <div class="panel-tab-panel active" 
+                 id="tab-chapter"
+                 role="tabpanel"
+                 aria-labelledby="tab-chapter-btn">
                 <!-- 小说文件解析卡片 -->
                 <div class="content-card card-highlight">
                     <div class="card-accent-line"></div>
@@ -234,7 +276,11 @@
             </div>
 
             <!-- 选项卡2：知识图谱构建与合并 -->
-            <div class="panel-tab-panel" id="tab-graph">
+            <div class="panel-tab-panel" 
+                 id="tab-graph"
+                 role="tabpanel"
+                 aria-labelledby="tab-graph-btn"
+                 hidden>
                 <!-- 图谱生成卡片 -->
                 <div class="content-card card-highlight">
                     <div class="card-accent-line"></div>
@@ -410,7 +456,11 @@
             </div>
 
             <!-- 选项卡3：小说续写生成 -->
-            <div class="panel-tab-panel" id="tab-write">
+            <div class="panel-tab-panel" 
+                 id="tab-write"
+                 role="tabpanel"
+                 aria-labelledby="tab-write-btn"
+                 hidden>
                 <!-- 基准章节选择卡片 -->
                 <div class="content-card card-highlight">
                     <div class="card-accent-line"></div>
@@ -605,7 +655,11 @@
             </div>
 
             <!-- 选项卡4 小说阅读器 -->
-            <div class="panel-tab-panel" id="tab-reader">
+            <div class="panel-tab-panel" 
+                 id="tab-reader"
+                 role="tabpanel"
+                 aria-labelledby="tab-reader-btn"
+                 hidden>
                 <!-- 阅读器顶部控制栏 -->
                 <div class="reader-header">
                     <div class="reader-title">
