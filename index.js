@@ -467,6 +467,8 @@ const FloatBall = {
         
         this.ball.classList.remove("dragging");
         
+        console.log("[小说续写插件] stopDrag - isClick:", this.isClick, "isDragging:", this.isDragging);
+        
         if (this.isClick && !this.isDragging) {
             this.togglePanel();
         }
@@ -499,10 +501,12 @@ const FloatBall = {
     },
     
     togglePanel() {
+        console.log("[小说续写插件] togglePanel - 当前状态:", this.panel.classList.contains("show"));
         this.panel.classList.contains("show") ? this.hidePanel() : this.showPanel();
     },
     
     showPanel() {
+        console.log("[小说续写插件] showPanel 被调用");
         this.panel.classList.add("show");
         extension_settings[extensionName].floatBallState.isPanelOpen = true;
         saveSettingsDebounced();
@@ -1234,7 +1238,7 @@ async function loadSettings() {
     }
     
     isInitialized = true;
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 500));
     updatePresetNameDisplay();
     setupPresetEventListeners();
     FloatBall.init();
