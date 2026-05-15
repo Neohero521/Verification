@@ -1,7 +1,7 @@
 /**
  * Novel Writer Extension for SillyTavern
  * @description 小说章节导入、知识图谱构建、一键续写生成一体化扩展
- * @version 2.3.0
+ * @version 2.3.1
  * @author Neohero521
  * @license MIT
  */
@@ -9,6 +9,22 @@
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 import * as PromptConstants from './prompt-constants.js';
+
+// ==============================================安全工具函数==============================================
+
+/**
+ * HTML 转义防止 XSS 攻击
+ * @param {string} text - 需要转义的文本
+ * @returns {string} 转义后的安全文本
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 // ==============================================加载状态管理工具函数==============================================
 
@@ -62,7 +78,8 @@ function showOperationStatus(message, type = 'info') {
         const toastType = type === 'success' ? toastr.success :
                          type === 'error' ? toastr.error :
                          type === 'warning' ? toastr.warning : toastr.info;
-        toastType(message, '操作状态', { timeOut: 3000 });
+        const safeMessage = escapeHtml(String(message));
+        toastType(safeMessage, '操作状态', { timeOut: 3000 });
     }
 }
 
@@ -175,16 +192,73 @@ const ConfigManager = {
     },
     
     /**
+     * 验证配置结构
+     * @param {any} config - 待验证的配置
+     * @returns {boolean} 是否有效
+     */
+    _validateConfig(config) {
+        if (typeof config !== 'object' || config === null) {
+            return false;
+        }
+        
+        // 验证已知的数组字段
+        const arrayFields = ['chapterList', 'continueWriteChain', 'batchMergedGraphs'];
+        for (const field of arrayFields) {
+            if (config[field] !== undefined && !Array.isArray(config[field])) {
+                console.warn(`[ConfigManager] Invalid ${field}, should be array`);
+                return false;
+            }
+        }
+        
+        // 验证对象字段
+        const objectFields = ['chapterGraphMap', 'mergedGraph', 'drawerState', 'readerState', 'precheckReport'];
+        for (const field of objectFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'object') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be object`);
+                return false;
+            }
+        }
+        
+        // 验证数值字段
+        const numberFields = ['sendDelay', 'continueChapterIdCounter'];
+        for (const field of numberFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'number') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be number`);
+                return false;
+            }
+        }
+        
+        // 验证布尔字段
+        const booleanFields = ['example_setting', 'enableQualityCheck', 'graphValidateResultShow', 'qualityResultShow', 'enableAutoParentPreset'];
+        for (const field of booleanFields) {
+            if (config[field] !== undefined && typeof config[field] !== 'boolean') {
+                console.warn(`[ConfigManager] Invalid ${field}, should be boolean`);
+                return false;
+            }
+        }
+        
+        return true;
+    },
+    
+    /**
      * 导入配置
      * @param {string} jsonStr - JSON 字符串
      */
     import(jsonStr) {
         try {
             const config = JSON.parse(jsonStr);
+            
+            // 验证配置结构
+            if (!this._validateConfig(config)) {
+                throw new Error('配置结构无效，请检查导入的配置文件');
+            }
+            
+            // 安全合并配置
             extension_settings[extensionName] = deepMerge(
                 extension_settings[extensionName],
                 config
             );
+            
             saveSettingsDebounced();
             showOperationStatus('配置导入成功', 'success');
             return true;

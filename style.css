@@ -2319,10 +2319,17 @@
 /* ==============================================性能优化============================================== */
 
 /* 使用硬件加速提示 */
-.novel-writer-extension-root .float-ball,
 .novel-writer-extension-root .writer-panel,
 .novel-writer-extension-root .btn {
     will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* 悬浮球特殊优化 */
+.novel-writer-extension-root .float-ball {
+    will-change: transform, width, background-position;
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-font-smoothing: subpixel-antialiased;
@@ -2346,8 +2353,7 @@
 
 /* GPU 加速元素 */
 .novel-writer-extension-root .progress-fill,
-.novel-writer-extension-root .panel-tab-item::before,
-.novel-writer-extension-root .float-ball {
+.novel-writer-extension-root .panel-tab-item::before {
     will-change: width, background-position;
 }
 
