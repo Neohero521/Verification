@@ -1796,6 +1796,9 @@ const FloatBall = {
         this.isDragging = false;
         this.isClick = true;
         this.ball.classList.add("dragging");
+        this.ball.style.transform = 'none';
+        this.ball.style.right = 'auto';
+        this.ball.style.bottom = 'auto';
         
         const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
         const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -1834,6 +1837,7 @@ const FloatBall = {
         this.ball.style.top = `${y}px`;
         this.ball.style.right = 'auto';
         this.ball.style.bottom = 'auto';
+        this.ball.style.transform = 'none';
         
         extension_settings[extensionName].floatBallState.position = { x, y };
         saveSettingsDebounced();
@@ -1871,6 +1875,7 @@ const FloatBall = {
         
         this.ball.style.right = 'auto';
         this.ball.style.bottom = 'auto';
+        this.ball.style.transform = 'none';
         
         const newRect = this.ball.getBoundingClientRect();
         extension_settings[extensionName].floatBallState.position = { x: newRect.left, y: newRect.top };
@@ -1917,6 +1922,7 @@ const FloatBall = {
         this.ball.style.top = `${safeY}px`;
         this.ball.style.right = 'auto';
         this.ball.style.bottom = 'auto';
+        this.ball.style.transform = 'none';
         
         this.switchTab(state.activeTab);
         if (state.isPanelOpen) this.showPanel();
