@@ -6,6 +6,10 @@
  * @license MIT
  */
 
+import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
+import * as PromptConstants from './prompt-constants.js';
+
 // ==============================================加载状态管理工具函数==============================================
 
 /**
@@ -62,11 +66,231 @@ function showOperationStatus(message, type = 'info') {
     }
 }
 
-// ==============================================主程序开始==============================================
+// ==============================================增强配置管理模块==============================================
 
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
-import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
-import * as PromptConstants from './prompt-constants.js';
+/**
+ * 配置管理器 - 提供类型安全的配置读写
+ */
+const ConfigManager = {
+    /**
+     * 获取配置值
+     * @param {string} key - 配置键
+     * @param {*} defaultValue - 默认值
+     * @returns {*} 配置值
+     */
+    get(key, defaultValue = null) {
+        const keys = key.split('.');
+        let value = extension_settings[extensionName];
+        
+        for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+                value = value[k];
+            } else {
+                return defaultValue;
+            }
+        }
+        
+        return value !== undefined ? value : defaultValue;
+    },
+    
+    /**
+     * 设置配置值
+     * @param {string} key - 配置键
+     * @param {*} value - 配置值
+     * @param {boolean} autoSave - 是否自动保存
+     */
+    set(key, value, autoSave = true) {
+        const keys = key.split('.');
+        let obj = extension_settings[extensionName];
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+            const k = keys[i];
+            if (!(k in obj) || typeof obj[k] !== 'object') {
+                obj[k] = {};
+            }
+            obj = obj[k];
+        }
+        
+        obj[keys[keys.length - 1]] = value;
+        
+        if (autoSave) {
+            saveSettingsDebounced();
+        }
+    },
+    
+    /**
+     * 检查配置是否存在
+     * @param {string} key - 配置键
+     * @returns {boolean}
+     */
+    has(key) {
+        const keys = key.split('.');
+        let value = extension_settings[extensionName];
+        
+        for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+                value = value[k];
+            } else {
+                return false;
+            }
+        }
+        return true;
+    },
+    
+    /**
+     * 删除配置项
+     * @param {string} key - 配置键
+     */
+    delete(key) {
+        const keys = key.split('.');
+        let obj = extension_settings[extensionName];
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+            const k = keys[i];
+            if (!(k in obj) || typeof obj[k] !== 'object') {
+                return;
+            }
+            obj = obj[k];
+        }
+        
+        delete obj[keys[keys.length - 1]];
+        saveSettingsDebounced();
+    },
+    
+    /**
+     * 重置为默认配置
+     */
+    reset() {
+        extension_settings[extensionName] = JSON.parse(JSON.stringify(defaultSettings));
+        saveSettingsDebounced();
+        showOperationStatus('配置已重置为默认值', 'success');
+    },
+    
+    /**
+     * 导出配置
+     * @returns {string} JSON 字符串
+     */
+    export() {
+        return JSON.stringify(extension_settings[extensionName], null, 2);
+    },
+    
+    /**
+     * 导入配置
+     * @param {string} jsonStr - JSON 字符串
+     */
+    import(jsonStr) {
+        try {
+            const config = JSON.parse(jsonStr);
+            extension_settings[extensionName] = deepMerge(
+                extension_settings[extensionName],
+                config
+            );
+            saveSettingsDebounced();
+            showOperationStatus('配置导入成功', 'success');
+            return true;
+        } catch (err) {
+            console.error('[ConfigManager] 导入失败:', err);
+            showOperationStatus('配置导入失败: ' + err.message, 'error');
+            return false;
+        }
+    }
+};
+
+/**
+ * 用户会话管理
+ */
+const SessionManager = {
+    _sessionKey: 'novel_writer_session',
+    
+    /**
+     * 设置会话数据
+     */
+    set(key, value) {
+        const session = this._getSession();
+        session[key] = value;
+        localStorage.setItem(this._sessionKey, JSON.stringify(session));
+    },
+    
+    /**
+     * 获取会话数据
+     */
+    get(key, defaultValue = null) {
+        const session = this._getSession();
+        return key in session ? session[key] : defaultValue;
+    },
+    
+    /**
+     * 获取完整会话
+     */
+    _getSession() {
+        try {
+            const stored = localStorage.getItem(this._sessionKey);
+            return stored ? JSON.parse(stored) : {};
+        } catch {
+            return {};
+        }
+    },
+    
+    /**
+     * 清除会话
+     */
+    clear() {
+        localStorage.removeItem(this._sessionKey);
+    }
+};
+
+/**
+ * 主题管理 - 为未来的亮色/深色主题切换准备
+ */
+const ThemeManager = {
+    /**
+     * 获取当前主题模式
+     */
+    getMode() {
+        return ConfigManager.get('ui.theme', 'auto');
+    },
+    
+    /**
+     * 设置主题模式
+     * @param {string} mode - 'auto' | 'light' | 'dark'
+     */
+    setMode(mode) {
+        ConfigManager.set('ui.theme', mode);
+        this._applyMode(mode);
+    },
+    
+    /**
+     * 应用主题
+     */
+    _applyMode(mode) {
+        const root = document.querySelector('.novel-writer-extension-root');
+        if (!root) return;
+        
+        root.classList.remove('theme-light', 'theme-dark');
+        
+        if (mode === 'dark' || 
+            (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            root.classList.add('theme-dark');
+        } else if (mode === 'light') {
+            root.classList.add('theme-light');
+        }
+    },
+    
+    /**
+     * 初始化主题监听
+     */
+    init() {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (this.getMode() === 'auto') {
+                this._applyMode('auto');
+            }
+        });
+        
+        this._applyMode(this.getMode());
+    }
+};
+
+// ==============================================主程序开始==============================================
 
 const extensionName = "Verification";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
