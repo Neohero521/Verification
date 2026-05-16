@@ -3566,9 +3566,11 @@ function getSortedRegexList(novelText) {
 function renderChapterList(chapters) {
     const $listContainer = $('#novel-chapter-list');
     const graphMap = extension_settings[extensionName].chapterGraphMap || {};
+    const $chapterCount = $('#chapter-count-display');
     
     if (chapters.length === 0) {
-        $listContainer.html('请上传小说文件并点击「解析章节」');
+        $listContainer.html('<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">暂无章节</div></div>');
+        $chapterCount.text('共 0 章');
         return;
     }
     
@@ -3577,16 +3579,18 @@ function renderChapterList(chapters) {
     });
     
     const listHtml = chapters.map((chapter) => `
-        <div class="chapter-item">
-            <label class="chapter-checkbox">
-                <input type="checkbox" class="chapter-select" data-index="${chapter.id}">
-                <span class="chapter-title">${chapter.title}</span>
-            </label>
-            <span class="text-sm ${chapter.hasGraph ? 'text-success' : 'text-muted'}">${chapter.hasGraph ? '已生成图谱' : '未生成图谱'}</span>
+        <div class="chapter-sidebar-item" data-chapter-id="${chapter.id}">
+            <div class="chapter-sidebar-title">${chapter.title}</div>
+            <div class="chapter-sidebar-meta">
+                <span class="chapter-sidebar-status ${chapter.hasGraph ? 'has-graph' : 'no-graph'}">
+                    ${chapter.hasGraph ? '✅ 已生成图谱' : '⏳ 未生成图谱'}
+                </span>
+            </div>
         </div>
     `).join('');
     
     $listContainer.html(listHtml);
+    $chapterCount.text(`共 ${chapters.length} 章`);
 }
 
 function renderChapterSelect(chapters) {
@@ -5034,4 +5038,130 @@ jQuery(async () => {
         $("#bookshelf-view-icon").text(newView === 'grid' ? '📑' : '📋');
         renderBookshelf();
     });
+
+    // ========== 新三阶段布局事件绑定 ==========
+    
+    // 左侧导航栏切换阶段
+    $(".nav-item").off("click").on("click", function() {
+        const stage = $(this).data("stage");
+        switchToStage(stage);
+    });
+    
+    // 返回书架按钮
+    $("#back-to-bookshelf-btn").off("click").on("click", () => {
+        switchToStage(1);
+    });
+    
+    // 内部标签页切换（章节/图谱）
+    $(".inner-tab").off("click").on("click", function() {
+        const tabName = $(this).data("inner-tab");
+        $(".inner-tab").removeClass("active");
+        $(this).addClass("active");
+        $(".inner-tab-content").hide();
+        $(`#inner-tab-${tabName}`).show();
+    });
+    
+    // 章节列表点击事件
+    $(document).off("click", ".chapter-sidebar-item").on("click", ".chapter-sidebar-item", function() {
+        const chapterId = $(this).data("chapter-id");
+        loadChapterToEditor(chapterId);
+    });
+    
+    // 更新图谱按钮
+    $("#update-chapter-graph-btn").off("click").on("click", () => {
+        const selectedChapterId = $('#write-chapter-select').val();
+        const modifiedContent = $('#chapter-content-editor').val().trim();
+        
+        if (!selectedChapterId) {
+            toastr.error('请先选择章节', "编辑");
+            return;
+        }
+        if (!modifiedContent) {
+            toastr.error('章节内容不能为空', "编辑");
+            return;
+        }
+        
+        updateModifiedChapterGraph(selectedChapterId, modifiedContent);
+    });
+    
+    // 初始化渲染书架
+    renderBookshelf();
+    
+    // 初始化阶段显示
+    switchToStage(1);
 });
+
+// ========== 新布局辅助函数 ==========
+
+function switchToStage(stage) {
+    // 更新左侧导航
+    $(".nav-item").removeClass("active");
+    $(`.nav-item[data-stage="${stage}"]`).addClass("active");
+    
+    // 更新阶段指示器
+    $(".stage-badge").removeClass("active");
+    $(`#stage-${stage}-badge`).addClass("active");
+    
+    // 显示/隐藏内容区域
+    $(".stage-content").removeClass("active").hide();
+    $(`#stage-${stage}`).addClass("active").show();
+    
+    // 显示/隐藏左侧导航项
+    if (stage === 1) {
+        $("#nav-stage-2, #nav-stage-3").hide();
+        $("#current-novel-info").hide();
+    } else {
+        $("#nav-stage-2, #nav-stage-3").show();
+        $("#current-novel-info").show();
+    }
+}
+
+function loadChapterToEditor(chapterId) {
+    const chapter = currentParsedChapters.find(c => c.id === chapterId);
+    if (!chapter) {
+        toastr.error('章节不存在', "编辑");
+        return;
+    }
+    
+    // 更新章节列表选中状态
+    $(".chapter-sidebar-item").removeClass("active");
+    $(`.chapter-sidebar-item[data-chapter-id="${chapterId}"]`).addClass("active");
+    
+    // 更新编辑器内容和标题
+    $("#current-chapter-title").text(chapter.title);
+    $("#chapter-content-editor").val(chapter.content);
+    
+    // 同时更新续写部分的选择器（保持兼容性）
+    $('#write-chapter-select').val(chapterId);
+    $('#write-chapter-content').val(chapter.content).prop('readonly', false);
+    
+    // 更新内部标签页到章节
+    $(".inner-tab").removeClass("active");
+    $('.inner-tab[data-inner-tab="chapter"]').addClass("active");
+    $(".inner-tab-content").hide();
+    $("#inner-tab-chapter").show();
+}
+
+// 更新 loadNovelFromBookshelf 函数以适配新布局
+const originalLoadNovelFromBookshelf = loadNovelFromBookshelf;
+window.loadNovelFromBookshelf = function(novelId) {
+    originalLoadNovelFromBookshelf(novelId);
+    
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (novel) {
+        // 更新当前小说信息显示
+        $("#current-novel-title").text(`📖 ${novel.name}`);
+        
+        // 切换到阶段2
+        switchToStage(2);
+        
+        // 渲染章节列表
+        renderChapterList(currentParsedChapters);
+        renderChapterSelect(currentParsedChapters);
+        
+        // 加载第一个章节（如果有）
+        if (currentParsedChapters.length > 0) {
+            loadChapterToEditor(currentParsedChapters[0].id);
+        }
+    }
+};
