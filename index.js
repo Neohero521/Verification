@@ -1886,8 +1886,18 @@ function exportChapterGraphs() {
         return;
     }
     
+    // 获取当前小说名称
+    let novelName = '未知小说';
+    if (currentNovelId) {
+        const novel = bookshelf.find(n => n.id === currentNovelId);
+        if (novel) {
+            novelName = novel.name;
+        }
+    }
+    
     const exportData = {
         exportTime: new Date().toISOString(),
+        novelName: novelName,
         chapterCount: currentParsedChapters.length,
         chapterGraphMap: graphMap
     };
@@ -1897,7 +1907,7 @@ function exportChapterGraphs() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = '小说单章节图谱.json';
+    a.download = `${novelName}_章节图谱.json`;
     a.click();
     URL.revokeObjectURL(url);
     toastr.success('单章节图谱已导出', "小说续写器");
@@ -4479,11 +4489,21 @@ jQuery(async () => {
             toastr.warning('没有可导出的图谱内容', "小说续写器");
             return;
         }
+        
+        // 获取当前小说名称
+        let novelName = '未知小说';
+        if (currentNovelId) {
+            const novel = bookshelf.find(n => n.id === currentNovelId);
+            if (novel) {
+                novelName = novel.name;
+            }
+        }
+        
         const blob = new Blob([graphText], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = '小说知识图谱.json';
+        a.download = `${novelName}_合并图谱.json`;
         a.click();
         URL.revokeObjectURL(url);
         toastr.success('图谱JSON已导出', "小说续写器");
@@ -4892,11 +4912,9 @@ jQuery(async () => {
                 return;
             }
 
-            // 询问小说名称
-            let novelName = prompt("请输入小说名称：", `未命名小说_${new Date().toLocaleDateString()}`);
-            if (!novelName || !novelName.trim()) {
-                return;
-            }
+            // 自动使用文件名作为小说名（去除扩展名）
+            const fileName = file.name.replace(/\.txt$/i, '');
+            const novelName = fileName || `未命名小说_${Date.now()}`;
 
             // 临时设置当前章节列表
             const tempSettings = extension_settings[extensionName];
