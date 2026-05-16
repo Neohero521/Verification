@@ -1141,7 +1141,7 @@ const FloatBall = {
             this.ball.focus();
         }, { signal });
         
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+        document.querySelectorAll(".novel-writer-extension-root .panel-tab-item").forEach(tab => {
             tab.addEventListener("click", (e) => {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
@@ -1212,8 +1212,12 @@ const FloatBall = {
     },
     
     onGlobalKeydown(e) {
+        if (!this.panel.classList.contains("show")) {
+            return;
+        }
+        
         // Escape 键关闭面板
-        if (e.key === 'Escape' && this.panel.classList.contains("show")) {
+        if (e.key === 'Escape') {
             e.preventDefault();
             this.hidePanel();
             this.ball.focus();
@@ -1233,10 +1237,8 @@ const FloatBall = {
         
         // Ctrl/Cmd + Z 撤销
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
-            if (this.panel.classList.contains("show")) {
-                e.preventDefault();
-                UndoManager.undo();
-            }
+            e.preventDefault();
+            UndoManager.undo();
         }
         
         // Ctrl/Cmd + Shift + Z 或 Ctrl/Cmd + Y 重做
@@ -1368,10 +1370,10 @@ const FloatBall = {
     },
     
     switchTab(tabId) {
-        document.querySelectorAll(".panel-tab-item").forEach(tab => {
+        document.querySelectorAll(".novel-writer-extension-root .panel-tab-item").forEach(tab => {
             tab.classList.toggle("active", tab.dataset.tab === tabId);
         });
-        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
+        document.querySelectorAll(".novel-writer-extension-root .panel-tab-panel").forEach(panel => {
             panel.classList.toggle("active", panel.id === tabId);
         });
         extension_settings[extensionName].floatBallState.activeTab = tabId;
@@ -4365,11 +4367,11 @@ jQuery(async () => {
     setupToggleSwitch("#quality-check-switch", "enableQualityCheck");
     
     $("#select-all-btn").off("click").on("click", () => {
-        $(".chapter-select").prop("checked", true);
+        $(".novel-writer-extension-root .chapter-select").prop("checked", true);
     });
     
     $("#unselect-all-btn").off("click").on("click", () => {
-        $(".chapter-select").prop("checked", false);
+        $(".novel-writer-extension-root .chapter-select").prop("checked", false);
     });
     
     $("#send-template-input").off("change").on("change", (e) => {
@@ -5040,11 +5042,11 @@ jQuery(async () => {
     // 阶段切换函数
     window.switchToPhase = function(phase) {
         // 更新导航状态
-        $(".nav-item").removeClass("active");
-        $(`.nav-item[data-phase="${phase}"]`).addClass("active");
+        $(".novel-writer-extension-root .nav-item").removeClass("active");
+        $(`.novel-writer-extension-root .nav-item[data-phase="${phase}"]`).addClass("active");
         
         // 更新阶段内容显示
-        $(".phase-content").removeClass("active").hide();
+        $(".novel-writer-extension-root .phase").removeClass("active").hide();
         $(`#phase-${phase}`).addClass("active").show();
         
         // 更新阶段2和3的小说名称显示
@@ -5061,7 +5063,7 @@ jQuery(async () => {
     };
     
     // 左侧导航点击事件
-    $(".nav-item[data-phase]").off("click").on("click", function() {
+    $(".novel-writer-extension-root .nav-item[data-phase]").off("click").on("click", function() {
         const phase = parseInt($(this).data("phase"));
         
         // 检查是否禁用
@@ -5100,20 +5102,20 @@ jQuery(async () => {
     });
     
     // 子标签页切换
-    $(".sub-tab-btn[data-subtab]").off("click").on("click", function() {
+    $(".novel-writer-extension-root .sub-tab-btn[data-subtab]").off("click").on("click", function() {
         const subtab = $(this).data("subtab");
         
         // 更新按钮状态
-        $(".sub-tab-btn").removeClass("active");
+        $(".novel-writer-extension-root .sub-tab-btn").removeClass("active");
         $(this).addClass("active");
         
         // 更新内容显示
-        $(".sub-tab-panel").removeClass("active").hide();
+        $(".novel-writer-extension-root .sub-tab-panel").removeClass("active").hide();
         $(`#subtab-${subtab}`).addClass("active").show();
     });
     
     // 抽屉折叠/展开
-    $(".inline-drawer-toggle").off("click").on("click", function() {
+    $(".novel-writer-extension-root .inline-drawer-toggle").off("click").on("click", function() {
         $(this).parent().toggleClass("open");
     });
     
@@ -5152,7 +5154,7 @@ jQuery(async () => {
         const result = originalLoadNovelFromBookshelf(novelId);
         if (result) {
             // 启用导航项
-            $(".nav-item[data-phase='2'], .nav-item[data-phase='3']").attr("aria-disabled", "false");
+            $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "false");
             
             // 更新导航信息
             updateNavNovelInfo();
@@ -5169,7 +5171,7 @@ jQuery(async () => {
         originalClearCurrentNovel();
         
         // 禁用导航项
-        $(".nav-item[data-phase='2'], .nav-item[data-phase='3']").attr("aria-disabled", "true");
+        $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "true");
         
         // 更新导航信息
         updateNavNovelInfo();
@@ -5178,7 +5180,7 @@ jQuery(async () => {
     // 恢复之前的阶段状态
     const savedPhase = extension_settings[extensionName].currentPhase || 1;
     if (savedPhase > 1 && currentNovelId) {
-        $(".nav-item[data-phase='2'], .nav-item[data-phase='3']").attr("aria-disabled", "false");
+        $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "false");
         updateNavNovelInfo();
     }
     switchToPhase(savedPhase);
