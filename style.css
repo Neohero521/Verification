@@ -1994,6 +1994,190 @@
     font-size: 0.9rem;
 }
 
+/* 模态框样式 */
+.novel-writer-extension-root .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000000;
+    backdrop-filter: blur(4px);
+}
+
+.novel-writer-extension-root .modal-content {
+    background: var(--novel-bg-card);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--novel-shadow-lg);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.novel-writer-extension-root .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--novel-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--novel-bg-elevated);
+}
+
+.novel-writer-extension-root .modal-header h3 {
+    color: var(--novel-text-white);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.novel-writer-extension-root .modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--novel-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--novel-radius-sm);
+    transition: all var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .modal-close-btn:hover {
+    background: var(--novel-bg-card-hover);
+    color: var(--novel-text-white);
+}
+
+.novel-writer-extension-root .modal-body {
+    padding: 24px;
+    max-height: 60vh;
+    overflow-y: auto;
+    color: var(--novel-text-primary);
+    line-height: 1.6;
+}
+
+.novel-writer-extension-root .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--novel-border-color);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    background: var(--novel-bg-elevated);
+}
+
+.novel-writer-extension-root .novel-detail-section {
+    margin-bottom: 20px;
+}
+
+.novel-writer-extension-root .novel-detail-section h4 {
+    color: var(--novel-text-white);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--novel-primary);
+}
+
+.novel-writer-extension-root .novel-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.novel-writer-extension-root .novel-detail-item {
+    background: var(--novel-bg-input);
+    padding: 12px;
+    border-radius: var(--novel-radius-sm);
+    border-left: 3px solid var(--novel-primary);
+}
+
+.novel-writer-extension-root .novel-detail-label {
+    font-size: 0.8rem;
+    color: var(--novel-text-muted);
+    margin-bottom: 4px;
+}
+
+.novel-writer-extension-root .novel-detail-value {
+    font-size: 0.95rem;
+    color: var(--novel-text-primary);
+    font-weight: 500;
+}
+
+.novel-writer-extension-root .chapter-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.novel-writer-extension-root .chapter-preview-item {
+    background: var(--novel-bg-input);
+    padding: 10px 12px;
+    border-radius: var(--novel-radius-sm);
+    color: var(--novel-text-primary);
+    font-size: 0.9rem;
+    border-left: 3px solid var(--novel-secondary);
+}
+
+.novel-writer-extension-root .chapter-preview-more {
+    text-align: center;
+    color: var(--novel-text-muted);
+    font-size: 0.85rem;
+    padding: 10px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-sm);
+}
+
+/* 批量操作栏样式 */
+.novel-writer-extension-root .bookshelf-batch-bar {
+    background: var(--novel-bg-elevated);
+    border-top: 2px solid var(--novel-primary);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.novel-writer-extension-root .batch-info {
+    color: var(--novel-text-primary);
+    font-weight: 500;
+}
+
+.novel-writer-extension-root .batch-buttons {
+    display: flex;
+    gap: 8px;
+}
+
 /* 书架网格视图样式 */
 .novel-writer-extension-root .bookshelf-grid {
     display: grid;
@@ -2007,6 +2191,46 @@
     flex-direction: column;
     gap: 12px;
     padding: 8px;
+}
+
+/* 拖拽排序样式 */
+.novel-writer-extension-root .book-item.dragging,
+.novel-writer-extension-root .book-grid-item.dragging {
+    opacity: 0.5;
+    transform: scale(1.02);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+    border-color: var(--novel-primary);
+}
+
+.novel-writer-extension-root .book-item.drag-over,
+.novel-writer-extension-root .book-grid-item.drag-over {
+    border-color: var(--novel-secondary);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+.novel-writer-extension-root .book-item.drag-handle,
+.novel-writer-extension-root .book-grid-item.drag-handle {
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    color: var(--novel-text-muted);
+    transition: color var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .book-item.drag-handle:hover,
+.novel-writer-extension-root .book-grid-item.drag-handle:hover {
+    color: var(--novel-primary);
+}
+
+.novel-writer-extension-root .book-item.drag-handle:active,
+.novel-writer-extension-root .book-grid-item.drag-handle:active {
+    cursor: grabbing;
+}
+
+.novel-writer-extension-root .drag-handle-icon {
+    font-size: 1.2rem;
+    user-select: none;
 }
 
 .novel-writer-extension-root .book-grid-item {

@@ -578,6 +578,7 @@ let stopSending = false;
 let continueWriteChain = [];
 let continueChapterIdCounter = 1;
 let currentPrecheckResult = null;
+let selectedNovelIds = new Set();
 let isInitialized = false;
 let batchMergedGraphs = [];
 let currentPresetName = "";
@@ -2355,6 +2356,84 @@ function copyNovelInBookshelf(novelId) {
     toastr.success(`已创建小说「${copyName}」`, "书架");
 }
 
+function showNovelDetail(novelId) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel) {
+        toastr.error('未找到指定小说', "书架");
+        return;
+    }
+
+    const chapterCount = novel.chapterList?.length || 0;
+    const graphCount = Object.keys(novel.chapterGraphMap || {}).length;
+    const mergedGraphKeys = Object.keys(novel.mergedGraph || {}).length;
+    const chainCount = novel.continueWriteChain?.length || 0;
+    const createdAt = new Date(novel.createdAt).toLocaleString();
+    const updatedAt = new Date(novel.updatedAt).toLocaleString();
+    
+    // 章节列表预览
+    const chapterListPreview = (novel.chapterList || []).slice(0, 10).map(ch => 
+        `<div class="chapter-preview-item">📄 ${escapeHtml(ch.title || '未命名章节')}</div>`
+    ).join('');
+    const moreChapters = chapterCount > 10 ? `<div class="chapter-preview-more">...还有 ${chapterCount - 10} 个章节</div>` : '';
+
+    const detailHtml = `
+        <div class="novel-detail-section">
+            <h4>📊 基本信息</h4>
+            <div class="novel-detail-grid">
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">小说名称</div>
+                    <div class="novel-detail-value">${escapeHtml(novel.name)}</div>
+                </div>
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">创建时间</div>
+                    <div class="novel-detail-value">${createdAt}</div>
+                </div>
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">章节数</div>
+                    <div class="novel-detail-value">${chapterCount} 章</div>
+                </div>
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">更新时间</div>
+                    <div class="novel-detail-value">${updatedAt}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="novel-detail-section">
+            <h4>🧠 图谱信息</h4>
+            <div class="novel-detail-grid">
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">章节图谱</div>
+                    <div class="novel-detail-value">${graphCount} 个</div>
+                </div>
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">合并图谱</div>
+                    <div class="novel-detail-value">${mergedGraphKeys} 个节点</div>
+                </div>
+                <div class="novel-detail-item">
+                    <div class="novel-detail-label">续写章节</div>
+                    <div class="novel-detail-value">${chainCount} 个</div>
+                </div>
+            </div>
+        </div>
+        
+        ${chapterCount > 0 ? `
+        <div class="novel-detail-section">
+            <h4>📖 章节预览</h4>
+            <div class="chapter-preview-list">
+                ${chapterListPreview}
+                ${moreChapters}
+            </div>
+        </div>
+        ` : ''}
+    `;
+
+    $('#modal-novel-title').text(novel.name);
+    $('#modal-novel-body').html(detailHtml);
+    $('#modal-load-novel-btn').data('novel-id', novelId);
+    $('#novel-detail-modal').fadeIn(300).css('display', 'flex');
+}
+
 function importNovelToBookshelf(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -2484,8 +2563,13 @@ function renderBookshelf() {
         
         if (viewMode === 'grid') {
             // 网格视图
+            const isSelected = selectedNovelIds.has(novel.id);
             return `
-                <div class="book-grid-item ${isCurrentNovel ? 'active' : ''}" data-novel-id="${novel.id}">
+                <div class="book-grid-item ${isCurrentNovel ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-novel-id="${novel.id}" draggable="true">
+                    <div class="book-grid-checkbox">
+                        <input type="checkbox" class="book-checkbox" data-novel-id="${novel.id}" ${isSelected ? 'checked' : ''}>
+                    </div>
+                    <div class="drag-handle drag-handle-icon" title="拖拽排序">☰</div>
                     <div class="book-cover-placeholder">
                         <span class="book-cover-icon">📖</span>
                     </div>
@@ -2503,8 +2587,11 @@ function renderBookshelf() {
             `;
         } else {
             // 列表视图（默认）
+            const isSelected = selectedNovelIds.has(novel.id);
             return `
-                <div class="book-item ${isCurrentNovel ? 'active' : ''}" data-novel-id="${novel.id}">
+                <div class="book-item ${isCurrentNovel ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-novel-id="${novel.id}" draggable="true">
+                    <input type="checkbox" class="book-checkbox" data-novel-id="${novel.id}" ${isSelected ? 'checked' : ''}>
+                    <div class="drag-handle drag-handle-icon" title="拖拽排序">☰</div>
                     <div class="book-info">
                         <div class="book-title">${escapeHtml(novel.name)}</div>
                         <div class="book-meta">
@@ -2534,6 +2621,78 @@ function renderBookshelf() {
             <div class="empty-text">未找到匹配的小说</div>
         </div>
     `);
+
+    // 更新批量操作栏
+    updateBatchActionBar();
+}
+
+function updateBatchActionBar() {
+    const $batchBar = $('#bookshelf-batch-actions');
+    const $countDisplay = $('#selected-count');
+    
+    if (selectedNovelIds.size === 0) {
+        $batchBar.hide();
+    } else {
+        $batchBar.show();
+        $countDisplay.text(`已选择 ${selectedNovelIds.size} 本小说`);
+    }
+}
+
+function batchExportNovels() {
+    if (selectedNovelIds.size === 0) {
+        toastr.warning('请先选择要导出的小说', "书架");
+        return;
+    }
+
+    const selectedNovels = bookshelf.filter(n => selectedNovelIds.has(n.id));
+    
+    if (selectedNovelIds.size === 1) {
+        // 单本导出
+        exportNovelFromBookshelf(selectedNovels[0].id);
+    } else {
+        // 多本导出为 ZIP
+        const exportData = selectedNovels.map(n => ({
+            name: n.name,
+            data: n
+        }));
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `multiple_novels_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toastr.success(`已导出 ${selectedNovels.length} 本小说`, "书架");
+    }
+}
+
+function batchDeleteNovels() {
+    if (selectedNovelIds.size === 0) {
+        toastr.warning('请先选择要删除的小说', "书架");
+        return;
+    }
+
+    const count = selectedNovelIds.size;
+    if (!confirm(`确定要删除选中的 ${count} 本小说吗？此操作不可恢复。`)) {
+        return;
+    }
+
+    // 删除选中的小说
+    bookshelf = bookshelf.filter(n => !selectedNovelIds.has(n.id));
+    
+    // 如果当前小说也在删除列表中，清除当前状态
+    if (selectedNovelIds.has(currentNovelId)) {
+        clearCurrentNovel();
+    }
+    
+    extension_settings[extensionName].bookshelf = bookshelf;
+    saveSettingsDebounced();
+    
+    selectedNovelIds.clear();
+    renderBookshelf();
+    toastr.success(`已删除 ${count} 本小说`, "书架");
 }
 
 function saveDrawerState() {
@@ -4120,6 +4279,150 @@ jQuery(async () => {
         const novelId = $(e.currentTarget).data("novel-id");
         copyNovelInBookshelf(novelId);
     });
+
+    // 小说详情查看事件
+    $(document).off("click", "#bookshelf-container .book-item, #bookshelf-container .book-grid-item").on("click", "#bookshelf-container .book-item, #bookshelf-container .book-grid-item", (e) => {
+        const $target = $(e.target);
+        // 排除按钮点击和复选框
+        if ($target.closest('.book-actions').length || $target.closest('.book-grid-actions').length || $target.is('.book-checkbox')) {
+            return;
+        }
+        const novelId = $(e.currentTarget).data("novel-id");
+        showNovelDetail(novelId);
+    });
+
+    // 复选框事件
+    $(document).off("change", ".book-checkbox").on("change", ".book-checkbox", (e) => {
+        const novelId = $(e.target).data("novel-id");
+        if ($(e.target).prop("checked")) {
+            selectedNovelIds.add(novelId);
+        } else {
+            selectedNovelIds.delete(novelId);
+        }
+        updateBatchActionBar();
+        renderBookshelf();
+    });
+
+    // 全选按钮
+    $("#bookshelf-select-all-btn").off("click").on("click", () => {
+        const allNovelIds = bookshelf.map(n => n.id);
+        if (selectedNovelIds.size === allNovelIds.length) {
+            // 取消全选
+            selectedNovelIds.clear();
+        } else {
+            // 全选
+            selectedNovelIds = new Set(allNovelIds);
+        }
+        updateBatchActionBar();
+        renderBookshelf();
+    });
+
+    // 批量导出
+    $("#batch-export-btn").off("click").on("click", batchExportNovels);
+
+    // 批量删除
+    $("#batch-delete-btn").off("click").on("click", batchDeleteNovels);
+
+    // 取消选择
+    $("#cancel-selection-btn").off("click").on("click", () => {
+        selectedNovelIds.clear();
+        updateBatchActionBar();
+        renderBookshelf();
+    });
+
+    // 模态框事件
+    let currentModalNovelId = null;
+    
+    $("#close-novel-detail-modal, #modal-close-novel-btn").off("click").on("click", () => {
+        $('#novel-detail-modal').fadeOut(200);
+    });
+
+    $("#modal-load-novel-btn").off("click").on("click", function() {
+        const novelId = $(this).data('novel-id');
+        $('#novel-detail-modal').fadeOut(200, () => {
+            if (novelId) {
+                loadNovelFromBookshelf(novelId);
+            }
+        });
+    });
+
+    // 点击模态框外部关闭
+    $("#novel-detail-modal").off("click").on("click", (e) => {
+        if ($(e.target).is('#novel-detail-modal')) {
+            $(this).fadeOut(200);
+        }
+    });
+
+    // 更新 showNovelDetail 函数以使用正确的 novelId
+    const originalShowNovelDetail = showNovelDetail;
+    window.showNovelDetail = function(novelId) {
+        currentModalNovelId = novelId;
+        originalShowNovelDetail(novelId);
+        $('#modal-load-novel-btn').data('novel-id', novelId);
+    };
+
+    // ========== 拖拽排序功能 ==========
+    let draggedNovelId = null;
+
+    $(document).off('dragstart', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item')
+        .on('dragstart', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item', function(e) {
+            // 如果点击的是复选框，不触发拖拽
+            if ($(e.target).is('.book-checkbox')) {
+                return;
+            }
+            draggedNovelId = $(this).data('novel-id');
+            $(this).addClass('dragging');
+            e.originalEvent.dataTransfer.effectAllowed = 'move';
+        });
+
+    $(document).off('dragend', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item')
+        .on('dragend', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item', function() {
+            $(this).removeClass('dragging');
+            $('#bookshelf-container .book-item, #bookshelf-container .book-grid-item').removeClass('drag-over');
+            draggedNovelId = null;
+        });
+
+    $(document).off('dragover', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item')
+        .on('dragover', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item', function(e) {
+            e.preventDefault();
+            e.originalEvent.dataTransfer.dropEffect = 'move';
+            if (!$(this).hasClass('dragging')) {
+                $(this).addClass('drag-over');
+            }
+        });
+
+    $(document).off('dragleave', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item')
+        .on('dragleave', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item', function(e) {
+            $(this).removeClass('drag-over');
+        });
+
+    $(document).off('drop', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item')
+        .on('drop', '#bookshelf-container .book-item, #bookshelf-container .book-grid-item', function(e) {
+            e.preventDefault();
+            const $target = $(this);
+            $target.removeClass('drag-over');
+            
+            if (!draggedNovelId) return;
+            
+            const targetNovelId = $target.data('novel-id');
+            if (draggedNovelId === targetNovelId) return;
+
+            const draggedIndex = bookshelf.findIndex(n => n.id === draggedNovelId);
+            const targetIndex = bookshelf.findIndex(n => n.id === targetNovelId);
+            
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            // 交换位置
+            const [draggedNovel] = bookshelf.splice(draggedIndex, 1);
+            bookshelf.splice(targetIndex, 0, draggedNovel);
+            
+            extension_settings[extensionName].bookshelf = bookshelf;
+            extension_settings[extensionName].bookshelfSortBy = 'manual';
+            saveSettingsDebounced();
+            renderBookshelf();
+            
+            toastr.success('小说顺序已更新', "书架");
+        });
 
     // ========== 新书架上传功能事件监听器 ==========
     // 书架文件选择按钮
