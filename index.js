@@ -639,9 +639,11 @@ function deepMerge(target, source) {
             if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
                 merged[key] = deepMerge(merged[key] || {}, source[key]);
             } else if (Array.isArray(source[key])) {
-                merged[key] = Array.isArray(merged[key]) ? [...merged[key]] : [...source[key]];
+                // 修复：当 source 有数组时，优先使用 source 的数组（用户保存的数据）
+                merged[key] = [...source[key]];
             } else {
-                merged[key] = merged[key] !== undefined ? merged[key] : source[key];
+                // 修复：当 source 有值时，优先使用 source 的值（用户保存的数据）
+                merged[key] = source[key];
             }
         }
     }
@@ -2045,8 +2047,32 @@ function clearBatchMergedGraphs() {
 
 async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
+    
+    // 保存用户原始数据的备份，防止 deepMerge 丢失数据
+    const savedData = JSON.parse(JSON.stringify(extension_settings[extensionName]));
+    
+    // 合并默认设置
     extension_settings[extensionName] = deepMerge(defaultSettings, extension_settings[extensionName]);
     
+    // 关键：确保用户数据（特别是书架）被正确恢复
+    if (savedData.bookshelf && Array.isArray(savedData.bookshelf)) {
+        extension_settings[extensionName].bookshelf = savedData.bookshelf;
+        console.log('[小说续写插件] 已从备份恢复书架数据，数量:', savedData.bookshelf.length);
+    }
+    
+    if (savedData.currentNovelId !== undefined) {
+        extension_settings[extensionName].currentNovelId = savedData.currentNovelId;
+    }
+    
+    // 确保其他关键用户数据也被恢复
+    const criticalKeys = ['chapterList', 'chapterGraphMap', 'mergedGraph', 'continueWriteChain', 'continueChapterIdCounter', 'batchMergedGraphs', 'readerState'];
+    for (const key of criticalKeys) {
+        if (savedData[key] !== undefined) {
+            extension_settings[extensionName][key] = savedData[key];
+        }
+    }
+    
+    // 补充缺失的默认值
     for (const key of Object.keys(defaultSettings)) {
         if (!Object.hasOwn(extension_settings[extensionName], key)) {
             extension_settings[extensionName][key] = structuredClone(defaultSettings[key]);
@@ -2060,6 +2086,8 @@ async function loadSettings() {
     batchMergedGraphs = extension_settings[extensionName].batchMergedGraphs || [];
     bookshelf = extension_settings[extensionName].bookshelf || [];
     currentNovelId = extension_settings[extensionName].currentNovelId || null;
+    
+    console.log('[小说续写插件] 设置加载完成，书架数据:', bookshelf.length, '本小说');
     
     const settings = extension_settings[extensionName];
     
