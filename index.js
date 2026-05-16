@@ -565,7 +565,7 @@ const defaultSettings = {
     currentNovelId: null,
     bookshelfSortBy: "updatedAt",
     bookshelfSortOrder: "desc",
-    bookshelfViewMode: "list",
+    bookshelfViewMode: "grid",
     bookshelfSearchQuery: "",
     bookshelfTags: ["玄幻", "都市", "科幻", "悬疑", "言情", "历史", "武侠", "奇幻"],
     bookshelfFilterByTag: "",
