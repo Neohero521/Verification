@@ -1998,7 +1998,8 @@ async function batchMergeGraphs() {
     }
     
     batchMergedGraphs = [];
-    extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
+    const settings = extension_settings[extensionName];
+    settings.batchMergedGraphs = batchMergedGraphs;
     saveSettingsDebounced();
     
     const batches = [];
@@ -2043,7 +2044,18 @@ async function batchMergeGraphs() {
                 batchMergedGraphs.push(batchMergedGraph);
                 successCount++;
                 
-                extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
+                settings.batchMergedGraphs = batchMergedGraphs;
+                
+                // 同步更新书架中当前小说的批次图谱数据
+                if (currentNovelId) {
+                    const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+                    if (novelIndex !== -1) {
+                        bookshelf[novelIndex].batchMergedGraphs = [...batchMergedGraphs];
+                        bookshelf[novelIndex].updatedAt = new Date().toISOString();
+                        settings.bookshelf = bookshelf;
+                    }
+                }
+                
                 saveSettingsDebounced();
             } catch (parseError) {
                 console.error(`[小说续写插件] 批次${batchNum} JSON解析失败:`, parseError);
@@ -2075,7 +2087,19 @@ async function batchMergeGraphs() {
 
 function clearBatchMergedGraphs() {
     batchMergedGraphs = [];
-    extension_settings[extensionName].batchMergedGraphs = batchMergedGraphs;
+    const settings = extension_settings[extensionName];
+    settings.batchMergedGraphs = batchMergedGraphs;
+    
+    // 同步更新书架中当前小说的批次图谱数据
+    if (currentNovelId) {
+        const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+        if (novelIndex !== -1) {
+            bookshelf[novelIndex].batchMergedGraphs = [];
+            bookshelf[novelIndex].updatedAt = new Date().toISOString();
+            settings.bookshelf = bookshelf;
+        }
+    }
+    
     updateProgress('batch-merge-progress', 'batch-merge-status', 0, 0);
     saveSettingsDebounced();
     toastr.success('已清空批次合并结果', "小说续写器");
@@ -3788,7 +3812,19 @@ async function mergeAllGraphs() {
         });
         
         const mergedGraph = JSON.parse(result.trim());
-        extension_settings[extensionName].mergedGraph = mergedGraph;
+        const settings = extension_settings[extensionName];
+        settings.mergedGraph = mergedGraph;
+        
+        // 同步更新书架中当前小说的合并图谱数据
+        if (currentNovelId) {
+            const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+            if (novelIndex !== -1) {
+                bookshelf[novelIndex].mergedGraph = mergedGraph;
+                bookshelf[novelIndex].updatedAt = new Date().toISOString();
+                settings.bookshelf = bookshelf;
+            }
+        }
+        
         saveSettingsDebounced();
         $('#merged-graph-preview').val(JSON.stringify(mergedGraph, null, 2));
         toastr.success(`全量知识图谱合并完成！基于${mergeType}生成`, "小说续写器");
@@ -4468,7 +4504,19 @@ jQuery(async () => {
                     throw new Error("图谱格式错误");
                 }
                 
-                extension_settings[extensionName].mergedGraph = graphData;
+                const settings = extension_settings[extensionName];
+                settings.mergedGraph = graphData;
+                
+                // 同步更新书架中当前小说的合并图谱数据
+                if (currentNovelId) {
+                    const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+                    if (novelIndex !== -1) {
+                        bookshelf[novelIndex].mergedGraph = graphData;
+                        bookshelf[novelIndex].updatedAt = new Date().toISOString();
+                        settings.bookshelf = bookshelf;
+                    }
+                }
+                
                 saveSettingsDebounced();
                 $('#merged-graph-preview').val(JSON.stringify(graphData, null, 2));
                 toastr.success('知识图谱导入完成！', "小说续写器");
