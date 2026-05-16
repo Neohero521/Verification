@@ -2178,7 +2178,191 @@
     gap: 8px;
 }
 
-/* 书架网格视图样式 */
+/* 标签筛选样式 */
+.novel-writer-extension-root .bookshelf-tag-filter {
+    background: var(--novel-bg-elevated);
+    border-top: 1px solid var(--novel-border-color);
+    padding: 12px 16px;
+}
+
+.novel-writer-extension-root .tag-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.novel-writer-extension-root .tag-filter-label {
+    color: var(--novel-text-primary);
+    font-weight: 500;
+}
+
+.novel-writer-extension-root .bookshelf-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.novel-writer-extension-root .tag-filter-item {
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-full);
+    padding: 6px 14px;
+    color: var(--novel-text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--novel-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.novel-writer-extension-root .tag-filter-item:hover {
+    border-color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.novel-writer-extension-root .tag-filter-item.active {
+    background: var(--novel-primary);
+    border-color: var(--novel-primary);
+    color: white;
+}
+
+.novel-writer-extension-root .tag-filter-item .tag-count {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--novel-radius-full);
+    padding: 2px 6px;
+    font-size: 0.75rem;
+}
+
+/* 标签样式 */
+.novel-writer-extension-root .book-tag {
+    background: var(--novel-primary);
+    color: white;
+    border-radius: var(--novel-radius-full);
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.novel-writer-extension-root .book-tag-removable {
+    cursor: pointer;
+}
+
+.novel-writer-extension-root .book-tag-removable:hover {
+    opacity: 0.8;
+}
+
+.novel-writer-extension-root .tag-remove {
+    font-size: 1rem;
+    margin-left: 2px;
+}
+
+.novel-writer-extension-root .novel-tags-editor {
+    margin-top: 12px;
+}
+
+.novel-writer-extension-root .novel-tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.novel-writer-extension-root .novel-tags-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.novel-writer-extension-root .tag-select-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.novel-writer-extension-root .tag-select-item {
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-full);
+    padding: 8px 16px;
+    color: var(--novel-text-primary);
+    cursor: pointer;
+    transition: all var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .tag-select-item:hover {
+    border-color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.novel-writer-extension-root .tag-manager-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.novel-writer-extension-root .tag-manager-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--novel-bg-input);
+    border: 1px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-sm);
+    margin-bottom: 8px;
+    transition: all var(--novel-transition-fast);
+}
+
+.novel-writer-extension-root .tag-manager-item:hover {
+    border-color: var(--novel-primary);
+}
+
+.novel-writer-extension-root .book-progress-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.novel-writer-extension-root .book-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--novel-primary) 0%, var(--novel-secondary) 100%);
+    transition: width 0.3s ease;
+}
+
+.novel-writer-extension-root .book-grid-progress {
+    margin-top: 8px;
+}
+
+.novel-writer-extension-root .progress-text {
+    font-size: 0.8rem;
+    color: var(--novel-primary);
+    font-weight: 500;
+}
+
+.novel-writer-extension-root .book-list-progress {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--novel-border-color);
+}
+
+.novel-writer-extension-root .book-list-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--novel-bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+/* 标签筛选样式 */
 .novel-writer-extension-root .bookshelf-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

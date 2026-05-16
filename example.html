@@ -233,6 +233,9 @@
                             <button class="btn btn-sm btn-icon" id="bookshelf-select-all-btn" title="全选" aria-label="全选">
                                 <span>☑️</span>
                             </button>
+                            <button class="btn btn-sm btn-icon" id="bookshelf-manage-tags-btn" title="管理标签" aria-label="管理标签">
+                                <span>🏷️</span>
+                            </button>
                             <input type="text" 
                                    id="bookshelf-search-input"
                                    class="form-input form-input-sm"
@@ -273,6 +276,17 @@
                             <button class="btn btn-sm btn-outline" id="cancel-selection-btn">
                                 <span aria-hidden="true">✕</span>取消选择
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- 标签筛选器 -->
+                    <div id="bookshelf-tag-filter" class="bookshelf-tag-filter" style="display: none;">
+                        <div class="tag-filter-header">
+                            <span class="tag-filter-label">🏷️ 标签筛选：</span>
+                            <button class="btn btn-sm btn-icon" id="clear-tag-filter-btn" title="清除筛选">✕</button>
+                        </div>
+                        <div id="bookshelf-tag-list" class="bookshelf-tag-list">
+                            <!-- 动态生成 -->
                         </div>
                     </div>
                 </div>

@@ -566,7 +566,11 @@ const defaultSettings = {
     bookshelfSortBy: "updatedAt",
     bookshelfSortOrder: "desc",
     bookshelfViewMode: "list",
-    bookshelfSearchQuery: ""
+    bookshelfSearchQuery: "",
+    bookshelfTags: ["玄幻", "都市", "科幻", "悬疑", "言情", "历史", "武侠", "奇幻"],
+    bookshelfFilterByTag: "",
+    operationHistory: [],
+    maxOperationHistory: 50
 };
 
 let currentParsedChapters = [];
@@ -2167,6 +2171,7 @@ function saveCurrentNovelToBookshelf(novelName = null) {
     const novelData = {
         id: novelId,
         name: name,
+        tags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         chapterList: settings.chapterList,
@@ -2175,12 +2180,17 @@ function saveCurrentNovelToBookshelf(novelName = null) {
         continueWriteChain: settings.continueWriteChain,
         continueChapterIdCounter: settings.continueChapterIdCounter,
         batchMergedGraphs: settings.batchMergedGraphs,
-        readerState: settings.readerState
+        readerState: settings.readerState,
+        readingProgress: settings.readingProgress || {},
+        lastReadChapterId: settings.lastReadChapterId || null,
+        lastReadPosition: settings.lastReadPosition || 0
     };
 
     // 更新或添加到书架
     const existingIndex = bookshelf.findIndex(n => n.id === novelId);
     if (existingIndex >= 0) {
+        // 保留原有标签
+        novelData.tags = bookshelf[existingIndex].tags || [];
         bookshelf[existingIndex] = { ...bookshelf[existingIndex], ...novelData, updatedAt: new Date().toISOString() };
     } else {
         bookshelf.push(novelData);
@@ -2190,8 +2200,8 @@ function saveCurrentNovelToBookshelf(novelName = null) {
     extension_settings[extensionName].currentNovelId = novelId;
     currentNovelId = novelId;
     saveSettingsDebounced();
-
     renderBookshelf();
+    recordOperation('save', `保存小说「${name}」到书架`, { novelId: novelId, chapterCount: settings.chapterList?.length || 0 });
     toastr.success(`小说「${name}」已保存到书架`, "书架");
     return novelId;
 }
@@ -2207,7 +2217,10 @@ function autoUpdateCurrentNovelInBookshelf() {
         continueWriteChain: settings.continueWriteChain,
         continueChapterIdCounter: settings.continueChapterIdCounter,
         batchMergedGraphs: settings.batchMergedGraphs,
-        readerState: settings.readerState
+        readerState: settings.readerState,
+        readingProgress: settings.readingProgress || {},
+        lastReadChapterId: settings.lastReadChapterId || null,
+        lastReadPosition: settings.lastReadPosition || 0
     };
     
     const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
@@ -2222,6 +2235,84 @@ function autoUpdateCurrentNovelInBookshelf() {
         renderBookshelf();
         console.log('[书架] 已自动更新当前小说');
     }
+}
+
+function updateReadingProgress(chapterId, position) {
+    if (!currentNovelId) return;
+    
+    extension_settings[extensionName].lastReadChapterId = chapterId;
+    extension_settings[extensionName].lastReadPosition = position;
+    
+    if (!extension_settings[extensionName].readingProgress) {
+        extension_settings[extensionName].readingProgress = {};
+    }
+    extension_settings[extensionName].readingProgress[chapterId] = {
+        position: position,
+        timestamp: Date.now()
+    };
+    
+    autoUpdateCurrentNovelInBookshelf();
+}
+
+function getReadingProgress(novelId) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel) return { progress: 0, lastChapterId: null };
+    
+    const totalChapters = (novel.chapterList || []).length;
+    if (totalChapters === 0) return { progress: 0, lastChapterId: null };
+    
+    const readChapters = Object.keys(novel.readingProgress || {}).length;
+    const progress = Math.round((readChapters / totalChapters) * 100);
+    
+    return {
+        progress: progress,
+        lastChapterId: novel.lastReadChapterId,
+        lastPosition: novel.lastReadPosition,
+        readChapters: readChapters,
+        totalChapters: totalChapters
+    };
+}
+
+function recordOperation(type, message, details = {}) {
+    const settings = extension_settings[extensionName];
+    if (!settings.operationHistory) {
+        settings.operationHistory = [];
+    }
+    
+    const operation = {
+        type: type,
+        message: message,
+        details: details,
+        timestamp: Date.now()
+    };
+    
+    settings.operationHistory.unshift(operation);
+    
+    // 限制历史记录数量
+    if (settings.operationHistory.length > settings.maxOperationHistory) {
+        settings.operationHistory = settings.operationHistory.slice(0, settings.maxOperationHistory);
+    }
+    
+    saveSettingsDebounced();
+    console.log(`[操作记录] ${message}`, details);
+}
+
+function getOperationHistory(filterType = null, limit = 20) {
+    const settings = extension_settings[extensionName];
+    let history = settings.operationHistory || [];
+    
+    if (filterType) {
+        history = history.filter(h => h.type === filterType);
+    }
+    
+    return history.slice(0, limit);
+}
+
+function clearOperationHistory() {
+    const settings = extension_settings[extensionName];
+    settings.operationHistory = [];
+    saveSettingsDebounced();
+    toastr.success('操作历史已清空', "历史记录");
 }
 
 function updateCurrentNovelDisplay() {
@@ -2277,6 +2368,7 @@ function loadNovelFromBookshelf(novelId) {
     // 切换到章节管理标签页
     FloatBall.switchTab("tab-chapter");
     
+    recordOperation('load', `加载小说「${novel.name}」`, { novelId: novel.id, chapterCount: novel.chapterList?.length || 0 });
     toastr.success(`已加载小说「${novel.name}」，请继续后续步骤`, "书架");
     return true;
 }
@@ -2333,6 +2425,209 @@ function exportNovelFromBookshelf(novelId) {
     toastr.success('小说已导出', "书架");
 }
 
+function addTagToNovel(novelId, tag) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel) return false;
+    
+    if (!novel.tags) novel.tags = [];
+    if (!novel.tags.includes(tag)) {
+        novel.tags.push(tag);
+        novel.updatedAt = new Date().toISOString();
+        extension_settings[extensionName].bookshelf = bookshelf;
+        saveSettingsDebounced();
+        renderBookshelf();
+        return true;
+    }
+    return false;
+}
+
+function removeTagFromNovel(novelId, tag) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel || !novel.tags) return false;
+    
+    const index = novel.tags.indexOf(tag);
+    if (index > -1) {
+        novel.tags.splice(index, 1);
+        novel.updatedAt = new Date().toISOString();
+        extension_settings[extensionName].bookshelf = bookshelf;
+        saveSettingsDebounced();
+        renderBookshelf();
+        return true;
+    }
+    return false;
+}
+
+function updateNovelTags(novelId, tags) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel) return false;
+    
+    novel.tags = tags || [];
+    novel.updatedAt = new Date().toISOString();
+    extension_settings[extensionName].bookshelf = bookshelf;
+    saveSettingsDebounced();
+    renderBookshelf();
+    return true;
+}
+
+function addNewTag(tagName) {
+    if (!tagName || !tagName.trim()) return false;
+    
+    const tags = extension_settings[extensionName].bookshelfTags || [];
+    const trimmedTag = tagName.trim();
+    
+    if (!tags.includes(trimmedTag)) {
+        tags.push(trimmedTag);
+        extension_settings[extensionName].bookshelfTags = tags;
+        saveSettingsDebounced();
+        return true;
+    }
+    return false;
+}
+
+function deleteTag(tagName) {
+    const tags = extension_settings[extensionName].bookshelfTags || [];
+    const index = tags.indexOf(tagName);
+    
+    if (index > -1) {
+        tags.splice(index, 1);
+        extension_settings[extensionName].bookshelfTags = tags;
+        
+        // 从所有小说中移除该标签
+        bookshelf.forEach(novel => {
+            if (novel.tags) {
+                const tagIndex = novel.tags.indexOf(tagName);
+                if (tagIndex > -1) {
+                    novel.tags.splice(tagIndex, 1);
+                }
+            }
+        });
+        
+        extension_settings[extensionName].bookshelf = bookshelf;
+        saveSettingsDebounced();
+        return true;
+    }
+    return false;
+}
+
+function renderTagFilter() {
+    const $tagFilter = $('#bookshelf-tag-filter');
+    const $tagList = $('#bookshelf-tag-list');
+    const allTags = extension_settings[extensionName].bookshelfTags || [];
+    const currentFilter = extension_settings[extensionName].bookshelfFilterByTag || '';
+    
+    if (allTags.length === 0) {
+        $tagFilter.hide();
+        return;
+    }
+    
+    // 计算每个标签的使用数量
+    const tagCounts = {};
+    allTags.forEach(tag => {
+        tagCounts[tag] = bookshelf.filter(novel => 
+            (novel.tags || []).includes(tag)
+        ).length;
+    });
+    
+    const tagsHtml = allTags.map(tag => {
+        const isActive = currentFilter === tag;
+        return `
+            <div class="tag-filter-item ${isActive ? 'active' : ''}" data-tag="${escapeHtml(tag)}">
+                <span>${escapeHtml(tag)}</span>
+                <span class="tag-count">${tagCounts[tag]}</span>
+            </div>
+        `;
+    }).join('');
+    
+    $tagList.html(tagsHtml);
+    
+    // 显示或隐藏标签筛选器
+    if (currentFilter || bookshelf.some(n => (n.tags || []).length > 0)) {
+        $tagFilter.show();
+    } else {
+        $tagFilter.hide();
+    }
+    
+    // 绑定标签点击事件
+    $tagList.find('.tag-filter-item').off('click').on('click', function() {
+        const tag = $(this).data('tag');
+        if (currentFilter === tag) {
+            // 取消筛选
+            extension_settings[extensionName].bookshelfFilterByTag = '';
+        } else {
+            // 应用筛选
+            extension_settings[extensionName].bookshelfFilterByTag = tag;
+        }
+        saveSettingsDebounced();
+        renderBookshelf();
+        renderTagFilter();
+    });
+}
+
+function showTagManagerModal() {
+    const allTags = extension_settings[extensionName].bookshelfTags || [];
+    const tagsHtml = allTags.map(tag => `
+        <div class="tag-manager-item" data-tag="${escapeHtml(tag)}">
+            <span class="tag-name">${escapeHtml(tag)}</span>
+            <button class="btn btn-sm btn-icon delete-tag-btn" title="删除标签">🗑️</button>
+        </div>
+    `).join('');
+    
+    const modalContent = `
+        <div class="tag-manager">
+            <h4 style="color: var(--novel-text-white); margin-bottom: 16px;">当前标签</h4>
+            <div class="tag-manager-list">
+                ${tagsHtml || '<div class="empty-state" style="padding: 20px; text-align: center; color: var(--novel-text-muted);">暂无标签</div>'}
+            </div>
+            <div class="tag-manager-add" style="margin-top: 16px;">
+                <input type="text" id="new-tag-input" class="form-input" placeholder="输入新标签名称..." style="flex: 1;">
+                <button class="btn btn-primary" id="add-tag-btn">添加标签</button>
+            </div>
+        </div>
+    `;
+    
+    $('#modal-novel-title').text('标签管理');
+    $('#modal-novel-body').html(modalContent);
+    $('#modal-load-novel-btn').hide();
+    $('#novel-detail-modal').fadeIn(300).css('display', 'flex');
+    
+    // 绑定添加标签事件
+    $('#add-tag-btn').off('click').on('click', () => {
+        const newTag = $('#new-tag-input').val().trim();
+        if (newTag) {
+            if (addNewTag(newTag)) {
+                toastr.success(`已添加标签「${newTag}」`, "标签");
+                $('#new-tag-input').val('');
+                showTagManagerModal();
+                renderTagFilter();
+            } else {
+                toastr.warning('该标签已存在', "标签");
+            }
+        }
+    });
+    
+    // 绑定删除标签事件
+    $('.delete-tag-btn').off('click').on('click', function() {
+        const $item = $(this).closest('.tag-manager-item');
+        const tag = $item.data('tag');
+        
+        if (confirm(`确定要删除标签「${tag}」吗？该标签会从所有小说中移除。`)) {
+            if (deleteTag(tag)) {
+                toastr.success(`已删除标签「${tag}」`, "标签");
+                showTagManagerModal();
+                renderTagFilter();
+                renderBookshelf();
+            }
+        }
+    });
+    
+    // Enter 键添加标签
+    $('#new-tag-input').off('keypress').on('keypress', (e) => {
+        if (e.which === 13) {
+            $('#add-tag-btn').click();
+        }
+    });
+}
+
 function copyNovelInBookshelf(novelId) {
     const novel = bookshelf.find(n => n.id === novelId);
     if (!novel) {
@@ -2353,6 +2648,7 @@ function copyNovelInBookshelf(novelId) {
     extension_settings[extensionName].bookshelf = bookshelf;
     saveSettingsDebounced();
     renderBookshelf();
+    recordOperation('copy', `复制小说「${novel.name}」`, { novelId: novel.id, newNovelId: copiedNovel.id });
     toastr.success(`已创建小说「${copyName}」`, "书架");
 }
 
@@ -2400,6 +2696,22 @@ function showNovelDetail(novelId) {
         </div>
         
         <div class="novel-detail-section">
+            <h4>🏷️ 标签</h4>
+            <div class="novel-tags-editor" id="novel-tags-editor-${novel.id}">
+                <div class="novel-tags-display">
+                    ${(novel.tags || []).map(tag => `
+                        <span class="book-tag book-tag-removable" data-tag="${escapeHtml(tag)}" data-novel-id="${novel.id}">
+                            ${escapeHtml(tag)} <span class="tag-remove">×</span>
+                        </span>
+                    `).join('') || '<span style="color: var(--novel-text-muted);">暂无标签</span>'}
+                </div>
+                <div class="novel-tags-actions">
+                    <button class="btn btn-sm btn-secondary add-tag-to-novel-btn" data-novel-id="${novel.id}">添加标签</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="novel-detail-section">
             <h4>🧠 图谱信息</h4>
             <div class="novel-detail-grid">
                 <div class="novel-detail-item">
@@ -2430,8 +2742,78 @@ function showNovelDetail(novelId) {
 
     $('#modal-novel-title').text(novel.name);
     $('#modal-novel-body').html(detailHtml);
-    $('#modal-load-novel-btn').data('novel-id', novelId);
+    $('#modal-load-novel-btn').data('novel-id', novel.id).show();
     $('#novel-detail-modal').fadeIn(300).css('display', 'flex');
+    
+    // 绑定标签移除事件
+    $('.book-tag-removable').off('click').on('click', function() {
+        const tag = $(this).data('tag');
+        const novelId = $(this).data('novel-id');
+        if (confirm(`确定要移除标签「${tag}」吗？`)) {
+            removeTagFromNovel(novelId, tag);
+            showNovelDetail(novelId);
+        }
+    });
+    
+    // 绑定添加标签按钮
+    $('.add-tag-to-novel-btn').off('click').on('click', function() {
+        const novelId = $(this).data('novel-id');
+        showAddTagModal(novelId);
+    });
+}
+
+function showAddTagModal(novelId) {
+    const allTags = extension_settings[extensionName].bookshelfTags || [];
+    const novel = bookshelf.find(n => n.id === novelId);
+    const currentTags = novel?.tags || [];
+    const availableTags = allTags.filter(tag => !currentTags.includes(tag));
+    
+    const tagsHtml = availableTags.map(tag => `
+        <div class="tag-select-item" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</div>
+    `).join('');
+    
+    const modalContent = `
+        <div class="tag-add-modal">
+            <h4 style="color: var(--novel-text-white); margin-bottom: 16px;">为小说添加标签</h4>
+            ${availableTags.length > 0 ? `
+                <div class="tag-select-list">
+                    ${tagsHtml}
+                </div>
+            ` : '<div style="color: var(--novel-text-muted); text-align: center; padding: 20px;">所有标签都已添加，或暂无可用标签</div>'}
+            <div class="tag-add-custom" style="margin-top: 16px;">
+                <input type="text" id="custom-tag-input" class="form-input" placeholder="输入自定义标签..." style="flex: 1;">
+                <button class="btn btn-primary" id="add-custom-tag-btn">添加</button>
+            </div>
+        </div>
+    `;
+    
+    $('#modal-novel-title').text('添加标签');
+    $('#modal-novel-body').html(modalContent);
+    $('#modal-load-novel-btn').hide();
+    $('#novel-detail-modal').fadeIn(300).css('display', 'flex');
+    
+    // 绑定选择标签事件
+    $('.tag-select-item').off('click').on('click', function() {
+        const tag = $(this).data('tag');
+        addTagToNovel(novelId, tag);
+        showNovelDetail(novelId);
+    });
+    
+    // 绑定自定义标签添加
+    $('#add-custom-tag-btn').off('click').on('click', () => {
+        const customTag = $('#custom-tag-input').val().trim();
+        if (customTag) {
+            addNewTag(customTag);
+            addTagToNovel(novelId, customTag);
+            showNovelDetail(novelId);
+        }
+    });
+    
+    $('#custom-tag-input').off('keypress').on('keypress', (e) => {
+        if (e.which === 13) {
+            $('#add-custom-tag-btn').click();
+        }
+    });
 }
 
 function importNovelToBookshelf(file) {
@@ -2503,6 +2885,7 @@ function renderBookshelf() {
     const sortOrder = settings.bookshelfSortOrder || 'desc';
     const viewMode = settings.bookshelfViewMode || 'list';
     const searchQuery = (settings.bookshelfSearchQuery || '').toLowerCase();
+    const filterTag = settings.bookshelfFilterByTag || '';
 
     if (bookshelf.length === 0) {
         $container.removeClass('bookshelf-grid bookshelf-list').addClass('bookshelf-list');
@@ -2515,11 +2898,16 @@ function renderBookshelf() {
         return;
     }
 
-    // 过滤小说列表（基于搜索）
+    // 过滤小说列表（基于搜索和标签）
     let filteredBookshelf = bookshelf;
     if (searchQuery) {
-        filteredBookshelf = bookshelf.filter(novel => 
+        filteredBookshelf = filteredBookshelf.filter(novel => 
             (novel.name || '').toLowerCase().includes(searchQuery)
+        );
+    }
+    if (filterTag) {
+        filteredBookshelf = filteredBookshelf.filter(novel => 
+            (novel.tags || []).includes(filterTag)
         );
     }
 
@@ -2560,6 +2948,7 @@ function renderBookshelf() {
         const isCurrentNovel = currentNovelId === novel.id;
         const updatedAt = new Date(novel.updatedAt).toLocaleString();
         const createdAt = new Date(novel.createdAt).toLocaleDateString();
+        const readingProgress = getReadingProgress(novel.id);
         
         if (viewMode === 'grid') {
             // 网格视图
@@ -2572,11 +2961,27 @@ function renderBookshelf() {
                     <div class="drag-handle drag-handle-icon" title="拖拽排序">☰</div>
                     <div class="book-cover-placeholder">
                         <span class="book-cover-icon">📖</span>
+                        ${readingProgress.progress > 0 ? `
+                            <div class="book-progress-overlay">
+                                <div class="book-progress-bar" style="width: ${readingProgress.progress}%;"></div>
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="book-grid-info">
                         <div class="book-grid-title">${escapeHtml(novel.name)}</div>
                         <div class="book-grid-meta">${chapterCount} 章节</div>
                         <div class="book-grid-meta">${graphCount} 图谱</div>
+                        ${readingProgress.progress > 0 ? `
+                            <div class="book-grid-progress">
+                                <span class="progress-text">📖 ${readingProgress.progress}%</span>
+                            </div>
+                        ` : ''}
+                        ${(novel.tags || []).length > 0 ? `
+                            <div class="book-grid-tags">
+                                ${novel.tags.slice(0, 3).map(tag => `<span class="book-tag">${escapeHtml(tag)}</span>`).join('')}
+                                ${novel.tags.length > 3 ? `<span class="book-tag">+${novel.tags.length - 3}</span>` : ''}
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="book-grid-actions">
                         <button class="btn btn-sm ${isCurrentNovel ? 'btn-primary' : 'btn-secondary'} load-book-btn" data-novel-id="${novel.id}" title="加载">
@@ -2594,6 +2999,11 @@ function renderBookshelf() {
                     <div class="drag-handle drag-handle-icon" title="拖拽排序">☰</div>
                     <div class="book-info">
                         <div class="book-title">${escapeHtml(novel.name)}</div>
+                        ${(novel.tags || []).length > 0 ? `
+                            <div class="book-tags-list">
+                                ${novel.tags.map(tag => `<span class="book-tag">${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                        ` : ''}
                         <div class="book-meta">
                             <span class="book-meta-item" title="章节数">📖 ${chapterCount} 章节</span>
                             <span class="book-meta-item" title="图谱数">🧠 ${graphCount} 图谱</span>
@@ -4329,6 +4739,22 @@ jQuery(async () => {
         updateBatchActionBar();
         renderBookshelf();
     });
+
+    // 标签管理按钮
+    $("#bookshelf-manage-tags-btn").off("click").on("click", () => {
+        showTagManagerModal();
+    });
+
+    // 清除标签筛选
+    $("#clear-tag-filter-btn").off("click").on("click", () => {
+        extension_settings[extensionName].bookshelfFilterByTag = '';
+        saveSettingsDebounced();
+        renderBookshelf();
+        renderTagFilter();
+    });
+
+    // 初始化标签筛选
+    renderTagFilter();
 
     // 模态框事件
     let currentModalNovelId = null;
