@@ -1994,6 +1994,88 @@
     font-size: 0.9rem;
 }
 
+/* 书架网格视图样式 */
+.novel-writer-extension-root .bookshelf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 8px;
+}
+
+.novel-writer-extension-root .bookshelf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px;
+}
+
+.novel-writer-extension-root .book-grid-item {
+    background: var(--novel-bg-input);
+    border: 2px solid var(--novel-border-color);
+    border-radius: var(--novel-radius-lg);
+    padding: 0;
+    transition: all var(--novel-transition-normal);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.novel-writer-extension-root .book-grid-item:hover {
+    border-color: var(--novel-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
+}
+
+.novel-writer-extension-root .book-grid-item.active {
+    border-color: var(--novel-primary);
+    background: rgba(99, 102, 241, 0.05);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.novel-writer-extension-root .book-cover-placeholder {
+    width: 100%;
+    height: 140px;
+    background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-secondary) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.novel-writer-extension-root .book-cover-icon {
+    font-size: 3.5rem;
+    opacity: 0.9;
+}
+
+.novel-writer-extension-root .book-grid-info {
+    padding: 14px;
+}
+
+.novel-writer-extension-root .book-grid-title {
+    color: var(--novel-text-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.novel-writer-extension-root .book-grid-meta {
+    font-size: 0.75rem;
+    color: var(--novel-text-muted);
+    margin-bottom: 3px;
+}
+
+.novel-writer-extension-root .book-grid-actions {
+    padding: 0 14px 14px;
+    display: flex;
+    justify-content: center;
+}
+
+.novel-writer-extension-root .book-grid-actions .btn {
+    flex: 1;
+}
+
 /* 悬浮球焦点样式 */
 .novel-writer-extension-root .float-ball:focus {
     outline: 3px solid var(--novel-primary);

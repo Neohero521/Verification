@@ -212,6 +212,25 @@
                                    aria-atomic="true">共 0 本小说</p>
                             </div>
                         </div>
+                        <div class="card-actions">
+                            <input type="text" 
+                                   id="bookshelf-search-input"
+                                   class="form-input form-input-sm"
+                                   placeholder="搜索小说..."
+                                   aria-label="搜索小说">
+                            <select id="bookshelf-sort-select" class="form-select form-select-sm" aria-label="排序方式">
+                                <option value="updatedAt">按更新时间</option>
+                                <option value="createdAt">按创建时间</option>
+                                <option value="name">按名称</option>
+                                <option value="chapterCount">按章节数</option>
+                            </select>
+                            <button class="btn btn-sm btn-icon" id="bookshelf-sort-order-btn" title="切换排序方向" aria-label="切换升序/降序">
+                                <span id="bookshelf-sort-order-icon">⬇️</span>
+                            </button>
+                            <button class="btn btn-sm btn-icon" id="bookshelf-view-toggle-btn" title="切换视图" aria-label="切换列表/网格视图">
+                                <span id="bookshelf-view-icon">📋</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="bookshelf-container" class="chapter-list" aria-label="书架列表">
                         <div class="empty-state">

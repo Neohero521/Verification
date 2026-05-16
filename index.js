@@ -562,7 +562,11 @@ const defaultSettings = {
     enableAutoParentPreset: true,
     batchMergedGraphs: [],
     bookshelf: [],
-    currentNovelId: null
+    currentNovelId: null,
+    bookshelfSortBy: "updatedAt",
+    bookshelfSortOrder: "desc",
+    bookshelfViewMode: "list",
+    bookshelfSearchQuery: ""
 };
 
 let currentParsedChapters = [];
@@ -2191,6 +2195,34 @@ function saveCurrentNovelToBookshelf(novelName = null) {
     return novelId;
 }
 
+function autoUpdateCurrentNovelInBookshelf() {
+    if (!currentNovelId) return;
+    
+    const settings = extension_settings[extensionName];
+    const novelData = {
+        chapterList: settings.chapterList,
+        chapterGraphMap: settings.chapterGraphMap,
+        mergedGraph: settings.mergedGraph,
+        continueWriteChain: settings.continueWriteChain,
+        continueChapterIdCounter: settings.continueChapterIdCounter,
+        batchMergedGraphs: settings.batchMergedGraphs,
+        readerState: settings.readerState
+    };
+    
+    const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+    if (novelIndex >= 0) {
+        bookshelf[novelIndex] = { 
+            ...bookshelf[novelIndex], 
+            ...novelData, 
+            updatedAt: new Date().toISOString() 
+        };
+        extension_settings[extensionName].bookshelf = bookshelf;
+        saveSettingsDebounced();
+        renderBookshelf();
+        console.log('[书架] 已自动更新当前小说');
+    }
+}
+
 function updateCurrentNovelDisplay() {
     const currentNovel = bookshelf.find(n => n.id === currentNovelId);
     const $display = $("#current-novel-name-display");
@@ -2300,6 +2332,29 @@ function exportNovelFromBookshelf(novelId) {
     toastr.success('小说已导出', "书架");
 }
 
+function copyNovelInBookshelf(novelId) {
+    const novel = bookshelf.find(n => n.id === novelId);
+    if (!novel) {
+        toastr.error('未找到指定小说', "书架");
+        return;
+    }
+
+    const copyName = `${novel.name} (副本)`;
+    const copiedNovel = {
+        ...structuredClone(novel),
+        id: generateNovelId(),
+        name: copyName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    bookshelf.push(copiedNovel);
+    extension_settings[extensionName].bookshelf = bookshelf;
+    saveSettingsDebounced();
+    renderBookshelf();
+    toastr.success(`已创建小说「${copyName}」`, "书架");
+}
+
 function importNovelToBookshelf(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -2364,45 +2419,121 @@ function renderBookshelf() {
     const $container = $('#bookshelf-container');
     if (!$container.length) return;
 
+    const settings = extension_settings[extensionName];
+    const sortBy = settings.bookshelfSortBy || 'updatedAt';
+    const sortOrder = settings.bookshelfSortOrder || 'desc';
+    const viewMode = settings.bookshelfViewMode || 'list';
+    const searchQuery = (settings.bookshelfSearchQuery || '').toLowerCase();
+
     if (bookshelf.length === 0) {
+        $container.removeClass('bookshelf-grid bookshelf-list').addClass('bookshelf-list');
         $container.html(`
             <div class="empty-state">
                 <div class="empty-icon">📚</div>
-                <div class="empty-text">书架为空，解析小说后点击「保存到书架」</div>
+                <div class="empty-text">书架为空，请上传小说</div>
             </div>
         `);
         return;
     }
 
-    const booksHtml = bookshelf.map(novel => {
+    // 过滤小说列表（基于搜索）
+    let filteredBookshelf = bookshelf;
+    if (searchQuery) {
+        filteredBookshelf = bookshelf.filter(novel => 
+            (novel.name || '').toLowerCase().includes(searchQuery)
+        );
+    }
+
+    // 排序小说列表
+    const sortedBookshelf = [...filteredBookshelf].sort((a, b) => {
+        let valueA, valueB;
+        
+        switch (sortBy) {
+            case 'name':
+                valueA = (a.name || '').toLowerCase();
+                valueB = (b.name || '').toLowerCase();
+                return sortOrder === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+            case 'createdAt':
+                valueA = new Date(a.createdAt || 0).getTime();
+                valueB = new Date(b.createdAt || 0).getTime();
+                break;
+            case 'chapterCount':
+                valueA = a.chapterList?.length || 0;
+                valueB = b.chapterList?.length || 0;
+                break;
+            case 'updatedAt':
+            default:
+                valueA = new Date(a.updatedAt || 0).getTime();
+                valueB = new Date(b.updatedAt || 0).getTime();
+                break;
+        }
+        
+        return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
+    });
+
+    // 更新视图模式
+    $container.removeClass('bookshelf-grid bookshelf-list').addClass(`bookshelf-${viewMode}`);
+
+    // 渲染书架项
+    const booksHtml = sortedBookshelf.map(novel => {
         const chapterCount = novel.chapterList?.length || 0;
         const graphCount = Object.keys(novel.chapterGraphMap || {}).length;
         const isCurrentNovel = currentNovelId === novel.id;
         const updatedAt = new Date(novel.updatedAt).toLocaleString();
+        const createdAt = new Date(novel.createdAt).toLocaleDateString();
         
-        return `
-            <div class="book-item ${isCurrentNovel ? 'active' : ''}" data-novel-id="${novel.id}">
-                <div class="book-info">
-                    <div class="book-title">${escapeHtml(novel.name)}</div>
-                    <div class="book-meta">
-                        <span class="book-meta-item">📖 ${chapterCount} 章节</span>
-                        <span class="book-meta-item">🧠 ${graphCount} 图谱</span>
-                        <span class="book-meta-item">⏰ ${updatedAt}</span>
+        if (viewMode === 'grid') {
+            // 网格视图
+            return `
+                <div class="book-grid-item ${isCurrentNovel ? 'active' : ''}" data-novel-id="${novel.id}">
+                    <div class="book-cover-placeholder">
+                        <span class="book-cover-icon">📖</span>
+                    </div>
+                    <div class="book-grid-info">
+                        <div class="book-grid-title">${escapeHtml(novel.name)}</div>
+                        <div class="book-grid-meta">${chapterCount} 章节</div>
+                        <div class="book-grid-meta">${graphCount} 图谱</div>
+                    </div>
+                    <div class="book-grid-actions">
+                        <button class="btn btn-sm ${isCurrentNovel ? 'btn-primary' : 'btn-secondary'} load-book-btn" data-novel-id="${novel.id}" title="加载">
+                            ${isCurrentNovel ? '✓' : '📂'}
+                        </button>
                     </div>
                 </div>
-                <div class="book-actions">
-                    <button class="btn btn-sm btn-primary load-book-btn" data-novel-id="${novel.id}" title="加载">
-                        ${isCurrentNovel ? '✓ 使用中' : '📂 加载'}
-                    </button>
-                    <button class="btn btn-sm btn-icon rename-book-btn" data-novel-id="${novel.id}" title="重命名">✏️</button>
-                    <button class="btn btn-sm btn-icon export-book-btn" data-novel-id="${novel.id}" title="导出">💾</button>
-                    <button class="btn btn-sm btn-icon delete-book-btn" data-novel-id="${novel.id}" title="删除">🗑️</button>
+            `;
+        } else {
+            // 列表视图（默认）
+            return `
+                <div class="book-item ${isCurrentNovel ? 'active' : ''}" data-novel-id="${novel.id}">
+                    <div class="book-info">
+                        <div class="book-title">${escapeHtml(novel.name)}</div>
+                        <div class="book-meta">
+                            <span class="book-meta-item" title="章节数">📖 ${chapterCount} 章节</span>
+                            <span class="book-meta-item" title="图谱数">🧠 ${graphCount} 图谱</span>
+                            <span class="book-meta-item" title="创建时间">📅 ${createdAt}</span>
+                            <span class="book-meta-item" title="更新时间">⏰ ${updatedAt}</span>
+                        </div>
+                    </div>
+                    <div class="book-actions">
+                        <button class="btn btn-sm ${isCurrentNovel ? 'btn-primary' : 'btn-secondary'} load-book-btn" data-novel-id="${novel.id}" title="加载">
+                            ${isCurrentNovel ? '✓ 使用中' : '📂 加载'}
+                        </button>
+                        <button class="btn btn-sm btn-icon rename-book-btn" data-novel-id="${novel.id}" title="重命名">✏️</button>
+                        <button class="btn btn-sm btn-icon copy-book-btn" data-novel-id="${novel.id}" title="复制">📋</button>
+                        <button class="btn btn-sm btn-icon export-book-btn" data-novel-id="${novel.id}" title="导出">💾</button>
+                        <button class="btn btn-sm btn-icon delete-book-btn" data-novel-id="${novel.id}" title="删除">🗑️</button>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }).join('');
 
-    $container.html(booksHtml);
+    $container.html(booksHtml || `
+        <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">未找到匹配的小说</div>
+        </div>
+    `);
 }
 
 function saveDrawerState() {
@@ -3031,6 +3162,7 @@ async function generateChapterGraphBatch(chapters) {
         stopGenerateFlag = false;
         updateProgress('graph-progress', 'graph-generate-status', 0, 0);
         setButtonDisabled('#graph-single-btn, #graph-batch-btn, #graph-merge-btn, #graph-batch-merge-btn', false);
+        autoUpdateCurrentNovelInBookshelf();
     }
 }
 
@@ -3070,6 +3202,7 @@ async function mergeAllGraphs() {
         saveSettingsDebounced();
         $('#merged-graph-preview').val(JSON.stringify(mergedGraph, null, 2));
         toastr.success(`全量知识图谱合并完成！基于${mergeType}生成`, "小说续写器");
+        autoUpdateCurrentNovelInBookshelf();
         return mergedGraph;
     } catch (error) {
         console.error('图谱合并失败:', error);
@@ -3961,18 +4094,6 @@ jQuery(async () => {
         clearCurrentNovel();
     });
 
-    $("#import-novel-btn").off("click").on("click", () => {
-        $("#import-novel-upload").click();
-    });
-
-    $("#import-novel-upload").off("change").on("change", (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            importNovelToBookshelf(file);
-            $(e.target).val('');
-        }
-    });
-
     // 书架项事件监听（使用事件委托）
     $(document).off("click", "#bookshelf-container .load-book-btn").on("click", "#bookshelf-container .load-book-btn", (e) => {
         const novelId = $(e.currentTarget).data("novel-id");
@@ -3992,6 +4113,12 @@ jQuery(async () => {
     $(document).off("click", "#bookshelf-container .delete-book-btn").on("click", "#bookshelf-container .delete-book-btn", (e) => {
         const novelId = $(e.currentTarget).data("novel-id");
         deleteNovelFromBookshelf(novelId);
+    });
+
+    $(document).off("click", "#bookshelf-container .copy-book-btn").on("click", "#bookshelf-container .copy-book-btn", (e) => {
+        e.stopPropagation();
+        const novelId = $(e.currentTarget).data("novel-id");
+        copyNovelInBookshelf(novelId);
     });
 
     // ========== 新书架上传功能事件监听器 ==========
@@ -4126,5 +4253,44 @@ jQuery(async () => {
         originalRenderBookshelf();
         const count = bookshelf.length;
         $("#bookshelf-count-display").text(`共 ${count} 本小说`);
+        
+        // 同步排序选择器状态
+        const settings = extension_settings[extensionName];
+        $("#bookshelf-sort-select").val(settings.bookshelfSortBy || 'updatedAt');
+        $("#bookshelf-sort-order-icon").text(settings.bookshelfSortOrder === 'asc' ? '⬆️' : '⬇️');
+        $("#bookshelf-view-icon").text(settings.bookshelfViewMode === 'grid' ? '📑' : '📋');
     };
+
+    // ========== 书架排序和视图切换事件 ==========
+    $("#bookshelf-search-input").off("input").on("input", (e) => {
+        const searchQuery = $(e.target).val().trim();
+        extension_settings[extensionName].bookshelfSearchQuery = searchQuery;
+        saveSettingsDebounced();
+        renderBookshelf();
+    });
+
+    $("#bookshelf-sort-select").off("change").on("change", (e) => {
+        const sortBy = $(e.target).val();
+        extension_settings[extensionName].bookshelfSortBy = sortBy;
+        saveSettingsDebounced();
+        renderBookshelf();
+    });
+
+    $("#bookshelf-sort-order-btn").off("click").on("click", () => {
+        const currentOrder = extension_settings[extensionName].bookshelfSortOrder || 'desc';
+        const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+        extension_settings[extensionName].bookshelfSortOrder = newOrder;
+        saveSettingsDebounced();
+        $("#bookshelf-sort-order-icon").text(newOrder === 'asc' ? '⬆️' : '⬇️');
+        renderBookshelf();
+    });
+
+    $("#bookshelf-view-toggle-btn").off("click").on("click", () => {
+        const currentView = extension_settings[extensionName].bookshelfViewMode || 'list';
+        const newView = currentView === 'list' ? 'grid' : 'list';
+        extension_settings[extensionName].bookshelfViewMode = newView;
+        saveSettingsDebounced();
+        $("#bookshelf-view-icon").text(newView === 'grid' ? '📑' : '📋');
+        renderBookshelf();
+    });
 });
