@@ -2167,7 +2167,8 @@ function saveCurrentNovelToBookshelf(novelName = null) {
         }
     }
 
-    const novelId = currentNovelId || generateNovelId();
+    // 始终生成新的 novelId（除非传入参数指定）
+    const novelId = generateNovelId();
     const novelData = {
         id: novelId,
         name: name,
@@ -2186,15 +2187,8 @@ function saveCurrentNovelToBookshelf(novelName = null) {
         lastReadPosition: settings.lastReadPosition || 0
     };
 
-    // 更新或添加到书架
-    const existingIndex = bookshelf.findIndex(n => n.id === novelId);
-    if (existingIndex >= 0) {
-        // 保留原有标签
-        novelData.tags = bookshelf[existingIndex].tags || [];
-        bookshelf[existingIndex] = { ...bookshelf[existingIndex], ...novelData, updatedAt: new Date().toISOString() };
-    } else {
-        bookshelf.push(novelData);
-    }
+    // 添加到书架（每次都是新小说）
+    bookshelf.push(novelData);
 
     extension_settings[extensionName].bookshelf = bookshelf;
     extension_settings[extensionName].currentNovelId = novelId;
