@@ -1141,7 +1141,7 @@ const FloatBall = {
             this.ball.focus();
         }, { signal });
         
-        document.querySelectorAll(".novel-writer-extension-root .panel-tab-item").forEach(tab => {
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
             tab.addEventListener("click", (e) => {
                 e.stopPropagation();
                 this.switchTab(e.currentTarget.dataset.tab);
@@ -1212,12 +1212,8 @@ const FloatBall = {
     },
     
     onGlobalKeydown(e) {
-        if (!this.panel.classList.contains("show")) {
-            return;
-        }
-        
         // Escape 键关闭面板
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && this.panel.classList.contains("show")) {
             e.preventDefault();
             this.hidePanel();
             this.ball.focus();
@@ -1237,8 +1233,10 @@ const FloatBall = {
         
         // Ctrl/Cmd + Z 撤销
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
-            e.preventDefault();
-            UndoManager.undo();
+            if (this.panel.classList.contains("show")) {
+                e.preventDefault();
+                UndoManager.undo();
+            }
         }
         
         // Ctrl/Cmd + Shift + Z 或 Ctrl/Cmd + Y 重做
@@ -1370,10 +1368,10 @@ const FloatBall = {
     },
     
     switchTab(tabId) {
-        document.querySelectorAll(".novel-writer-extension-root .panel-tab-item").forEach(tab => {
+        document.querySelectorAll(".panel-tab-item").forEach(tab => {
             tab.classList.toggle("active", tab.dataset.tab === tabId);
         });
-        document.querySelectorAll(".novel-writer-extension-root .panel-tab-panel").forEach(panel => {
+        document.querySelectorAll(".panel-tab-panel").forEach(panel => {
             panel.classList.toggle("active", panel.id === tabId);
         });
         extension_settings[extensionName].floatBallState.activeTab = tabId;
@@ -4367,11 +4365,11 @@ jQuery(async () => {
     setupToggleSwitch("#quality-check-switch", "enableQualityCheck");
     
     $("#select-all-btn").off("click").on("click", () => {
-        $(".novel-writer-extension-root .chapter-select").prop("checked", true);
+        $(".chapter-select").prop("checked", true);
     });
     
     $("#unselect-all-btn").off("click").on("click", () => {
-        $(".novel-writer-extension-root .chapter-select").prop("checked", false);
+        $(".chapter-select").prop("checked", false);
     });
     
     $("#send-template-input").off("change").on("change", (e) => {
@@ -5036,155 +5034,4 @@ jQuery(async () => {
         $("#bookshelf-view-icon").text(newView === 'grid' ? '📑' : '📋');
         renderBookshelf();
     });
-
-    // ========== 新布局：阶段导航 ==========
-    
-    // 阶段切换函数
-    window.switchToPhase = function(phase) {
-        // 更新导航状态
-        $(".novel-writer-extension-root .nav-item").removeClass("active");
-        $(`.novel-writer-extension-root .nav-item[data-phase="${phase}"]`).addClass("active");
-        
-        // 更新阶段内容显示
-        $(".novel-writer-extension-root .phase").removeClass("active").hide();
-        $(`#phase-${phase}`).addClass("active").show();
-        
-        // 更新阶段2和3的小说名称显示
-        if (phase >= 2 && currentNovelId) {
-            const novel = bookshelf.find(n => n.id === currentNovelId);
-            if (novel) {
-                $(`#phase${phase}-novel-name`).text(`当前小说：${novel.name}`);
-            }
-        }
-        
-        // 保存当前阶段
-        extension_settings[extensionName].currentPhase = phase;
-        saveSettingsDebounced();
-    };
-    
-    // 左侧导航点击事件
-    $(".novel-writer-extension-root .nav-item[data-phase]").off("click").on("click", function() {
-        const phase = parseInt($(this).data("phase"));
-        
-        // 检查是否禁用
-        if ($(this).attr("aria-disabled") === "true") {
-            toastr.warning("请先从书架加载一本小说", "导航");
-            return;
-        }
-        
-        switchToPhase(phase);
-    });
-    
-    // 返回书架按钮
-    $("#nav-back-to-bookshelf, #phase2-save-novel-btn, #phase2-export-btn").off("click").on("click", function() {
-        const btnId = $(this).attr("id");
-        
-        if (btnId === "nav-back-to-bookshelf") {
-            // 返回书架
-            currentNovelId = null;
-            clearCurrentNovel();
-            switchToPhase(1);
-        } else if (btnId === "phase2-save-novel-btn") {
-            // 保存小说
-            if (currentNovelId) {
-                const novel = bookshelf.find(n => n.id === currentNovelId);
-                if (novel) {
-                    saveCurrentNovelToBookshelf(novel.name);
-                    toastr.success("小说已保存到书架", "书架");
-                }
-            }
-        } else if (btnId === "phase2-export-btn") {
-            // 导出小说
-            if (currentNovelId) {
-                exportNovelFromBookshelf(currentNovelId);
-            }
-        }
-    });
-    
-    // 子标签页切换
-    $(".novel-writer-extension-root .sub-tab-btn[data-subtab]").off("click").on("click", function() {
-        const subtab = $(this).data("subtab");
-        
-        // 更新按钮状态
-        $(".novel-writer-extension-root .sub-tab-btn").removeClass("active");
-        $(this).addClass("active");
-        
-        // 更新内容显示
-        $(".novel-writer-extension-root .sub-tab-panel").removeClass("active").hide();
-        $(`#subtab-${subtab}`).addClass("active").show();
-    });
-    
-    // 抽屉折叠/展开
-    $(".novel-writer-extension-root .inline-drawer-toggle").off("click").on("click", function() {
-        $(this).parent().toggleClass("open");
-    });
-    
-    // 更新导航中的小说信息
-    window.updateNavNovelInfo = function() {
-        const $navInfo = $("#nav-novel-info");
-        const $navNovelName = $("#nav-novel-name");
-        const $navChapterCount = $("#nav-chapter-count");
-        const $navGraphStatus = $("#nav-graph-status");
-        
-        if (currentNovelId) {
-            const novel = bookshelf.find(n => n.id === currentNovelId);
-            if (novel) {
-                $navInfo.show();
-                $navNovelName.text(novel.name);
-                $navChapterCount.text(`${novel.chapterList?.length || 0} 章节`);
-                
-                const graphCount = Object.keys(novel.chapterGraphMap || {}).length;
-                const totalChapters = novel.chapterList?.length || 0;
-                if (graphCount > 0) {
-                    $navGraphStatus.text(`图谱 ${graphCount}/${totalChapters}`);
-                    $navGraphStatus.css("color", "var(--novel-success)");
-                } else {
-                    $navGraphStatus.text("图谱未生成");
-                    $navGraphStatus.css("color", "var(--novel-text-muted)");
-                }
-            }
-        } else {
-            $navInfo.hide();
-        }
-    };
-    
-    // 在加载小说后更新导航信息
-    const originalLoadNovelFromBookshelf = loadNovelFromBookshelf;
-    window.loadNovelFromBookshelf = function(novelId) {
-        const result = originalLoadNovelFromBookshelf(novelId);
-        if (result) {
-            // 启用导航项
-            $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "false");
-            
-            // 更新导航信息
-            updateNavNovelInfo();
-            
-            // 切换到阶段2
-            switchToPhase(2);
-        }
-        return result;
-    };
-    
-    // 在清空小说后更新导航信息
-    const originalClearCurrentNovel = clearCurrentNovel;
-    window.clearCurrentNovel = function() {
-        originalClearCurrentNovel();
-        
-        // 禁用导航项
-        $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "true");
-        
-        // 更新导航信息
-        updateNavNovelInfo();
-    };
-    
-    // 恢复之前的阶段状态
-    const savedPhase = extension_settings[extensionName].currentPhase || 1;
-    if (savedPhase > 1 && currentNovelId) {
-        $(".novel-writer-extension-root .nav-item[data-phase='2'], .novel-writer-extension-root .nav-item[data-phase='3']").attr("aria-disabled", "false");
-        updateNavNovelInfo();
-    }
-    switchToPhase(savedPhase);
-    
-    // 初始渲染书架
-    renderBookshelf();
 });
