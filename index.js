@@ -1924,9 +1924,26 @@ async function importChapterGraphs(file) {
                 throw new Error("图谱格式错误");
             }
             
-            const existingGraphMap = extension_settings[extensionName].chapterGraphMap || {};
+            const settings = extension_settings[extensionName];
+            const existingGraphMap = settings.chapterGraphMap || {};
             const newGraphMap = { ...existingGraphMap, ...importData.chapterGraphMap };
-            extension_settings[extensionName].chapterGraphMap = newGraphMap;
+            settings.chapterGraphMap = newGraphMap;
+            
+            // 同步更新书架中当前小说的图谱数据
+            if (currentNovelId) {
+                const novelIndex = bookshelf.findIndex(n => n.id === currentNovelId);
+                if (novelIndex !== -1) {
+                    // 更新当前小说的全局图谱
+                    bookshelf[novelIndex].chapterGraphMap = { 
+                        ...(bookshelf[novelIndex].chapterGraphMap || {}), 
+                        ...importData.chapterGraphMap 
+                    };
+                    bookshelf[novelIndex].updatedAt = new Date().toISOString();
+                }
+            }
+            
+            // 同时更新全局书架数据
+            settings.bookshelf = bookshelf;
             saveSettingsDebounced();
             
             currentParsedChapters.forEach(chapter => {
