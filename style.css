@@ -2433,6 +2433,43 @@
     margin-top: 8px;
 }
 
+.novel-writer-extension-root .book-grid-tags {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.novel-writer-extension-root .book-grid-checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 10;
+}
+
+.novel-writer-extension-root .book-grid-item {
+    position: relative;
+}
+
+.novel-writer-extension-root .book-grid-item .drag-handle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--novel-radius-sm);
+    padding: 4px 8px;
+}
+
+.novel-writer-extension-root .book-grid-item.selected {
+    border-color: var(--novel-primary);
+    box-shadow: 0 0 0 2px var(--novel-primary);
+}
+
+.novel-writer-extension-root .book-cover-placeholder {
+    position: relative;
+}
+
 .novel-writer-extension-root .progress-text {
     font-size: 0.8rem;
     color: var(--novel-primary);
