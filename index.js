@@ -549,10 +549,10 @@ const defaultSettings = {
     precheckStatus: "未执行",
     precheckReportText: "",
     floatBallState: {
-        position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
-        isPanelOpen: false,
-        activeTab: "tab-chapter"
-    },
+            position: { x: window.innerWidth - 90, y: window.innerHeight / 2 },
+            isPanelOpen: false,
+            activeTab: "tab-bookshelf"
+        },
     readerState: {
         fontSize: 16,
         currentChapterId: null,
@@ -2132,6 +2132,7 @@ async function loadSettings() {
     FloatBall.init();
     NovelReader.init();
     renderBookshelf();
+    updateCurrentNovelDisplay();
 }
 
 // ===================== 书架功能 =====================
@@ -2190,6 +2191,16 @@ function saveCurrentNovelToBookshelf(novelName = null) {
     return novelId;
 }
 
+function updateCurrentNovelDisplay() {
+    const currentNovel = bookshelf.find(n => n.id === currentNovelId);
+    const $display = $("#current-novel-name-display");
+    if (currentNovel) {
+        $display.text(currentNovel.name);
+    } else {
+        $display.text("未选择小说");
+    }
+}
+
 function loadNovelFromBookshelf(novelId) {
     const novel = bookshelf.find(n => n.id === novelId);
     if (!novel) {
@@ -2223,12 +2234,17 @@ function loadNovelFromBookshelf(novelId) {
     renderChapterSelect(currentParsedChapters);
     renderContinueWriteChain(continueWriteChain);
     NovelReader.renderChapterList();
+    updateCurrentNovelDisplay();
     
     $("#merged-graph-preview").val(Object.keys(settings.mergedGraph).length > 0 ? JSON.stringify(settings.mergedGraph, null, 2) : "");
     $("#write-content-preview").val(settings.writeContentPreview || "");
     
     renderBookshelf();
-    toastr.success(`已加载小说「${novel.name}」`, "书架");
+    
+    // 切换到章节管理标签页
+    FloatBall.switchTab("tab-chapter");
+    
+    toastr.success(`已加载小说「${novel.name}」，请继续后续步骤`, "书架");
     return true;
 }
 
@@ -3976,6 +3992,132 @@ jQuery(async () => {
     $(document).off("click", "#bookshelf-container .delete-book-btn").on("click", "#bookshelf-container .delete-book-btn", (e) => {
         const novelId = $(e.currentTarget).data("novel-id");
         deleteNovelFromBookshelf(novelId);
+    });
+
+    // ========== 新书架上传功能事件监听器 ==========
+    // 书架文件选择按钮
+    $("#bookshelf-select-file-btn").off("click").on("click", () => {
+        $("#bookshelf-novel-file-upload").click();
+    });
+
+    // 书架文件上传变化事件
+    $("#bookshelf-novel-file-upload").off("change").on("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            $("#bookshelf-file-name-text").text(`已选择: ${file.name}`);
+        } else {
+            $("#bookshelf-file-name-text").text("未选择文件");
+        }
+    });
+
+    // 书架解析并保存按钮
+    $("#bookshelf-parse-and-save-btn").off("click").on("click", () => {
+        const file = $("#bookshelf-novel-file-upload")[0].files[0];
+        if (!file) {
+            toastr.warning('请先选择小说TXT文件', "书架");
+            return;
+        }
+
+        const customRegex = $("#bookshelf-chapter-regex-input").val().trim();
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const novelText = e.target.result;
+            
+            let chapterList = [];
+            if (customRegex) {
+                chapterList = splitNovelIntoChapters(novelText, customRegex);
+            } else {
+                const sortedRegexList = getSortedRegexList(novelText);
+                if (sortedRegexList.length > 0) {
+                    chapterList = splitNovelIntoChapters(novelText, sortedRegexList[0].regex);
+                } else {
+                    toastr.error('无法解析小说，请检查文件格式', "书架");
+                    return;
+                }
+            }
+
+            if (chapterList.length === 0) {
+                toastr.error('未找到任何章节，请检查正则表达式', "书架");
+                return;
+            }
+
+            // 询问小说名称
+            let novelName = prompt("请输入小说名称：", `未命名小说_${new Date().toLocaleDateString()}`);
+            if (!novelName || !novelName.trim()) {
+                return;
+            }
+
+            // 临时设置当前章节列表
+            const tempSettings = extension_settings[extensionName];
+            const originalChapterList = tempSettings.chapterList;
+            const originalChapterGraphMap = tempSettings.chapterGraphMap;
+            const originalMergedGraph = tempSettings.mergedGraph;
+            const originalContinueWriteChain = tempSettings.continueWriteChain;
+            const originalContinueChapterIdCounter = tempSettings.continueChapterIdCounter;
+            const originalBatchMergedGraphs = tempSettings.batchMergedGraphs;
+            const originalReaderState = tempSettings.readerState;
+
+            tempSettings.chapterList = chapterList;
+            tempSettings.chapterGraphMap = {};
+            tempSettings.mergedGraph = {};
+            tempSettings.continueWriteChain = [];
+            tempSettings.continueChapterIdCounter = 1;
+            tempSettings.batchMergedGraphs = [];
+            tempSettings.readerState = structuredClone(defaultSettings.readerState);
+
+            // 全局变量也临时更新一下，确保 saveCurrentNovelToBookshelf 能正常工作
+            const originalCurrentParsedChapters = currentParsedChapters;
+            const originalContinueWriteChainVar = continueWriteChain;
+            const originalContinueChapterIdCounterVar = continueChapterIdCounter;
+            const originalBatchMergedGraphsVar = batchMergedGraphs;
+
+            currentParsedChapters = chapterList;
+            continueWriteChain = [];
+            continueChapterIdCounter = 1;
+            batchMergedGraphs = [];
+
+            // 保存到书架
+            saveCurrentNovelToBookshelf(novelName.trim());
+
+            // 恢复原始状态
+            tempSettings.chapterList = originalChapterList;
+            tempSettings.chapterGraphMap = originalChapterGraphMap;
+            tempSettings.mergedGraph = originalMergedGraph;
+            tempSettings.continueWriteChain = originalContinueWriteChain;
+            tempSettings.continueChapterIdCounter = originalContinueChapterIdCounter;
+            tempSettings.batchMergedGraphs = originalBatchMergedGraphs;
+            tempSettings.readerState = originalReaderState;
+
+            currentParsedChapters = originalCurrentParsedChapters;
+            continueWriteChain = originalContinueWriteChainVar;
+            continueChapterIdCounter = originalContinueChapterIdCounterVar;
+            batchMergedGraphs = originalBatchMergedGraphsVar;
+
+            // 清空文件选择
+            $("#bookshelf-novel-file-upload").val('');
+            $("#bookshelf-file-name-text").text("未选择文件");
+        };
+
+        reader.onerror = () => {
+            toastr.error('文件读取失败（仅支持UTF-8）', "书架");
+        };
+
+        reader.readAsText(file, 'UTF-8');
+    });
+
+    // 书架导入按钮
+    $("#bookshelf-import-novel-btn").off("click").on("click", () => {
+        $("#bookshelf-import-novel-upload").click();
+    });
+
+    // 书架导入文件变化事件
+    $("#bookshelf-import-novel-upload").off("change").on("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            importNovelToBookshelf(file);
+            $(e.target).val('');
+        }
     });
 
     // 更新 renderBookshelf 函数，添加书籍计数显示

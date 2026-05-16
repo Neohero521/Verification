@@ -48,12 +48,23 @@
             <div class="tab-nav-container">
                 <div class="tab-nav-indicator" role="presentation" aria-hidden="true"></div>
                 <div class="panel-tab-item active" 
+                     data-tab="tab-bookshelf"
+                     role="tab"
+                     id="tab-bookshelf-btn"
+                     aria-selected="true"
+                     aria-controls="tab-bookshelf"
+                     tabindex="0">
+                    <div class="tab-icon">📖</div>
+                    <div class="tab-text">我的书架</div>
+                    <div class="tab-indicator"></div>
+                </div>
+                <div class="panel-tab-item" 
                      data-tab="tab-chapter"
                      role="tab"
                      id="tab-chapter-btn"
-                     aria-selected="true"
+                     aria-selected="false"
                      aria-controls="tab-chapter"
-                     tabindex="0">
+                     tabindex="-1">
                     <div class="tab-icon">📋</div>
                     <div class="tab-text">章节管理</div>
                     <div class="tab-indicator"></div>
@@ -91,158 +102,155 @@
                     <div class="tab-text">小说阅读</div>
                     <div class="tab-indicator"></div>
                 </div>
-                <div class="panel-tab-item" 
-                     data-tab="tab-bookshelf"
-                     role="tab"
-                     id="tab-bookshelf-btn"
-                     aria-selected="false"
-                     aria-controls="tab-bookshelf"
-                     tabindex="-1">
-                    <div class="tab-icon">📖</div>
-                    <div class="tab-text">我的书架</div>
-                    <div class="tab-indicator"></div>
-                </div>
             </div>
         </div>
 
         <!-- 选项卡内容容器 -->
         <div class="panel-tab-content">
-            <!-- 选项卡1：章节管理 -->
+            <!-- 选项卡1：我的书架 -->
             <div class="panel-tab-panel active" 
-                 id="tab-chapter"
+                 id="tab-bookshelf"
                  role="tabpanel"
-                 aria-labelledby="tab-chapter-btn">
-                <!-- 小说文件解析卡片 -->
+                 aria-labelledby="tab-bookshelf-btn">
+                <!-- 上传小说到书架卡片 -->
                 <div class="content-card card-highlight">
                     <div class="card-accent-line"></div>
                     <div class="card-header">
                         <div class="card-title-group">
                             <div class="card-icon">📥</div>
                             <div class="card-title-text">
-                                <h4>小说文件解析</h4>
-                                <p class="card-subtitle">Novel File Parser</p>
+                                <h4>上传小说</h4>
+                                <p class="card-subtitle">Upload Novel to Bookshelf</p>
                             </div>
                         </div>
-                        <div class="card-badge">核心功能</div>
+                        <div class="card-badge">第一步</div>
                     </div>
                     <div class="card-body">
                         <div class="upload-zone">
-                            <input id="novel-file-upload" type="file" accept=".txt" style="display: none;">
+                            <input id="bookshelf-novel-file-upload" type="file" accept=".txt" style="display: none;">
                             <div class="upload-zone-content" 
-                                 id="select-file-btn"
+                                 id="bookshelf-select-file-btn"
                                  role="button"
                                  tabindex="0"
-                                 aria-label="点击选择小说文件"
+                                 aria-label="点击选择小说文件上传"
                                  aria-haspopup="true">
                                 <div class="upload-icon">📂</div>
                                 <div class="upload-text">
-                                    <span class="upload-main">点击选择小说文件</span>
+                                    <span class="upload-main">点击上传新小说</span>
                                     <span class="upload-sub">支持 .txt 格式，UTF-8 编码</span>
                                 </div>
-                                <div class="upload-hint" id="file-name-text" aria-live="polite">未选择文件</div>
+                                <div class="upload-hint" id="bookshelf-file-name-text" aria-live="polite">未选择文件</div>
                             </div>
-                            <div class="upload-progress" id="upload-progress"></div>
+                            <div class="upload-progress" id="bookshelf-upload-progress"></div>
                         </div>
 
-                        <div class="form-grid">
+                        <div class="form-grid" style="margin-top: 16px;">
                             <div class="form-group">
-                                <label class="form-label" id="chapter-regex-label">
+                                <label class="form-label" id="bookshelf-chapter-regex-label">
                                     <span class="label-icon">🔍</span>
                                     章节拆分正则
-                                    <span class="label-badge">自定义优先</span>
                                 </label>
-                                <input id="chapter-regex-input" 
+                                <input id="bookshelf-chapter-regex-input" 
                                        type="text" 
                                        class="form-input" 
                                        placeholder="请输入章节拆分正则表达式" 
                                        value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$"
-                                       aria-labelledby="chapter-regex-label">
+                                       aria-labelledby="bookshelf-chapter-regex-label">
                                 <div class="input-hint">
-                                    <span>支持格式：</span>
                                     <span class="hint-tag">标准章节</span>
-                                    <span class="hint-tag">括号序号</span>
-                                    <span class="hint-tag">卷+章</span>
                                     <span class="hint-tag">Chapter X</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" id="split-word-count-label">
-                                    <span class="label-icon">📏</span>
-                                    按字数拆分
-                                </label>
-                                <div class="input-suffix-wrapper">
-                                    <input id="split-word-count" 
-                                           type="number" 
-                                           min="1000" 
-                                           max="10000" 
-                                           step="100" 
-                                           class="form-input" 
-                                           value="3000"
-                                           aria-labelledby="split-word-count-label">
-                                    <span class="input-suffix">字/章</span>
-                                </div>
-                                <div class="slider-container">
-                                    <input type="range" 
-                                           min="1000" 
-                                           max="10000" 
-                                           step="100" 
-                                           value="3000" 
-                                           class="slider" 
-                                           id="split-word-slider"
-                                           aria-labelledby="split-word-count-label"
-                                           aria-valuemin="1000"
-                                           aria-valuemax="10000"
-                                           aria-valuenow="3000">
-                                    <div class="slider-labels">
-                                        <span>1000</span>
-                                        <span>5000</span>
-                                        <span>10000</span>
-                                    </div>
+                                    <span class="hint-tag">卷+章</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label" id="send-template-label">
-                                    <span class="label-icon">⚡</span>
-                                    发送命令模板
-                                </label>
-                                <input id="send-template-input" 
-                                       type="text" 
-                                       class="form-input" 
-                                       placeholder="请输入发送命令模板" 
-                                       value="/sendas name={{char}} {{pipe}}"
-                                       aria-labelledby="send-template-label">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" id="send-delay-label">
-                                    <span class="label-icon">⏱️</span>
-                                    发送间隔
-                                </label>
-                                <div class="input-suffix-wrapper">
-                                    <input id="send-delay-input" 
-                                           type="number" 
-                                           min="0" 
-                                           max="5000" 
-                                           step="10" 
-                                           class="form-input" 
-                                           value="100"
-                                           aria-labelledby="send-delay-label">
-                                    <span class="input-suffix">ms</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button class="btn btn-primary btn-large" id="parse-chapter-btn">
+                        <div class="action-buttons" style="margin-top: 16px;">
+                            <button class="btn btn-primary btn-large" id="bookshelf-parse-and-save-btn">
                                 <span class="btn-icon">✨</span>
-                                <span class="btn-text">解析章节</span>
+                                <span class="btn-text">解析并添加到书架</span>
                                 <div class="btn-shine"></div>
                             </button>
-                            <button class="btn btn-secondary btn-large" id="split-by-word-btn">
-                                <span class="btn-icon">📊</span>
-                                <span class="btn-text">按字数拆分</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 导入/导出操作 -->
+                <div class="content-card card-compact">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon">📦</div>
+                            <div class="card-title-text">
+                                <h4>导入/导出</h4>
+                                <p class="card-subtitle">Import & Export</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="action-hints">
+                            <div class="hint-card">
+                                <span class="hint-icon" aria-hidden="true">📥</span>
+                                <span>导入小说JSON</span>
+                                <input id="bookshelf-import-novel-upload" type="file" accept=".json" style="display: none;">
+                            </div>
+                            <button class="btn btn-sm btn-outline" id="bookshelf-import-novel-btn">
+                                <span aria-hidden="true">📥</span>导入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 书架列表卡片 -->
+                <div class="content-card card-list">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon">📚</div>
+                            <div class="card-title-text">
+                                <h4>我的书架</h4>
+                                <p class="card-subtitle" 
+                                   id="bookshelf-count-display"
+                                   aria-live="polite"
+                                   aria-atomic="true">共 0 本小说</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="bookshelf-container" class="chapter-list" aria-label="书架列表">
+                        <div class="empty-state">
+                            <div class="empty-icon" aria-hidden="true">📚</div>
+                            <div class="empty-text">书架为空，请上传小说</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 选项卡2：章节管理 -->
+            <div class="panel-tab-panel" 
+                 id="tab-chapter"
+                 role="tabpanel"
+                 aria-labelledby="tab-chapter-btn"
+                 aria-hidden="true"
+                 hidden>
+                <!-- 当前小说信息卡片 -->
+                <div class="content-card card-highlight">
+                    <div class="card-accent-line"></div>
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon">📖</div>
+                            <div class="card-title-text">
+                                <h4>当前小说</h4>
+                                <p class="card-subtitle" id="current-novel-name-display">未选择小说</p>
+                            </div>
+                        </div>
+                        <div class="card-badge">第二步</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" id="save-to-bookshelf-btn">
+                                <span class="btn-icon">💾</span>
+                                <span class="btn-text">保存当前小说</span>
+                            </button>
+                            <button class="btn btn-danger" id="clear-current-novel-btn">
+                                <span class="btn-icon">🗑️</span>
+                                <span class="btn-text">清除当前小说</span>
                             </button>
                         </div>
                     </div>
@@ -919,73 +927,6 @@
                         <div class="empty-state">
                             <div class="empty-icon">📁</div>
                             <div class="empty-text">暂无解析的章节</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 选项卡5：我的书架 -->
-            <div class="panel-tab-panel" 
-                 id="tab-bookshelf"
-                 role="tabpanel"
-                 aria-labelledby="tab-bookshelf-btn"
-                 aria-hidden="true"
-                 hidden>
-                <!-- 书架操作卡片 -->
-                <div class="content-card card-highlight">
-                    <div class="card-accent-line"></div>
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <div class="card-icon">📚</div>
-                            <div class="card-title-text">
-                                <h4>书架管理</h4>
-                                <p class="card-subtitle">Bookshelf Management</p>
-                            </div>
-                        </div>
-                        <div class="card-badge">新功能</div>
-                    </div>
-                    <div class="card-body">
-                        <div class="action-buttons">
-                            <button class="btn btn-primary" id="save-to-bookshelf-btn">
-                                <span class="btn-icon">💾</span>
-                                <span class="btn-text">保存当前小说到书架</span>
-                            </button>
-                            <button class="btn btn-secondary" id="clear-current-novel-btn">
-                                <span class="btn-icon">🗑️</span>
-                                <span class="btn-text">清除当前小说</span>
-                            </button>
-                        </div>
-                        <div class="action-hints" style="margin-top: 16px;">
-                            <div class="hint-card">
-                                <span class="hint-icon" aria-hidden="true">📥</span>
-                                <span>导入小说文件</span>
-                                <input id="import-novel-upload" type="file" accept=".json" style="display: none;">
-                            </div>
-                            <button class="btn btn-sm btn-outline" id="import-novel-btn">
-                                <span aria-hidden="true">📥</span>导入
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 书架列表卡片 -->
-                <div class="content-card card-list">
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <div class="card-icon">📖</div>
-                            <div class="card-title-text">
-                                <h4>我的小说</h4>
-                                <p class="card-subtitle" 
-                                   id="bookshelf-count-display"
-                                   aria-live="polite"
-                                   aria-atomic="true">共 0 本小说</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="bookshelf-container" class="chapter-list" aria-label="书架列表">
-                        <div class="empty-state">
-                            <div class="empty-icon" aria-hidden="true">📚</div>
-                            <div class="empty-text">书架为空，解析小说后点击「保存到书架」</div>
                         </div>
                     </div>
                 </div>
