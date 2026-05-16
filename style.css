@@ -433,6 +433,98 @@
 }
 
 /* ==============================================内容卡片样式============================================== */
+/* ==============================================书架工具栏样式============================================== */
+.novel-writer-extension-root .bookshelf-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.novel-writer-extension-root .upload-zone-compact {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.novel-writer-extension-root .upload-zone-content-compact {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--novel-bg-elevated);
+    border: 2px dashed var(--novel-border-color);
+    border-radius: var(--novel-radius-md);
+    cursor: pointer;
+    transition: all var(--novel-transition-fast);
+    flex: 1;
+    min-width: 0;
+}
+
+.novel-writer-extension-root .upload-zone-content-compact:hover {
+    border-color: var(--novel-primary);
+    background: var(--novel-bg-hover);
+}
+
+.novel-writer-extension-root .upload-zone-content-compact .upload-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.novel-writer-extension-root .upload-zone-content-compact .upload-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.novel-writer-extension-root .upload-zone-content-compact .upload-main {
+    font-weight: 600;
+    color: var(--novel-text-primary);
+}
+
+.novel-writer-extension-root .upload-zone-content-compact .upload-sub {
+    font-size: 12px;
+    color: var(--novel-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.novel-writer-extension-root .upload-zone-right {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.novel-writer-extension-root .form-group-compact {
+    margin: 0;
+}
+
+.novel-writer-extension-root .form-input-compact {
+    min-width: 150px;
+    padding: 8px 12px;
+}
+
+.novel-writer-extension-root .btn-compact {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.novel-writer-extension-root .import-export-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.novel-writer-extension-root .import-hint {
+    font-size: 12px;
+    color: var(--novel-text-secondary);
+}
+
+/* ==============================================恢复内容卡片基础样式============================================== */
 .novel-writer-extension-root .content-card {
     background: var(--novel-bg-card);
     border: 1px solid var(--novel-border-color);

@@ -129,89 +129,53 @@
                  id="tab-bookshelf"
                  role="tabpanel"
                  aria-labelledby="tab-bookshelf-btn">
-                <!-- 上传小说到书架卡片 -->
-                <div class="content-card card-highlight">
-                    <div class="card-accent-line"></div>
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <div class="card-icon">📥</div>
-                            <div class="card-title-text">
-                                <h4>上传小说</h4>
-                                <p class="card-subtitle">Upload Novel to Bookshelf</p>
-                            </div>
-                        </div>
-                        <div class="card-badge">第一步</div>
-                    </div>
-                    <div class="card-body">
-                        <div class="upload-zone">
-                            <input id="bookshelf-novel-file-upload" type="file" accept=".txt" style="display: none;">
-                            <div class="upload-zone-content" 
-                                 id="bookshelf-select-file-btn"
-                                 role="button"
-                                 tabindex="0"
-                                 aria-label="点击选择小说文件上传"
-                                 aria-haspopup="true">
-                                <div class="upload-icon">📂</div>
-                                <div class="upload-text">
-                                    <span class="upload-main">点击上传新小说</span>
-                                    <span class="upload-sub">支持 .txt 格式，UTF-8 编码</span>
+                <!-- 上传和导入区域 -->
+                <div class="bookshelf-toolbar">
+                    <!-- 上传小说卡片 -->
+                    <div class="content-card card-compact">
+                        <div class="card-body">
+                            <div class="upload-zone-compact">
+                                <input id="bookshelf-novel-file-upload" type="file" accept=".txt" style="display: none;">
+                                <div class="upload-zone-content-compact" 
+                                     id="bookshelf-select-file-btn"
+                                     role="button"
+                                     tabindex="0"
+                                     aria-label="点击选择小说文件上传"
+                                     aria-haspopup="true">
+                                    <div class="upload-icon">📂</div>
+                                    <div class="upload-text">
+                                        <span class="upload-main">上传新小说</span>
+                                        <span class="upload-sub" id="bookshelf-file-name-text" aria-live="polite">未选择文件</span>
+                                    </div>
                                 </div>
-                                <div class="upload-hint" id="bookshelf-file-name-text" aria-live="polite">未选择文件</div>
-                            </div>
-                            <div class="upload-progress" id="bookshelf-upload-progress"></div>
-                        </div>
-
-                        <div class="form-grid" style="margin-top: 16px;">
-                            <div class="form-group">
-                                <label class="form-label" id="bookshelf-chapter-regex-label">
-                                    <span class="label-icon">🔍</span>
-                                    章节拆分正则
-                                </label>
-                                <input id="bookshelf-chapter-regex-input" 
-                                       type="text" 
-                                       class="form-input" 
-                                       placeholder="请输入章节拆分正则表达式" 
-                                       value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$"
-                                       aria-labelledby="bookshelf-chapter-regex-label">
-                                <div class="input-hint">
-                                    <span class="hint-tag">标准章节</span>
-                                    <span class="hint-tag">Chapter X</span>
-                                    <span class="hint-tag">卷+章</span>
+                                <div class="upload-zone-right">
+                                    <div class="form-group form-group-compact">
+                                        <input id="bookshelf-chapter-regex-input" 
+                                               type="text" 
+                                               class="form-input form-input-compact" 
+                                               placeholder="章节正则"
+                                               value="^\s*第\s*[0-9零一二三四五六七八九十百千]+\s*章.*$"
+                                               aria-label="章节拆分正则">
+                                    </div>
+                                    <button class="btn btn-primary btn-compact" id="bookshelf-parse-and-save-btn">
+                                        <span class="btn-icon">✨</span>
+                                        <span class="btn-text">解析添加</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="action-buttons" style="margin-top: 16px;">
-                            <button class="btn btn-primary btn-large" id="bookshelf-parse-and-save-btn">
-                                <span class="btn-icon">✨</span>
-                                <span class="btn-text">解析并添加到书架</span>
-                                <div class="btn-shine"></div>
-                            </button>
-                        </div>
                     </div>
-                </div>
-
-                <!-- 导入/导出操作 -->
-                <div class="content-card card-compact">
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <div class="card-icon">📦</div>
-                            <div class="card-title-text">
-                                <h4>导入/导出</h4>
-                                <p class="card-subtitle">Import & Export</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="action-hints">
-                            <div class="hint-card">
-                                <span class="hint-icon" aria-hidden="true">📥</span>
-                                <span>导入小说JSON</span>
+                    
+                    <!-- 导入功能 -->
+                    <div class="content-card card-compact">
+                        <div class="card-body">
+                            <div class="import-export-row">
                                 <input id="bookshelf-import-novel-upload" type="file" accept=".json" style="display: none;">
+                                <button class="btn btn-sm btn-outline" id="bookshelf-import-novel-btn">
+                                    <span aria-hidden="true">📥</span>导入
+                                </button>
+                                <div class="import-hint">支持 .txt 文本和 .json 小说文件</div>
                             </div>
-                            <button class="btn btn-sm btn-outline" id="bookshelf-import-novel-btn">
-                                <span aria-hidden="true">📥</span>导入
-                            </button>
                         </div>
                     </div>
                 </div>
