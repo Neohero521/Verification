@@ -2892,7 +2892,7 @@ function renderBookshelf() {
     const filterTag = settings.bookshelfFilterByTag || '';
 
     if (bookshelf.length === 0) {
-        $container.removeClass('bookshelf-grid bookshelf-list').addClass('bookshelf-list');
+        $container.removeClass('bookshelf-grid bookshelf-list').addClass(`bookshelf-${viewMode}`);
         $container.html(`
             <div class="empty-state">
                 <div class="empty-icon">📚</div>

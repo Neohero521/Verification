@@ -438,7 +438,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .novel-writer-extension-root .upload-zone-compact {
@@ -452,23 +452,25 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
-    background: var(--novel-bg-elevated);
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
     border: 2px dashed var(--novel-border-color);
-    border-radius: var(--novel-radius-md);
+    border-radius: var(--novel-radius-lg);
     cursor: pointer;
-    transition: all var(--novel-transition-fast);
+    transition: all var(--novel-transition-normal);
     flex: 1;
     min-width: 0;
 }
 
 .novel-writer-extension-root .upload-zone-content-compact:hover {
     border-color: var(--novel-primary);
-    background: var(--novel-bg-hover);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .novel-writer-extension-root .upload-zone-content-compact .upload-icon {
-    font-size: 24px;
+    font-size: 28px;
     flex-shrink: 0;
 }
 
@@ -483,10 +485,11 @@
 .novel-writer-extension-root .upload-zone-content-compact .upload-main {
     font-weight: 600;
     color: var(--novel-text-primary);
+    font-size: 1rem;
 }
 
 .novel-writer-extension-root .upload-zone-content-compact .upload-sub {
-    font-size: 12px;
+    font-size: 0.85rem;
     color: var(--novel-text-secondary);
     white-space: nowrap;
     overflow: hidden;
@@ -495,8 +498,9 @@
 
 .novel-writer-extension-root .upload-zone-right {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 .novel-writer-extension-root .form-group-compact {
@@ -504,23 +508,24 @@
 }
 
 .novel-writer-extension-root .form-input-compact {
-    min-width: 150px;
-    padding: 8px 12px;
+    min-width: 140px;
+    padding: 10px 14px;
 }
 
 .novel-writer-extension-root .btn-compact {
-    padding: 8px 16px;
-    font-size: 14px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
 }
 
 .novel-writer-extension-root .import-export-row {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .novel-writer-extension-root .import-hint {
-    font-size: 12px;
+    font-size: 0.85rem;
     color: var(--novel-text-secondary);
 }
 
@@ -2022,27 +2027,29 @@
 }
 
 .novel-writer-extension-root .book-item {
-    background: var(--novel-bg-input);
+    background: var(--novel-bg-card);
     border: 1px solid var(--novel-border-color);
-    border-radius: var(--novel-radius-md);
-    padding: 16px 18px;
-    transition: all var(--novel-transition-fast);
+    border-radius: var(--novel-radius-lg);
+    padding: 20px 24px;
+    transition: all var(--novel-transition-normal);
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .novel-writer-extension-root .book-item:hover {
     border-color: var(--novel-primary);
-    background: var(--novel-bg-card-hover);
-    transform: translateX(4px);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%);
+    transform: translateX(8px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .novel-writer-extension-root .book-item.active {
     border-color: var(--novel-primary);
-    background: rgba(99, 102, 241, 0.1);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.25);
 }
 
 .novel-writer-extension-root .book-info {
@@ -2052,38 +2059,49 @@
 
 .novel-writer-extension-root .book-title {
     color: var(--novel-text-white);
-    font-weight: 600;
-    font-size: 1.05rem;
-    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.novel-writer-extension-root .book-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
 .novel-writer-extension-root .book-meta {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
 }
 
 .novel-writer-extension-root .book-meta-item {
-    font-size: 0.8rem;
-    color: var(--novel-text-muted);
+    font-size: 0.85rem;
+    color: var(--novel-text-secondary);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--novel-bg-input);
+    border-radius: var(--novel-radius-full);
 }
 
 .novel-writer-extension-root .book-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-shrink: 0;
     align-items: center;
 }
 
 .novel-writer-extension-root .btn-icon {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 10px 14px;
+    font-size: 1rem;
+    border-radius: var(--novel-radius-md);
 }
 
 /* 模态框样式 */
@@ -2491,19 +2509,19 @@
     margin-top: 4px;
 }
 
-/* 标签筛选样式 */
+/* 书架容器样式 */
 .novel-writer-extension-root .bookshelf-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
-    padding: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 12px;
 }
 
 .novel-writer-extension-root .bookshelf-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 8px;
+    gap: 16px;
+    padding: 12px;
 }
 
 /* 拖拽排序样式 */
@@ -2547,50 +2565,53 @@
 }
 
 .novel-writer-extension-root .book-grid-item {
-    background: var(--novel-bg-input);
+    background: var(--novel-bg-card);
     border: 2px solid var(--novel-border-color);
-    border-radius: var(--novel-radius-lg);
+    border-radius: var(--novel-radius-xl);
     padding: 0;
     transition: all var(--novel-transition-normal);
     overflow: hidden;
     cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .novel-writer-extension-root .book-grid-item:hover {
     border-color: var(--novel-primary);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(99, 102, 241, 0.3);
 }
 
 .novel-writer-extension-root .book-grid-item.active {
     border-color: var(--novel-primary);
-    background: rgba(99, 102, 241, 0.05);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(6, 182, 212, 0.05) 100%);
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.3);
 }
 
 .novel-writer-extension-root .book-cover-placeholder {
     width: 100%;
-    height: 140px;
-    background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-secondary) 100%);
+    height: 160px;
+    background: linear-gradient(135deg, var(--novel-primary-dark) 0%, var(--novel-primary) 50%, var(--novel-secondary) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 .novel-writer-extension-root .book-cover-icon {
-    font-size: 3.5rem;
-    opacity: 0.9;
+    font-size: 4rem;
+    opacity: 0.95;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .novel-writer-extension-root .book-grid-info {
-    padding: 14px;
+    padding: 16px;
 }
 
 .novel-writer-extension-root .book-grid-title {
     color: var(--novel-text-white);
-    font-weight: 600;
-    font-size: 0.95rem;
-    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2598,19 +2619,18 @@
 }
 
 .novel-writer-extension-root .book-grid-meta {
-    font-size: 0.75rem;
-    color: var(--novel-text-muted);
-    margin-bottom: 3px;
+    font-size: 0.8rem;
+    color: var(--novel-text-secondary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .novel-writer-extension-root .book-grid-actions {
-    padding: 0 14px 14px;
+    padding: 0 16px 16px;
     display: flex;
-    justify-content: center;
-}
-
-.novel-writer-extension-root .book-grid-actions .btn {
-    flex: 1;
+    gap: 8px;
 }
 
 /* 悬浮球焦点样式 */
@@ -2843,8 +2863,137 @@
     }
 }
 
-/* 移动端触摸目标优化 */
+/* 移动端全面优化 */
 @media (max-width: 768px) {
+    /* 主面板尺寸优化 */
+    .novel-writer-extension-root .writer-panel {
+        width: 100%;
+        height: 100vh;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        top: 0;
+        left: 0;
+        transform: none;
+    }
+    
+    .novel-writer-extension-root .writer-panel.show {
+        transform: none;
+    }
+    
+    /* 优化面板头部 */
+    .novel-writer-extension-root .panel-header {
+        padding: 16px;
+    }
+    
+    .novel-writer-extension-root .panel-tab-item {
+        padding: 14px 12px;
+        font-size: 0.85rem;
+    }
+    
+    /* 书架网格响应式 */
+    .novel-writer-extension-root .bookshelf-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+        padding: 8px;
+    }
+    
+    /* 书架卡片移动端优化 */
+    .novel-writer-extension-root .book-grid-item {
+        border-radius: var(--novel-radius-lg);
+    }
+    
+    .novel-writer-extension-root .book-cover-placeholder {
+        height: 130px;
+    }
+    
+    .novel-writer-extension-root .book-cover-icon {
+        font-size: 3rem;
+    }
+    
+    .novel-writer-extension-root .book-grid-info {
+        padding: 12px;
+    }
+    
+    .novel-writer-extension-root .book-grid-title {
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+    
+    /* 列表视图移动端优化 */
+    .novel-writer-extension-root .bookshelf-list {
+        gap: 12px;
+        padding: 8px;
+    }
+    
+    .novel-writer-extension-root .book-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .novel-writer-extension-root .book-actions {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .novel-writer-extension-root .book-title {
+        font-size: 1rem;
+    }
+    
+    .novel-writer-extension-root .book-meta-item {
+        font-size: 0.75rem;
+        padding: 3px 8px;
+    }
+    
+    /* 上传区域移动端优化 */
+    .novel-writer-extension-root .upload-zone-compact {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .novel-writer-extension-root .upload-zone-content-compact {
+        padding: 14px;
+    }
+    
+    .novel-writer-extension-root .upload-zone-right {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .novel-writer-extension-root .form-group-compact {
+        flex: 1;
+    }
+    
+    .novel-writer-extension-root .form-input-compact {
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .novel-writer-extension-root .btn-compact {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    /* 书架头部优化 */
+    .novel-writer-extension-root .card-list .card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .novel-writer-extension-root .card-actions {
+        flex-wrap: wrap;
+        justify-content: stretch;
+    }
+    
+    .novel-writer-extension-root .card-actions > * {
+        flex: 1;
+        min-width: 0;
+    }
+    
     /* 增大触摸目标 */
     .novel-writer-extension-root .btn,
     .novel-writer-extension-root .panel-tab-item {
@@ -2855,6 +3004,7 @@
     .novel-writer-extension-root .form-input,
     .novel-writer-extension-root .form-select {
         min-height: 44px;
+        font-size: 16px;
     }
     
     /* 增大焦点区域 */
@@ -2872,6 +3022,52 @@
     .novel-writer-extension-root .slider::-webkit-slider-thumb {
         width: 28px;
         height: 28px;
+    }
+    
+    /* 标签筛选优化 */
+    .novel-writer-extension-root .bookshelf-tag-filter {
+        padding: 12px;
+    }
+    
+    /* 批量操作栏优化 */
+    .novel-writer-extension-root .bookshelf-batch-bar {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+}
+
+/* 小屏幕进一步优化 */
+@media (max-width: 480px) {
+    .novel-writer-extension-root .bookshelf-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 6px;
+    }
+    
+    .novel-writer-extension-root .book-cover-placeholder {
+        height: 120px;
+    }
+    
+    .novel-writer-extension-root .panel-tab-item {
+        padding: 12px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .novel-writer-extension-root .panel-tab-item .tab-icon {
+        font-size: 1.1rem;
+    }
+    
+    .novel-writer-extension-root .panel-tab-item .tab-text {
+        display: none;
+    }
+    
+    .novel-writer-extension-root .card-header {
+        padding: 14px 16px;
+    }
+    
+    .novel-writer-extension-root .card-body {
+        padding: 16px;
     }
 }
 
